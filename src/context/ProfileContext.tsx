@@ -105,7 +105,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Login / Create Account
+  // Login / Register Account
   const login = (inputName: string): { success: boolean; error?: string } => {
     const trimmed = inputName.trim();
     if (!trimmed) {
@@ -114,25 +114,32 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const lower = trimmed.toLowerCase();
     const accountsMap = getRegisteredAccountsMap();
-    const registeredUsernames = Object.values(accountsMap).map((a) => a.username.toLowerCase());
 
-    // Check if it's the Developer Name: Shiro Anna
-    if (lower === 'shiro anna') {
-      // Find if Shiro Anna account already exists
-      const existingDev = Object.values(accountsMap).find((a) => a.username.toLowerCase() === 'shiro anna');
-      if (existingDev) {
-        saveProfile(existingDev);
-        return { success: true };
+    // 1. Check if user with this username (case-insensitive) already exists in registered accounts database
+    const existingUser = Object.values(accountsMap).find((a) => a.username.toLowerCase() === lower);
+
+    if (existingUser) {
+      // Log in to existing user account directly!
+      if (!existingUser.avatar || existingUser.avatar === '/assets/avatar.png' || existingUser.avatar.trim() === '') {
+        existingUser.avatar = BOT_DEFAULT_AVATAR;
       }
+      saveProfile(existingUser);
+      ActivityService.logActivity('login', 'Login Akun', `${existingUser.username} (${existingUser.id}) berhasil login.`);
+      return { success: true };
+    }
 
-      // Create new Developer account
-      const formattedDate = new Date().toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      });
+    // 2. Register new account if not exists
+    const isDevName = lower === 'shiro anna';
+    const formattedDate = new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
 
-      const devAccount: UserAccount = {
+    let newAccount: UserAccount;
+
+    if (isDevName) {
+      newAccount = {
         id: '#1',
         username: 'Shiro Anna',
         role: 'Developer',
@@ -143,41 +150,25 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         win: 0,
         lose: 0,
       };
+    } else {
+      const nextIdNum = getNextPlayerId();
+      incrementNextPlayerId();
 
-      saveProfile(devAccount);
-      ActivityService.logActivity('login', 'Login Akun', `Shiro Anna (#1) berhasil login sebagai Developer.`);
-      return { success: true };
+      newAccount = {
+        id: `#${nextIdNum}`,
+        username: trimmed,
+        role: 'Trainer',
+        avatar: BOT_DEFAULT_AVATAR,
+        createdAt: formattedDate,
+        coins: 1000,
+        totalGame: 0,
+        win: 0,
+        lose: 0,
+      };
     }
-
-    // If trying to use a reserved name or already taken username
-    if (RESERVED_NAMES.includes(lower) || registeredUsernames.includes(lower)) {
-      return { success: false, error: 'Nama sudah dipakai.' };
-    }
-
-    // Create new Trainer account
-    const formattedDate = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
-    const nextIdNum = getNextPlayerId();
-    incrementNextPlayerId();
-
-    const newAccount: UserAccount = {
-      id: `#${nextIdNum}`,
-      username: trimmed,
-      role: 'Trainer',
-      avatar: BOT_DEFAULT_AVATAR,
-      createdAt: formattedDate,
-      coins: 1000,
-      totalGame: 0,
-      win: 0,
-      lose: 0,
-    };
 
     saveProfile(newAccount);
-    ActivityService.logActivity('login', 'Login / Register', `${trimmed} (${newAccount.id}) berhasil masuk ke aplikasi.`);
+    ActivityService.logActivity('login', 'Register & Login', `${newAccount.username} (${newAccount.id}) berhasil mendaftar dan masuk.`);
     return { success: true };
   };
 

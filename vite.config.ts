@@ -14,14 +14,16 @@ function cloudflareApiDevPlugin(): Plugin {
 
         const startTime = Date.now();
         const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+        const cleanPath = reqUrl.pathname.replace(/\/$/, '') || '/';
         const apiKey = process.env.NAZE_API_KEY || 'nz-880c23d4fd';
 
-        if (reqUrl.pathname === '/api/search') {
+        if (cleanPath === '/api/search') {
           const searchQuery = reqUrl.searchParams.get('query');
           if (!searchQuery) {
             const duration = Date.now() - startTime;
             res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(
               JSON.stringify({
                 error: 'Parameter query diperlukan',
@@ -62,6 +64,7 @@ function cloudflareApiDevPlugin(): Plugin {
             const duration = Date.now() - startTime;
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(
               JSON.stringify({
                 error: err.message || 'Worker fetch failed in Vite Dev Server',
@@ -78,8 +81,8 @@ function cloudflareApiDevPlugin(): Plugin {
           return;
         }
 
-        if (reqUrl.pathname === '/api/download/audio' || reqUrl.pathname === '/api/download/video') {
-          const isAudio = reqUrl.pathname === '/api/download/audio';
+        if (cleanPath === '/api/download/audio' || cleanPath === '/api/download/video') {
+          const isAudio = cleanPath === '/api/download/audio';
           const mediaUrl = reqUrl.searchParams.get('url');
           const format = isAudio ? 'mp3' : '720';
 
@@ -87,11 +90,12 @@ function cloudflareApiDevPlugin(): Plugin {
             const duration = Date.now() - startTime;
             res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(
               JSON.stringify({
                 error: 'Parameter url diperlukan',
                 debug: {
-                  endpoint: reqUrl.pathname,
+                  endpoint: cleanPath,
                   workerStatus: 'Active (Vite Cloudflare Proxy)',
                   responseStatus: 400,
                   responseTime: `${duration}ms`,
@@ -127,11 +131,12 @@ function cloudflareApiDevPlugin(): Plugin {
             const duration = Date.now() - startTime;
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(
               JSON.stringify({
                 error: err.message || 'Worker download fetch failed in Vite Dev Server',
                 debug: {
-                  endpoint: reqUrl.pathname,
+                  endpoint: cleanPath,
                   workerStatus: 'Error (Vite Dev Server Exception)',
                   responseStatus: 500,
                   responseTime: `${duration}ms`,
@@ -143,7 +148,22 @@ function cloudflareApiDevPlugin(): Plugin {
           return;
         }
 
-        next();
+        // Return JSON 404 for any unhandled /api/* request so it NEVER falls back to index.html
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.end(
+          JSON.stringify({
+            error: 'Endpoint API tidak ditemukan',
+            debug: {
+              endpoint: reqUrl.pathname,
+              workerStatus: 'Active (Vite Dev Fallback)',
+              responseStatus: 404,
+              provider: 'Cloudflare Worker Dev Proxy',
+            },
+          })
+        );
+        return;
       });
     },
   };
