@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Send, Sparkles, User, CheckCheck, Clock } from 'lucide-react';
 import { Friend, DirectMessage } from '../types';
 import { ChatService, TypingCallbackStatus } from '../services/ChatService';
+import { BotAvatar } from './BotAvatar';
 
 interface RoomChatViewProps {
   friend: Friend;
@@ -81,13 +82,13 @@ export const RoomChatView: React.FC<RoomChatViewProps> = ({ friend, onBack }) =>
           </button>
 
           <div className="relative">
-            <img
+            <BotAvatar
               src={friend.avatar}
               alt={friend.username}
-              className="w-10 h-10 rounded-full object-cover border border-slate-700 shadow"
+              className="w-10 h-10 border border-slate-700 shadow"
             />
             <span
-              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${getStatusColor(
+              className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 z-10 ${getStatusColor(
                 friend.status
               )}`}
             ></span>
@@ -131,10 +132,10 @@ export const RoomChatView: React.FC<RoomChatViewProps> = ({ friend, onBack }) =>
                 className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} animate-fadeIn`}
               >
                 {!isMe && (
-                  <img
+                  <BotAvatar
                     src={friend.avatar}
                     alt={friend.username}
-                    className="w-7 h-7 rounded-full object-cover border border-slate-700 flex-shrink-0"
+                    className="w-7 h-7 border border-slate-700"
                   />
                 )}
 

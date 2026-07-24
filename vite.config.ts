@@ -12,15 +12,28 @@ function cloudflareApiDevPlugin(): Plugin {
           return next();
         }
 
+        const startTime = Date.now();
         const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
         const apiKey = process.env.NAZE_API_KEY || 'nz-880c23d4fd';
 
-        if (reqUrl.pathname === '/api/naze-search') {
+        if (reqUrl.pathname === '/api/search') {
           const searchQuery = reqUrl.searchParams.get('query');
           if (!searchQuery) {
+            const duration = Date.now() - startTime;
             res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Parameter query diperlukan' }));
+            res.end(
+              JSON.stringify({
+                error: 'Parameter query diperlukan',
+                debug: {
+                  endpoint: '/api/search',
+                  workerStatus: 'Active (Vite Cloudflare Proxy)',
+                  responseStatus: 400,
+                  responseTime: `${duration}ms`,
+                  provider: 'Naze API Search',
+                },
+              })
+            );
             return;
           }
 
@@ -37,6 +50,7 @@ function cloudflareApiDevPlugin(): Plugin {
               },
             });
 
+            const duration = Date.now() - startTime;
             const status = apiRes.status;
             const bodyText = await apiRes.text();
 
@@ -45,26 +59,46 @@ function cloudflareApiDevPlugin(): Plugin {
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(bodyText);
           } catch (err: any) {
+            const duration = Date.now() - startTime;
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.end(
               JSON.stringify({
                 error: err.message || 'Worker fetch failed in Vite Dev Server',
-                type: 'Vite Dev Proxy Exception',
+                debug: {
+                  endpoint: '/api/search',
+                  workerStatus: 'Error (Vite Dev Server Exception)',
+                  responseStatus: 500,
+                  responseTime: `${duration}ms`,
+                  provider: 'Cloudflare Worker Dev Proxy',
+                },
               })
             );
           }
           return;
         }
 
-        if (reqUrl.pathname === '/api/naze-download') {
+        if (reqUrl.pathname === '/api/download/audio' || reqUrl.pathname === '/api/download/video') {
+          const isAudio = reqUrl.pathname === '/api/download/audio';
           const mediaUrl = reqUrl.searchParams.get('url');
-          const format = reqUrl.searchParams.get('format') || 'mp3';
+          const format = isAudio ? 'mp3' : '720';
 
           if (!mediaUrl) {
+            const duration = Date.now() - startTime;
             res.statusCode = 400;
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ error: 'Parameter url diperlukan' }));
+            res.end(
+              JSON.stringify({
+                error: 'Parameter url diperlukan',
+                debug: {
+                  endpoint: reqUrl.pathname,
+                  workerStatus: 'Active (Vite Cloudflare Proxy)',
+                  responseStatus: 400,
+                  responseTime: `${duration}ms`,
+                  provider: `Naze API Download (${isAudio ? 'Audio' : 'Video'})`,
+                },
+              })
+            );
             return;
           }
 
@@ -81,6 +115,7 @@ function cloudflareApiDevPlugin(): Plugin {
               },
             });
 
+            const duration = Date.now() - startTime;
             const status = apiRes.status;
             const bodyText = await apiRes.text();
 
@@ -89,12 +124,19 @@ function cloudflareApiDevPlugin(): Plugin {
             res.setHeader('Access-Control-Allow-Origin', '*');
             res.end(bodyText);
           } catch (err: any) {
+            const duration = Date.now() - startTime;
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.end(
               JSON.stringify({
                 error: err.message || 'Worker download fetch failed in Vite Dev Server',
-                type: 'Vite Dev Proxy Exception',
+                debug: {
+                  endpoint: reqUrl.pathname,
+                  workerStatus: 'Error (Vite Dev Server Exception)',
+                  responseStatus: 500,
+                  responseTime: `${duration}ms`,
+                  provider: 'Cloudflare Worker Dev Proxy',
+                },
               })
             );
           }

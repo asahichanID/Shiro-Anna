@@ -22,15 +22,21 @@ import {
   HardDrive,
   Info,
   Server,
-  Terminal,
   Clock,
   Eye,
   RotateCcw,
+  Bot,
+  Image as ImageIcon,
+  Edit3,
+  Save,
 } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext';
 import { ActivityService, ActivityLog } from '../services/ActivityService';
 import { StorageService } from '../services/StorageService';
 import { ChatService } from '../services/ChatService';
+import { BotService, BotProfile } from '../services/BotService';
+import { BOT_DEFAULT_AVATAR } from '../config/constants';
+import { BotAvatar } from './BotAvatar';
 
 interface ResetModalConfig {
   isOpen: boolean;
@@ -41,7 +47,7 @@ interface ResetModalConfig {
 
 export const DeveloperPanelView: React.FC = () => {
   const { profile, updateStats } = useProfile();
-  
+
   // Access control check
   const isDeveloper =
     profile?.username.toLowerCase() === 'shiro anna' ||
@@ -49,12 +55,20 @@ export const DeveloperPanelView: React.FC = () => {
     profile?.role === 'Developer';
 
   // Sub-tab navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'logs' | 'storage' | 'system'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'logs' | 'bot' | 'storage' | 'system'>('dashboard');
 
   // Logs state
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [logSearch, setLogSearch] = useState('');
-  const [logFilterType, setLogFilterType] = useState<string>('all');
+  const [logFilterCategory, setLogFilterCategory] = useState<string>('all');
+
+  // Bot Profile Manager state
+  const [botProfile, setBotProfileState] = useState<BotProfile>(() => BotService.getBotProfile());
+  const [botNameInput, setBotNameInput] = useState(botProfile.name);
+  const [botStatusInput, setBotStatusInput] = useState(botProfile.status);
+  const [botBioInput, setBotBioInput] = useState(botProfile.bio);
+  const [botAvatarPreview, setBotAvatarPreview] = useState(botProfile.avatar);
+  const [botSuccessMsg, setBotSuccessMsg] = useState<string | null>(null);
 
   // Storage Inspector state
   const [selectedStorageKey, setSelectedStorageKey] = useState<string | null>(null);
@@ -84,39 +98,82 @@ export const DeveloperPanelView: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const unsub = BotService.onBotProfileUpdate((updated) => {
+      setBotProfileState(updated);
+      setBotNameInput(updated.name);
+      setBotStatusInput(updated.status);
+      setBotBioInput(updated.bio);
+      setBotAvatarPreview(updated.avatar);
+    });
+    return () => unsub();
+  }, []);
+
   const loadLogs = () => {
     setLogs(ActivityService.getLogs());
+  };
+
+  // Bot Profile Image File Change Handler
+  const handleBotAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran file foto terlalu besar! Maksimal 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setBotAvatarPreview(base64String);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Save Bot Profile
+  const handleSaveBotProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!botNameInput.trim()) {
+      alert('Nama bot tidak boleh kosong!');
+      return;
+    }
+
+    const updated = BotService.updateBotProfile({
+      name: botNameInput.trim(),
+      status: botStatusInput.trim() || 'Online',
+      bio: botBioInput.trim() || 'Grey Monster Tracen',
+      avatar: botAvatarPreview,
+    });
+
+    setBotSuccessMsg('Profile Bot berhasil diperbarui & disinkronkan secara GLOBAL untuk semua user!');
+    setTimeout(() => setBotSuccessMsg(null), 4000);
   };
 
   // Helper stats calculation
   const getAppStats = () => {
     const regAccountsMap = StorageService.getItem<Record<string, any>>('oguri_registered_accounts', {});
     const registeredCount = Object.keys(regAccountsMap).length;
-    const dummyUsers = StorageService.getItem<any[]>('users', []);
-    const totalUsers = Math.max(registeredCount, 1) + dummyUsers.length;
 
     const chatRooms = ChatService.getRooms();
     let totalMessagesCount = 0;
     chatRooms.forEach((r) => {
-      totalMessagesCount += (r.messages?.length || 0);
+      totalMessagesCount += r.messages?.length || 0;
     });
 
-    // Sum coins across accounts
     let totalCoins = 0;
     Object.values(regAccountsMap).forEach((acc: any) => {
       totalCoins += acc.coins || 0;
     });
-    if (profile?.coins) totalCoins = Math.max(totalCoins, profile.coins);
 
     let totalGamesPlayed = 0;
     Object.values(regAccountsMap).forEach((acc: any) => {
       totalGamesPlayed += acc.totalGame || 0;
     });
-    if (profile?.totalGame) totalGamesPlayed = Math.max(totalGamesPlayed, profile.totalGame);
 
     return {
-      totalUsers,
-      totalMessagesCount: Math.max(totalMessagesCount, 18),
+      totalUsers: registeredCount,
+      totalMessagesCount: Math.max(totalMessagesCount, 12),
       totalCoins,
       totalGamesPlayed,
     };
@@ -128,8 +185,8 @@ export const DeveloperPanelView: React.FC = () => {
   const triggerResetModal = (type: ResetModalConfig['type']) => {
     const configMap: Record<ResetModalConfig['type'], { title: string; description: string }> = {
       log: {
-        title: 'Reset Activity Log',
-        description: 'Apakah Anda yakin ingin menghapus seluruh histori Log Aktivitas? Data ini tidak dapat dikembalikan.',
+        title: 'Reset Activity Log Global',
+        description: 'Apakah Anda yakin ingin menghapus seluruh histori Log Aktivitas Global? Data ini tidak dapat dikembalikan.',
       },
       chat: {
         title: 'Reset Chat System',
@@ -145,7 +202,7 @@ export const DeveloperPanelView: React.FC = () => {
       },
       all: {
         title: '🚨 RESET SEMUA DATA (FACTORY RESET)',
-        description: 'PERINGATAN DANGER! Seluruh data aplikasi di LocalStorage (Profil, Chat, Game, Log, Coin) akan DIDELETE TOTAL!',
+        description: 'PERINGATAN DANGER! Seluruh data aplikasi di LocalStorage (Profil, Chat, Game, Log, Coin, Registered Users) akan DIDELETE TOTAL!',
       },
     };
 
@@ -163,7 +220,7 @@ export const DeveloperPanelView: React.FC = () => {
 
     if (type === 'log') {
       ActivityService.clearLogs();
-      setActionSuccess('Berhasil membersihkan seluruh Log Aktivitas.');
+      setActionSuccess('Berhasil membersihkan seluruh Log Aktivitas Global.');
     } else if (type === 'chat') {
       localStorage.removeItem('chatRooms');
       localStorage.removeItem('messages');
@@ -290,13 +347,17 @@ export const DeveloperPanelView: React.FC = () => {
 
   // Filter logs for display
   const filteredLogs = logs.filter((l) => {
-    const matchType = logFilterType === 'all' || l.type === logFilterType;
+    const matchCategory =
+      logFilterCategory === 'all' ||
+      l.category.toLowerCase().includes(logFilterCategory.toLowerCase());
     const matchQuery =
       !logSearch.trim() ||
       l.title.toLowerCase().includes(logSearch.toLowerCase()) ||
       l.detail.toLowerCase().includes(logSearch.toLowerCase()) ||
+      l.userName.toLowerCase().includes(logSearch.toLowerCase()) ||
+      l.userId.toLowerCase().includes(logSearch.toLowerCase()) ||
       l.time.toLowerCase().includes(logSearch.toLowerCase());
-    return matchType && matchQuery;
+    return matchCategory && matchQuery;
   });
 
   const getLogIcon = (type: ActivityLog['type']) => {
@@ -319,6 +380,8 @@ export const DeveloperPanelView: React.FC = () => {
       case 'download_audio':
       case 'download_video':
         return <Download className="w-4 h-4 text-blue-400" />;
+      case 'bot_update':
+        return <Bot className="w-4 h-4 text-sky-400" />;
       default:
         return <Server className="w-4 h-4 text-slate-400" />;
     }
@@ -343,7 +406,7 @@ export const DeveloperPanelView: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-slate-300">
-                Pusat kontrol sistem, pemantau aktivitas, inspector storage, dan manajemen resetting.
+                Pusat kontrol sistem, pemantau aktivitas global, bot profile manager, dan reset controls.
               </p>
             </div>
           </div>
@@ -398,7 +461,19 @@ export const DeveloperPanelView: React.FC = () => {
           }`}
         >
           <Clock className="w-3.5 h-3.5" />
-          <span>Activity Log ({logs.length})</span>
+          <span>Global History Log ({logs.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('bot')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'bot'
+              ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md'
+              : 'text-sky-300 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span>Bot Profile Manager</span>
         </button>
 
         <button
@@ -446,8 +521,11 @@ export const DeveloperPanelView: React.FC = () => {
 
               <div className="flex items-center space-x-4">
                 <img
-                  src={profile?.avatar || '/assets/avatar.png'}
+                  src={profile?.avatar && profile.avatar !== '/assets/avatar.png' ? profile.avatar : BOT_DEFAULT_AVATAR}
                   alt="Dev Avatar"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = BOT_DEFAULT_AVATAR;
+                  }}
                   className="w-16 h-16 rounded-2xl border-2 border-indigo-500 object-cover shadow-md flex-shrink-0"
                 />
                 <div className="space-y-1">
@@ -505,7 +583,7 @@ export const DeveloperPanelView: React.FC = () => {
                   <span className="font-bold text-slate-200">Oguri Cap Bot & Social Simulator</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-800/60">
-                  <span className="text-slate-400">Jumlah Akun User:</span>
+                  <span className="text-slate-400">Jumlah User Terdaftar:</span>
                   <span className="font-bold text-indigo-300">{appStats.totalUsers} User</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-800/60">
@@ -525,68 +603,12 @@ export const DeveloperPanelView: React.FC = () => {
 
           </div>
 
-          {/* System Status Panel */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
-                <Server className="w-4 h-4 text-emerald-400" />
-                <span>System Status Monitor</span>
-              </h3>
-              <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-                Healthy
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center space-x-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <div>
-                  <p className="text-xs font-bold text-white">Local Storage</p>
-                  <p className="text-[10px] text-emerald-400 font-medium">Normal / Ready</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center space-x-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <div>
-                  <p className="text-xs font-bold text-white">Chat System</p>
-                  <p className="text-[10px] text-emerald-400 font-medium">Online (LocalStorage)</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center space-x-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <div>
-                  <p className="text-xs font-bold text-white">Tebak Kata Engine</p>
-                  <p className="text-[10px] text-emerald-400 font-medium">Soal Ready (Local DB)</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center space-x-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <div>
-                  <p className="text-xs font-bold text-white">Music Player</p>
-                  <p className="text-[10px] text-emerald-400 font-medium">API Ready (Naze.biz)</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex items-center space-x-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <div>
-                  <p className="text-xs font-bold text-white">Database Integrity</p>
-                  <p className="text-[10px] text-emerald-400 font-medium">Synced</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Quick Recent Activity Stream */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
                 <Activity className="w-4 h-4 text-sky-400" />
-                <span>Aktivitas Terbaru</span>
+                <span>Aktivitas Terbaru Global</span>
               </h3>
               <button
                 onClick={() => setActiveTab('logs')}
@@ -610,7 +632,14 @@ export const DeveloperPanelView: React.FC = () => {
                         {getLogIcon(log.type)}
                       </div>
                       <div>
-                        <p className="font-bold text-white">{log.title}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sky-300 font-mono">{log.userId}</span>
+                          <span className="font-bold text-white">{log.userName}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30">
+                            {log.category}
+                          </span>
+                        </div>
+                        <p className="text-slate-300 text-xs mt-0.5">{log.title}</p>
                         <p className="text-slate-400 text-[11px]">{log.detail}</p>
                       </div>
                     </div>
@@ -623,17 +652,17 @@ export const DeveloperPanelView: React.FC = () => {
         </div>
       )}
 
-      {/* ===================== TAB 2: ACTIVITY LOGS ===================== */}
+      {/* ===================== TAB 2: GLOBAL HISTORY LOG ===================== */}
       {activeTab === 'logs' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div>
               <h3 className="text-sm font-extrabold text-white flex items-center gap-2">
                 <Clock className="w-4 h-4 text-sky-400" />
-                <span>Activity Monitor & History Log</span>
+                <span>Global Activity Monitor & History Log</span>
               </h3>
               <p className="text-xs text-slate-400">
-                Pencatatan aktivitas otomatis (Login, Profil, Tebak Kata, Coin, Music) secara real-time.
+                Pencatatan aktivitas otomatis seluruh user (Nama, ID, Waktu, Aktivitas, Kategori) secara real-time.
               </p>
             </div>
 
@@ -652,7 +681,7 @@ export const DeveloperPanelView: React.FC = () => {
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
               <input
                 type="text"
-                placeholder="Cari histori log berdasarkan judul atau detail..."
+                placeholder="Cari berdasarkan Nama User, ID (#1), Judul, atau Detail..."
                 value={logSearch}
                 onChange={(e) => setLogSearch(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
@@ -660,18 +689,19 @@ export const DeveloperPanelView: React.FC = () => {
             </div>
 
             <select
-              value={logFilterType}
-              onChange={(e) => setLogFilterType(e.target.value)}
+              value={logFilterCategory}
+              onChange={(e) => setLogFilterCategory(e.target.value)}
               className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-sky-500 w-full sm:w-auto"
             >
-              <option value="all">Semua Jenis Log</option>
-              <option value="login">Login / Profile</option>
-              <option value="game_start">Mulai Game</option>
-              <option value="game_win">Menang Game</option>
-              <option value="game_lose">Kalah Game</option>
-              <option value="coin_earned">Carrot Coin</option>
-              <option value="music_play">Memutar Lagu</option>
-              <option value="download_audio">Download Audio/Video</option>
+              <option value="all">Semua Kategori</option>
+              <option value="Auth">Auth & Profile</option>
+              <option value="Game">Game (Tebak Kata)</option>
+              <option value="Coins">Carrot Coins</option>
+              <option value="Music">Music & Play</option>
+              <option value="Bot Profile">Bot Profile</option>
+              <option value="Friends">Friends</option>
+
+              <option value="System">System</option>
             </select>
           </div>
 
@@ -693,16 +723,18 @@ export const DeveloperPanelView: React.FC = () => {
                       {getLogIcon(log.type)}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-white">{log.title}</p>
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700 uppercase">
-                          {log.type}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-bold text-sky-300">{log.userId}</span>
+                        <span className="font-extrabold text-white">{log.userName}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-500/30 font-semibold">
+                          {log.category}
                         </span>
+                        <span className="text-[10px] font-mono text-slate-400">| {log.time}</span>
                       </div>
+                      <p className="font-bold text-slate-100 mt-1">{log.title}</p>
                       <p className="text-slate-300 text-xs mt-0.5">{log.detail}</p>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-500 whitespace-nowrap font-mono">{log.time}</span>
                 </div>
               ))}
             </div>
@@ -710,7 +742,176 @@ export const DeveloperPanelView: React.FC = () => {
         </div>
       )}
 
-      {/* ===================== TAB 3: STORAGE INSPECTOR ===================== */}
+      {/* ===================== TAB 3: BOT PROFILE MANAGER ===================== */}
+      {activeTab === 'bot' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="pb-3 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                <Bot className="w-5 h-5 text-sky-400" />
+                <span>Bot Profile Manager (Global Synchronization)</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Ubah Nama, Foto Profile, Status, dan Bio Bot. Seluruh user secara otomatis melihat profile bot yang baru secara permanen!
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+              Synced Globally
+            </span>
+          </div>
+
+          {botSuccessMsg && (
+            <div className="bg-emerald-950/80 border border-emerald-500/50 rounded-xl p-4 text-emerald-300 text-xs font-semibold flex items-center gap-2 shadow-lg animate-fadeIn">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+              <span>{botSuccessMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveBotProfile} className="space-y-6">
+            
+            {/* Live Bot Preview Card */}
+            <div className="bg-slate-950 border border-sky-500/30 rounded-2xl p-5 shadow-inner flex flex-col sm:flex-row items-center gap-5">
+              <div className="relative group flex-shrink-0">
+                <BotAvatar
+                  src={botAvatarPreview}
+                  alt="Bot Preview"
+                  className="w-24 h-24"
+                  imgClassName="border-2 border-sky-400 shadow-lg shadow-sky-500/20"
+                />
+                <label className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10">
+                  <ImageIcon className="w-6 h-6 text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBotAvatarFileChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              <div className="space-y-2 text-center sm:text-left flex-1">
+                <div className="flex items-center justify-center sm:justify-start gap-2">
+                  <h4 className="text-lg font-black text-white">{botNameInput || 'Oguri Cap'}</h4>
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
+                    {botStatusInput || 'Online'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed max-w-lg">
+                  "{botBioInput || 'Siap membantu Trainer!'}"
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Preview Tampilan Bot yang akan dilihat oleh seluruh Trainer & User di aplikasi.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              
+              {/* Field 1: Bot Name */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Edit3 className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Nama Bot</span>
+                </label>
+                <input
+                  type="text"
+                  value={botNameInput}
+                  onChange={(e) => setBotNameInput(e.target.value)}
+                  placeholder="Contoh: Oguri Cap 🐎"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none"
+                />
+              </div>
+
+              {/* Field 2: Bot Status */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Status Bot</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={['Online', 'Sedang Mengetik', 'Sedang Bermain', 'Sedang Tidur'].includes(botStatusInput) ? botStatusInput : 'custom'}
+                    onChange={(e) => {
+                      if (e.target.value !== 'custom') {
+                        setBotStatusInput(e.target.value);
+                      }
+                    }}
+                    className="bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+                  >
+                    <option value="Online">Online</option>
+                    <option value="Sedang Mengetik">Sedang Mengetik</option>
+                    <option value="Sedang Bermain">Sedang Bermain</option>
+                    <option value="Sedang Tidur">Sedang Tidur</option>
+                    <option value="custom">Status Custom...</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    value={botStatusInput}
+                    onChange={(e) => setBotStatusInput(e.target.value)}
+                    placeholder="Status custom..."
+                    className="flex-1 bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Field 3: Bot Photo File Picker */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Foto Profile Bot (File Upload)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBotAvatarFileChange}
+                    className="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer bg-slate-950 border border-slate-800 rounded-xl"
+                  />
+                  {botAvatarPreview && (
+                    <button
+                      type="button"
+                      onClick={() => setBotAvatarPreview(BOT_DEFAULT_AVATAR)}
+                      className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl flex-shrink-0 cursor-pointer"
+                    >
+                      Reset Default Avatar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Field 4: Bot Bio */}
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Bio / Deskripsi Bot</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={botBioInput}
+                  onChange={(e) => setBotBioInput(e.target.value)}
+                  placeholder="Ketik deskripsi atau bio bot di sini..."
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-xl p-3 text-xs text-white focus:outline-none"
+                />
+              </div>
+
+            </div>
+
+            <div className="pt-2 text-right">
+              <button
+                type="submit"
+                className="bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-extrabold px-6 py-3 rounded-xl text-xs shadow-lg shadow-sky-500/20 transition-all flex items-center gap-2 ml-auto cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                <span>Simpan & Sinkronisasi Profile Bot</span>
+              </button>
+            </div>
+
+          </form>
+        </div>
+      )}
+
+      {/* ===================== TAB 4: STORAGE INSPECTOR ===================== */}
       {activeTab === 'storage' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="pb-3 border-b border-slate-800">
@@ -725,6 +926,30 @@ export const DeveloperPanelView: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             
+            {/* Storage Item Card: Bot Profile */}
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <Bot className="w-4 h-4" />
+                  <span>oguri_bot_profile</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 font-bold">
+                  Active Bot
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">Konfigurasi foto, nama, status, dan bio bot global.</p>
+              <button
+                onClick={() => {
+                  setSelectedStorageKey('oguri_bot_profile');
+                  setStorageModalContent(StorageService.getItem('oguri_bot_profile', {}));
+                }}
+                className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Lihat Detail Card</span>
+              </button>
+            </div>
+
             {/* Storage Item Card: User Profile */}
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
@@ -845,35 +1070,11 @@ export const DeveloperPanelView: React.FC = () => {
               </button>
             </div>
 
-            {/* Storage Item Card: Game Database */}
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                  <Gamepad2 className="w-4 h-4" />
-                  <span>tebak_kata_game</span>
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
-                  Engine Ready
-                </span>
-              </div>
-              <p className="text-xs text-slate-300">Status sesi permainan Tebak Kata aktif.</p>
-              <button
-                onClick={() => {
-                  setSelectedStorageKey('tebak_kata_game');
-                  setStorageModalContent(StorageService.getItem('tebak_kata_game', {}));
-                }}
-                className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold rounded-lg flex items-center justify-center gap-1"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Lihat Detail Card</span>
-              </button>
-            </div>
-
           </div>
         </div>
       )}
 
-      {/* ===================== TAB 4: RESET CONTROLS ===================== */}
+      {/* ===================== TAB 5: RESET CONTROLS ===================== */}
       {activeTab === 'system' && (
         <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-5 shadow-xl space-y-6">
           <div className="pb-3 border-b border-slate-800">

@@ -3,6 +3,8 @@ import { Search, UserPlus, Users, MessageSquare, Check, Sparkles, Clock, Compass
 import { AppUser, Friend } from '../types';
 import { FriendService } from '../services/FriendService';
 import { RoomChatView } from './RoomChatView';
+import { BotAvatar } from './BotAvatar';
+import { BOT_DEFAULT_AVATAR } from '../config/constants';
 
 export const FriendsView: React.FC = () => {
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -149,10 +151,10 @@ export const FriendsView: React.FC = () => {
                     className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between shadow hover:border-slate-700 transition-all"
                   >
                     <div className="flex items-center space-x-3 overflow-hidden">
-                      <img
+                      <BotAvatar
                         src={user.avatar}
                         alt={user.username}
-                        className="w-10 h-10 rounded-full object-cover border border-slate-700 flex-shrink-0"
+                        className="w-10 h-10 border border-slate-700"
                       />
                       <div className="truncate">
                         <h4 className="font-bold text-slate-200 text-xs sm:text-sm truncate">{user.username}</h4>
@@ -217,13 +219,13 @@ export const FriendsView: React.FC = () => {
               >
                 <div className="flex items-center space-x-3 min-w-0 pr-2">
                   <div className="relative flex-shrink-0">
-                    <img
+                    <BotAvatar
                       src={friend.avatar}
                       alt={friend.username}
-                      className="w-11 h-11 rounded-full object-cover border border-slate-700 group-hover:border-sky-400 transition-colors"
+                      className="w-11 h-11 border border-slate-700 group-hover:border-sky-400 transition-colors"
                     />
                     <span
-                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-950 ${
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-950 z-10 ${
                         friend.status === 'Online'
                           ? 'bg-emerald-400'
                           : friend.status === 'Away'
@@ -288,10 +290,10 @@ export const FriendsView: React.FC = () => {
                   className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between shadow hover:border-slate-700 transition-all"
                 >
                   <div className="flex items-center space-x-3 overflow-hidden">
-                    <img
+                    <BotAvatar
                       src={rec.avatar}
                       alt={rec.username}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-700 flex-shrink-0"
+                      className="w-10 h-10 border border-slate-700"
                     />
                     <div className="truncate">
                       <h4 className="font-bold text-slate-200 text-xs sm:text-sm truncate">{rec.username}</h4>

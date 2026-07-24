@@ -178,7 +178,7 @@ export const MusicPlayViewer: React.FC = () => {
     const apiKeyStatus = 'Tersedia di Environment Cloudflare Worker';
 
     try {
-      const proxyPath = `/api/naze-search?query=${encodeURIComponent(searchQuery)}`;
+      const proxyPath = `/api/search?query=${encodeURIComponent(searchQuery)}`;
       const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
 
       try {
@@ -194,23 +194,23 @@ export const MusicPlayViewer: React.FC = () => {
           data = parsed;
         } else {
           debugAttempts.push({
-            stepName: 'Cloudflare Worker Request (/api/naze-search)',
+            stepName: 'Cloudflare Worker Request (/api/search)',
             requestUrl: proxyFullUrl,
             httpStatus: status,
             errorMessage: parsed?.error || `HTTP Status ${status}`,
             responseBody: bodyText || '(Empty Response)',
-            provider: 'Cloudflare Worker / Pages Function (/api/naze-search)',
+            provider: parsed?.debug?.provider || 'Cloudflare Worker / Pages Function (/api/search)',
             apiKeyStatus,
           });
         }
       } catch (e1: any) {
         debugAttempts.push({
-          stepName: 'Cloudflare Worker Request (/api/naze-search)',
+          stepName: 'Cloudflare Worker Request (/api/search)',
           requestUrl: proxyFullUrl,
           httpStatus: '0 / Fetch Exception (Worker/Network)',
           errorMessage: e1.message || 'Fetch to worker endpoint failed',
           responseBody: '(Failed before receiving response - Worker route unhandled or network error)',
-          provider: 'Cloudflare Worker / Pages Function (/api/naze-search)',
+          provider: 'Cloudflare Worker / Pages Function (/api/search)',
           apiKeyStatus,
         });
       }
@@ -298,7 +298,8 @@ export const MusicPlayViewer: React.FC = () => {
     try {
       let data: any = null;
 
-      const proxyPath = `/api/naze-download?url=${encodeURIComponent(youtubeUrl)}&format=${format}`;
+      const endpointPath = type === 'audio' ? '/api/download/audio' : '/api/download/video';
+      const proxyPath = `${endpointPath}?url=${encodeURIComponent(youtubeUrl)}`;
       const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
 
       try {
@@ -314,23 +315,23 @@ export const MusicPlayViewer: React.FC = () => {
           data = parsed;
         } else {
           debugAttempts.push({
-            stepName: 'Cloudflare Worker Request (/api/naze-download)',
+            stepName: `Cloudflare Worker Request (${endpointPath})`,
             requestUrl: proxyFullUrl,
             httpStatus: status,
             errorMessage: parsed?.error || `HTTP Status ${status}`,
             responseBody: bodyText || '(Empty Response)',
-            provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
+            provider: parsed?.debug?.provider || `Cloudflare Worker / Pages Function (${endpointPath})`,
             apiKeyStatus,
           });
         }
       } catch (e1: any) {
         debugAttempts.push({
-          stepName: 'Cloudflare Worker Request (/api/naze-download)',
+          stepName: `Cloudflare Worker Request (${endpointPath})`,
           requestUrl: proxyFullUrl,
           httpStatus: '0 / Fetch Exception (Worker/Network)',
           errorMessage: e1.message || 'Fetch to worker endpoint failed',
           responseBody: '(Failed before receiving response - Worker route unhandled or network error)',
-          provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
+          provider: `Cloudflare Worker / Pages Function (${endpointPath})`,
           apiKeyStatus,
         });
       }
@@ -343,7 +344,7 @@ export const MusicPlayViewer: React.FC = () => {
             httpStatus: '200 OK (Missing result field)',
             errorMessage: `Respon API tidak memberikan field result untuk media ${type}.`,
             responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
-            provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
+            provider: `Cloudflare Worker / Pages Function (${endpointPath})`,
             apiKeyStatus,
           });
         }
@@ -361,7 +362,7 @@ export const MusicPlayViewer: React.FC = () => {
           httpStatus: '200 OK',
           errorMessage: `API tidak mengembalikan link download ${type} yang valid dalam object result.`,
           responseBody: JSON.stringify(resObj, null, 2).substring(0, 1000),
-          provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
+          provider: `Cloudflare Worker / Pages Function (${endpointPath})`,
           apiKeyStatus,
         });
         setMediaDebugList(debugAttempts);

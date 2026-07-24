@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trophy, Coins, Zap, HelpCircle, Gamepad2, Database, ShieldCheck, Music, User, Sparkles, Users, Wrench } from 'lucide-react';
 import { ProjectDownloadButton } from './ProjectDownloadButton';
 import { useProfile } from '../context/ProfileContext';
+import { BotService, BotProfile } from '../services/BotService';
+import { BotAvatar } from './BotAvatar';
+import { BOT_DEFAULT_AVATAR } from '../config/constants';
 
 export type HeaderTab = 'chat' | 'play' | 'friends' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
 
@@ -25,6 +28,15 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
   const { profile } = useProfile();
   const isDeveloper = profile?.role === 'Developer' || profile?.username.toLowerCase() === 'shiro anna';
 
+  const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfile());
+
+  useEffect(() => {
+    const unsub = BotService.onBotProfileUpdate((updated) => {
+      setBotProfile(updated);
+    });
+    return () => unsub();
+  }, []);
+
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50 backdrop-blur-md bg-slate-900/90 shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -32,16 +44,15 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
           
           {/* Logo & Persona Badge */}
           <div className="flex items-center space-x-3">
-            <div className="relative cursor-pointer" onClick={() => setActiveTab('chat')}>
-              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-600 to-purple-600 p-0.5 shadow-md shadow-sky-500/20 overflow-hidden">
-                <img
-                  src="/assets/avatar.png"
-                  alt="Oguri Cap"
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full rounded-full object-cover"
-                />
-              </div>
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full flex items-center justify-center">
+            <div className="relative cursor-pointer group" onClick={() => setActiveTab('chat')}>
+              <BotAvatar
+                src={botProfile.avatar}
+                alt={botProfile.name}
+                className="w-11 h-11"
+                imgClassName="group-hover:scale-105 transition-transform"
+                showGlow={true}
+              />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-slate-900 rounded-full flex items-center justify-center z-10">
                 <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span>
               </span>
             </div>
@@ -49,15 +60,15 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-sky-300 via-indigo-200 to-white bg-clip-text text-transparent">
-                  Oguri Cap • Musume Bot
+                  {botProfile.name}
                 </h1>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
-                  Oguri Cap v2.0
+                  {botProfile.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                Grey Monster Tracen • System Online
+              <p className="text-xs text-slate-400 flex items-center gap-1.5 truncate max-w-xs sm:max-w-md">
+                <ShieldCheck className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                <span className="truncate">{botProfile.bio}</span>
               </p>
             </div>
           </div>
@@ -99,9 +110,12 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
             >
               <div className="w-6 h-6 rounded-full overflow-hidden border border-sky-400/50 flex-shrink-0">
                 <img
-                  src={profile?.avatar || '/assets/avatar.png'}
+                  src={profile?.avatar && profile.avatar !== '/assets/avatar.png' ? profile.avatar : BOT_DEFAULT_AVATAR}
                   alt="User Avatar"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = BOT_DEFAULT_AVATAR;
+                  }}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -234,4 +248,3 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
     </header>
   );
 };
-

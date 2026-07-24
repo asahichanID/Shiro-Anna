@@ -1,81 +1,98 @@
-import { AppUser, Friend } from '../types';
+import { AppUser, Friend, UserStatus } from '../types';
 import { StorageService } from './StorageService';
-import { DeveloperService } from './DeveloperService';
+import { ActivityService } from './ActivityService';
+import { BOT_DEFAULT_AVATAR } from '../config/constants';
 
 const STORAGE_KEY_FRIENDS = 'friends';
-const STORAGE_KEY_USERS = 'users';
-
-const DEFAULT_RECOMMENDED_NAMES = [
-  'Oguri Cap',
-  'Rice Shower',
-  'Gold Ship',
-  'Mejiro McQueen',
-  'Special Week',
-  'Vodka',
-  'Daiwa Scarlet',
-  'Symboli Rudolf',
-  'Haru Urara',
-  'Narita Brian',
-  'Super Creek',
-  'Inari One',
-  'Tokai Teio',
-  'Silence Suzuka',
-  'MachiKanefukukitaru',
-  'Nice Nature', 'Twin Turbo', 'Biwa Hayahide', 'Winning Ticket', 'Narita Taishin',
-  'Agnes Tachyon', 'Manhattan Cafe', 'Eishin Flash', 'Smart Falcon', 'Kopano Rickey',
-  'Hokko Tarumae', 'Wonder Acute', 'Curren Chan', 'Aston Machan', 'Kawakami Princess',
-  'Sweep Tosho', 'Fine Motion', 'Mejiro Dober', 'Mejiro Ardan', 'Sakura Chiyo O',
-  'Sirius Symboli', 'Nakayama Festa', 'Tamamo Cross', 'Kitasan Black', 'Satono Diamond',
-  'Maruzensky', 'Taiki Shuttle', 'Grass Wonder', 'El Condor Pasa', 'Air Groove',
-  'Mayano Top Gun', 'Ikuno Dictus', 'Matikanetannhauser', 'Mejiro Ryan', 'Sirius'
-];
+const STORAGE_KEY_ACCOUNTS = 'oguri_registered_accounts';
+const STORAGE_KEY_PROFILE = 'oguri_profile';
 
 export class FriendService {
   /**
-   * Ensure default users exist in storage if empty
+   * Get all registered accounts converted to AppUser format
    */
-  public static initDefaultUsers(): AppUser[] {
-    let users = StorageService.getItem<AppUser[]>(STORAGE_KEY_USERS, []);
-    if (users.length === 0) {
-      DeveloperService.generateDummyUsers(50);
-      users = StorageService.getItem<AppUser[]>(STORAGE_KEY_USERS, []);
-    }
-    return users;
+  public static getAllRegisteredUsers(): AppUser[] {
+    const accountsMap = StorageService.getItem<Record<string, any>>(STORAGE_KEY_ACCOUNTS, {});
+    const registeredList = Object.values(accountsMap);
+
+    return registeredList.map((acc) => {
+      const isDev = acc.role === 'Developer' || acc.id === '#1' || acc.username?.toLowerCase() === 'shiro anna';
+      const userAvatar =
+        acc.avatar && acc.avatar !== '/assets/avatar.png' && acc.avatar.trim() !== ''
+          ? acc.avatar
+          : BOT_DEFAULT_AVATAR;
+
+      return {
+        id: acc.id || '#1',
+        username: acc.username || 'User',
+        avatar: userAvatar,
+        role: isDev ? 'Developer' : 'Trainer',
+        status: (acc.status as UserStatus) || 'Online',
+        coin: acc.coins || 1000,
+        level: acc.level || 1,
+        friends: [],
+        createdAt: acc.createdAt || '24 Juli 2026',
+        totalGame: acc.totalGame || 0,
+        win: acc.win || 0,
+        lose: acc.lose || 0,
+        lastOnline: 'Sebab aktif',
+        lastMessage: 'Halo! Salam kenal Trainer!',
+      };
+    });
   }
 
   /**
-   * Get all friends added by current user
+   * Get all friends added by the active user
    */
   public static getFriends(): Friend[] {
     return StorageService.getItem<Friend[]>(STORAGE_KEY_FRIENDS, []);
   }
 
   /**
-   * Search users by name query
+   * Search users by name or ID query from real registered accounts
    */
   public static searchUsers(query: string): AppUser[] {
     const cleanQuery = query.trim().toLowerCase();
     if (!cleanQuery) return [];
 
-    const allUsers = this.initDefaultUsers();
-    return allUsers.filter((u) => u.username.toLowerCase().includes(cleanQuery));
+    const allUsers = this.getAllRegisteredUsers();
+    return allUsers.filter(
+      (u) =>
+        u.username.toLowerCase().includes(cleanQuery) ||
+        u.id.toLowerCase().includes(cleanQuery)
+    );
   }
 
   /**
-   * Get friend recommendations (up to 50)
+   * Get friend recommendations strictly from real registered users who logged in
+   * Shiro Anna (Developer) is ALWAYS sorted to the top!
    */
   public static getRecommendations(maxCount: number = 50): AppUser[] {
-    const allUsers = this.initDefaultUsers();
+    const allUsers = this.getAllRegisteredUsers();
     const friendList = this.getFriends();
     const friendIds = new Set(friendList.map((f) => f.id));
 
-    // Filter out users who are already friends
-    const nonFriends = allUsers.filter((u) => !friendIds.has(u.id));
+    // Get active current user ID to avoid recommending oneself
+    const activeProfile = StorageService.getItem<any | null>(STORAGE_KEY_PROFILE, null);
+    const activeUserId = activeProfile?.id;
+
+    // Filter out active self and existing friends
+    const nonFriends = allUsers.filter((u) => u.id !== activeUserId && !friendIds.has(u.id));
+
+    // Sort Shiro Anna (Developer / ID #1) to top
+    nonFriends.sort((a, b) => {
+      const aIsDev = a.id === '#1' || a.role === 'Developer' || a.username.toLowerCase() === 'shiro anna';
+      const bIsDev = b.id === '#1' || b.role === 'Developer' || b.username.toLowerCase() === 'shiro anna';
+      if (aIsDev && !bIsDev) return -1;
+      if (!aIsDev && bIsDev) return 1;
+      return 0;
+    });
+
     return nonFriends.slice(0, maxCount);
   }
 
   /**
-   * Add a user to friend list
+   * Add a real registered user to the friend list
    */
   public static addFriend(user: AppUser): Friend {
     const currentFriends = this.getFriends();
@@ -86,7 +103,7 @@ export class FriendService {
       id: user.id,
       username: user.username,
       avatar: user.avatar,
-      status: user.status,
+      status: user.status || 'Online',
       lastMessage: user.lastMessage || 'Halo! Baru berteman.',
       lastOnline: user.lastOnline || 'Sebab aktif',
     };
@@ -94,21 +111,20 @@ export class FriendService {
     const updatedFriends = [newFriend, ...currentFriends];
     StorageService.setItem(STORAGE_KEY_FRIENDS, updatedFriends);
 
-    // Update user's friends list array in users DB
-    const allUsers = StorageService.getItem<AppUser[]>(STORAGE_KEY_USERS, []);
-    const userIdx = allUsers.findIndex((u) => u.id === user.id);
-    if (userIdx !== -1) {
-      if (!allUsers[userIdx].friends.includes('me')) {
-        allUsers[userIdx].friends.push('me');
-        StorageService.setItem(STORAGE_KEY_USERS, allUsers);
-      }
-    }
+    ActivityService.logActivity(
+      'system',
+      'Menambah Teman Baru',
+      `Menambahkan ${user.username} (${user.id}) ke dalam daftar teman.`,
+      undefined,
+      undefined,
+      'Friends'
+    );
 
     return newFriend;
   }
 
   /**
-   * Remove a friend
+   * Remove a friend from list
    */
   public static removeFriend(friendId: string): boolean {
     const currentFriends = this.getFriends();

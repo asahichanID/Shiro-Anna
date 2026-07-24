@@ -14,12 +14,12 @@ export const FloatingChatButton: React.FC<FloatingChatButtonProps> = ({
     <button
       onClick={onClick}
       id="floating-chat-button"
-      className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-[0_0_25px_rgba(56,189,248,0.55)] border border-sky-300/40 hover:scale-105 active:scale-95 transition-all duration-300 group animate-bounce-slow cursor-pointer"
+      className="fixed bottom-20 right-5 sm:bottom-24 sm:right-8 z-50 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-sky-500 via-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-[0_0_25px_rgba(56,189,248,0.55)] border border-sky-300/40 hover:scale-105 active:scale-95 transition-all duration-300 group cursor-pointer"
       title="Buka Halaman Teman & Chat"
     >
       <div className="relative flex items-center justify-center">
-        <MessageSquare className="w-7 h-7 text-white drop-shadow group-hover:rotate-12 transition-transform duration-300" />
-        <Users className="w-3.5 h-3.5 text-sky-200 absolute -bottom-1 -right-1" />
+        <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7 text-white drop-shadow group-hover:rotate-12 transition-transform duration-300" />
+        <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-sky-200 absolute -bottom-1 -right-1" />
       </div>
 
       {unreadCount > 0 && (

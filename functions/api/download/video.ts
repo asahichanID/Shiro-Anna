@@ -1,5 +1,6 @@
-// Cloudflare Pages Function / Worker endpoint for /api/naze-search
+// Cloudflare Pages Function for GET /api/download/video
 export async function onRequest(context: { request: Request; env: any }) {
+  const startTime = Date.now();
   const url = new URL(context.request.url);
 
   // Handle CORS preflight
@@ -14,15 +15,25 @@ export async function onRequest(context: { request: Request; env: any }) {
     });
   }
 
-  const searchQuery = url.searchParams.get('query');
+  const mediaUrl = url.searchParams.get('url');
   const apiKey =
     context.env?.NAZE_API_KEY ||
     (typeof process !== 'undefined' ? process.env?.NAZE_API_KEY : null) ||
     'nz-880c23d4fd';
 
-  if (!searchQuery) {
+  if (!mediaUrl) {
+    const duration = Date.now() - startTime;
     return new Response(
-      JSON.stringify({ error: 'Parameter query diperlukan' }),
+      JSON.stringify({
+        error: 'Parameter url diperlukan',
+        debug: {
+          endpoint: '/api/download/video',
+          workerStatus: 'Active (Cloudflare Pages Function)',
+          responseStatus: 400,
+          responseTime: `${duration}ms`,
+          provider: 'Naze API Download Video',
+        },
+      }),
       {
         status: 400,
         headers: {
@@ -33,9 +44,9 @@ export async function onRequest(context: { request: Request; env: any }) {
     );
   }
 
-  const targetUrl = `https://api.naze.biz.id/search/youtube?query=${encodeURIComponent(
-    searchQuery
-  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const targetUrl = `https://api.naze.biz.id/download/youtube?url=${encodeURIComponent(
+    mediaUrl
+  )}&format=720&apikey=${encodeURIComponent(apiKey)}`;
 
   try {
     const apiRes = await fetch(targetUrl, {
@@ -46,16 +57,22 @@ export async function onRequest(context: { request: Request; env: any }) {
       },
     });
 
+    const duration = Date.now() - startTime;
     const status = apiRes.status;
     const bodyText = await apiRes.text();
 
     if (!apiRes.ok) {
       return new Response(
         JSON.stringify({
-          error: `Naze Search API gagal dengan HTTP Status ${status}`,
-          status,
-          body: bodyText,
-          targetUrl,
+          error: `Naze Download Video API gagal dengan HTTP Status ${status}`,
+          debug: {
+            endpoint: '/api/download/video',
+            workerStatus: 'Active (Cloudflare Pages Function)',
+            responseStatus: status,
+            responseTime: `${duration}ms`,
+            provider: 'Naze API Download (https://api.naze.biz.id/download/youtube)',
+            bodySnippet: bodyText.substring(0, 300),
+          },
         }),
         {
           status: status >= 400 && status < 600 ? status : 502,
@@ -73,9 +90,15 @@ export async function onRequest(context: { request: Request; env: any }) {
     } catch {
       return new Response(
         JSON.stringify({
-          error: 'Respon dari Naze Search API bukan format JSON yang valid',
-          body: bodyText.substring(0, 500),
-          targetUrl,
+          error: 'Respon dari Naze Download Video API bukan format JSON yang valid',
+          debug: {
+            endpoint: '/api/download/video',
+            workerStatus: 'Active (Cloudflare Pages Function)',
+            responseStatus: 502,
+            responseTime: `${duration}ms`,
+            provider: 'Naze API Download Video',
+            bodySnippet: bodyText.substring(0, 300),
+          },
         }),
         {
           status: 502,
@@ -95,10 +118,17 @@ export async function onRequest(context: { request: Request; env: any }) {
       },
     });
   } catch (err: any) {
+    const duration = Date.now() - startTime;
     return new Response(
       JSON.stringify({
-        error: err.message || 'Gagal menghubungi Naze Search API dari Cloudflare Worker',
-        type: 'Cloudflare Worker Exception',
+        error: err.message || 'Gagal menghubungi Naze Download Video API dari Cloudflare Worker',
+        debug: {
+          endpoint: '/api/download/video',
+          workerStatus: 'Error (Worker Exception)',
+          responseStatus: 500,
+          responseTime: `${duration}ms`,
+          provider: 'Cloudflare Worker Proxy',
+        },
       }),
       {
         status: 500,

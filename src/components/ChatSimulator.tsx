@@ -3,6 +3,8 @@ import { Send, Clock, Sparkles, Coins, HelpCircle, Flag, Zap, RotateCcw, AlertCi
 import { BotMessage, GameSession } from '../types';
 import { gameDb } from '../database/gameDb';
 import { messageHandler } from '../handler/messageHandler';
+import { BotService, BotProfile } from '../services/BotService';
+import { BotAvatar } from './BotAvatar';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
@@ -25,7 +27,16 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   const [timerSeconds, setTimerSeconds] = useState<number>(60);
   const [silentNotice, setSilentNotice] = useState<string | null>(null);
   const [typingStatus, setTypingStatus] = useState<{ active: boolean; text: string; dots: string } | null>(null);
+  const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfile());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Subscribe to bot profile updates
+  useEffect(() => {
+    const unsub = BotService.onBotProfileUpdate((updated) => {
+      setBotProfile(updated);
+    });
+    return () => unsub();
+  }, []);
 
   // Subscribe to bot typing updates
   useEffect(() => {
@@ -72,10 +83,8 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
     onSendMessage(userText);
 
     // If game was active, and user sent text that wasn't a command, check if bot replied
-    // If bot didn't reply (returned null), it means answer was WRONG and bot remained SILENT as requested
     if (isGameActive && !userText.startsWith('.') && !userText.startsWith('!')) {
       setTimeout(() => {
-        // Check if game is STILL active after message was processed
         if (gameDb.isGameActive('chat_default')) {
           setSilentNotice(`🤐 Bot DIAM (Tidak mereply) karena jawaban "${userText}" kurang tepat.`);
           setTimeout(() => setSilentNotice(null), 4000);
@@ -95,21 +104,22 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
       {/* Chat Room Top Bar */}
       <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-600 to-purple-600 p-0.5 shadow-md shadow-sky-500/20 overflow-hidden flex-shrink-0 relative">
-            <img
-              src="/assets/avatar.png"
-              alt="Oguri Cap"
-              referrerPolicy="no-referrer"
-              className="w-full h-full rounded-full object-cover"
-            />
-          </div>
+          <BotAvatar
+            src={botProfile.avatar}
+            alt={botProfile.name}
+            className="w-10 h-10"
+            showGlow={true}
+          />
           <div>
             <div className="flex items-center space-x-2">
-              <h2 className="text-sm font-bold text-white">Oguri Cap - Tracen Room</h2>
+              <h2 className="text-sm font-bold text-white">{botProfile.name}</h2>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-[10px] text-sky-400 bg-sky-950/60 px-2 py-0.5 rounded border border-sky-500/30 font-medium">
+                {botProfile.status}
+              </span>
             </div>
-            <p className="text-xs text-slate-400">
-              Bot Game Tebak Kata • Multi-Dataset Queue Active
+            <p className="text-xs text-slate-400 truncate max-w-xs sm:max-w-md">
+              {botProfile.bio}
             </p>
           </div>
         </div>
@@ -229,21 +239,30 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
             >
               <div className="flex items-center space-x-2 px-1">
                 <span className="text-[10px] font-medium text-slate-400">
-                  {msg.senderName}
+                  {isUser ? msg.senderName : botProfile.name}
                 </span>
                 <span className="text-[9px] text-slate-500">
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
               </div>
 
-              <div
-                className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed shadow-lg ${
-                  isUser
-                    ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-br-none border border-sky-400/20'
-                    : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800 font-sans'
-                }`}
-              >
-                {msg.text}
+              <div className="flex items-start gap-2">
+                {!isUser && (
+                  <BotAvatar
+                    src={botProfile.avatar}
+                    alt={botProfile.name}
+                    className="w-7 h-7 mt-0.5"
+                  />
+                )}
+                <div
+                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed shadow-lg ${
+                    isUser
+                      ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-br-none border border-sky-400/20'
+                      : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800 font-sans'
+                  }`}
+                >
+                  {msg.text}
+                </div>
               </div>
             </div>
           );
@@ -252,13 +271,12 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
         {/* Animated Typing Indicator */}
         {typingStatus && typingStatus.active && (
           <div className="flex items-start space-x-2.5 my-2 animate-fadeIn">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-600 to-purple-600 p-0.5 shadow-md shadow-sky-500/20 overflow-hidden flex-shrink-0">
-              <img
-                src="/assets/avatar.png"
-                alt="Oguri Cap"
-                className="w-full h-full rounded-full object-cover"
-              />
-            </div>
+            <BotAvatar
+              src={botProfile.avatar}
+              alt={botProfile.name}
+              className="w-8 h-8"
+              showGlow={true}
+            />
             <div className="bg-slate-900/90 border border-slate-800 text-sky-300 text-xs px-4 py-2.5 rounded-2xl rounded-bl-none shadow-md flex items-center space-x-2 font-medium">
               <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping flex-shrink-0"></span>
               <span className="tracking-wide">{typingStatus.text}<span className="font-mono font-bold text-sky-400">{typingStatus.dots}</span></span>

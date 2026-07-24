@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ActivityService } from '../services/ActivityService';
+import { BOT_DEFAULT_AVATAR } from '../config/constants';
 
 export interface UserAccount {
   id: string;
@@ -41,6 +42,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const savedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
       if (savedProfile) {
         const parsed: UserAccount = JSON.parse(savedProfile);
+        if (!parsed.avatar || parsed.avatar === '/assets/avatar.png' || parsed.avatar.trim() === '') {
+          parsed.avatar = BOT_DEFAULT_AVATAR;
+        }
         setProfile(parsed);
       }
     } catch (e) {
@@ -132,7 +136,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: '#1',
         username: 'Shiro Anna',
         role: 'Developer',
-        avatar: '/assets/avatar.png',
+        avatar: BOT_DEFAULT_AVATAR,
         createdAt: formattedDate,
         coins: 10000,
         totalGame: 0,
@@ -164,7 +168,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       id: `#${nextIdNum}`,
       username: trimmed,
       role: 'Trainer',
-      avatar: '/assets/avatar.png',
+      avatar: BOT_DEFAULT_AVATAR,
       createdAt: formattedDate,
       coins: 1000,
       totalGame: 0,

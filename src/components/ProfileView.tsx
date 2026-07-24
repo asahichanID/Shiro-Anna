@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useProfile } from '../context/ProfileContext';
+import { BotAvatar } from './BotAvatar';
 import {
   User,
   Camera,
@@ -100,19 +101,17 @@ export const ProfileView: React.FC = () => {
           {/* Avatar Area with Glow Border & "Ubah Foto" Button */}
           <div className="flex flex-col items-center space-y-3 flex-shrink-0">
             <div className="relative group">
-              <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-600 to-purple-600 p-1 shadow-2xl shadow-sky-500/30 overflow-hidden">
-                <img
-                  src={profile.avatar}
-                  alt={profile.username}
-                  referrerPolicy="no-referrer"
-                  className="w-full h-full rounded-full object-cover bg-slate-950"
-                />
-              </div>
+              <BotAvatar
+                src={profile.avatar}
+                alt={profile.username}
+                className="w-32 h-32 sm:w-36 sm:h-36"
+                showGlow={true}
+              />
 
               <button
                 onClick={handleAvatarClick}
                 title="Ubah Foto Profile"
-                className="absolute inset-0 rounded-full bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-xs font-semibold transition-all duration-200 cursor-pointer backdrop-blur-xs"
+                className="absolute inset-0 rounded-full bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-xs font-semibold transition-all duration-200 cursor-pointer backdrop-blur-xs z-10"
               >
                 <Camera className="w-6 h-6 mb-1 text-sky-400" />
                 <span>Ubah Foto</span>

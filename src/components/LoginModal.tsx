@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useProfile } from '../context/ProfileContext';
 import { Trophy, Sparkles, User, LogIn, AlertCircle, Shield } from 'lucide-react';
+import { BotAvatar } from './BotAvatar';
 
 export const LoginModal: React.FC = () => {
   const { login } = useProfile();
@@ -25,11 +26,11 @@ export const LoginModal: React.FC = () => {
 
       <div className="relative w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-sky-900/20 text-center space-y-6">
         {/* Avatar / Logo Header */}
-        <div className="relative mx-auto w-24 h-24 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-600 to-purple-600 p-1 shadow-lg shadow-sky-500/30 overflow-hidden">
-          <img
-            src="/assets/avatar.png"
+        <div className="relative mx-auto">
+          <BotAvatar
             alt="Tracen Academy"
-            className="w-full h-full rounded-full object-cover"
+            className="w-24 h-24 mx-auto"
+            showGlow={true}
           />
         </div>
 
