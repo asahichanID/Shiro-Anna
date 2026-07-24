@@ -23,12 +23,124 @@ interface MediaState {
   quality?: string;
 }
 
+export interface ApiDebugInfo {
+  stepName?: string;
+  requestUrl: string;
+  httpStatus: number | string;
+  errorMessage: string;
+  responseBody: string;
+  provider: string;
+  apiKeyStatus: string;
+}
+
+const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ debugList, title }) => {
+  if (!debugList || debugList.length === 0) return null;
+
+  return (
+    <div className="bg-slate-950 border-2 border-amber-500/60 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 my-3 text-left font-sans animate-fadeIn">
+      <div className="flex items-center justify-between pb-3 border-b border-amber-500/30">
+        <div className="flex items-center space-x-2">
+          <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs">
+            🐛
+          </span>
+          <div>
+            <h4 className="text-xs sm:text-sm font-black text-amber-300">
+              {title || 'Card Debug API (Temporary Debugger Mode)'}
+            </h4>
+            <p className="text-[10px] text-amber-200/70">
+              Detail log kegagalan HTTP Request (Diuji untuk analisa Cloudflare vs Preview AI Studio).
+            </p>
+          </div>
+        </div>
+        <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/30">
+          DEBUG MODE
+        </span>
+      </div>
+
+      <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+        {debugList.map((item, idx) => (
+          <div
+            key={idx}
+            className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2 font-mono text-slate-200"
+          >
+            {item.stepName && (
+              <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                <span className="text-[11px] font-bold text-sky-400">{item.stepName}</span>
+                <span className="text-[10px] px-2 py-0.2 rounded bg-slate-800 text-slate-400">
+                  Percobaan #{idx + 1}
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                  Provider:
+                </span>
+                <span className="text-indigo-300 font-semibold">{item.provider}</span>
+              </div>
+
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                  API Key:
+                </span>
+                <span className="text-emerald-300 font-semibold">{item.apiKeyStatus}</span>
+              </div>
+
+              <div className="sm:col-span-2">
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                  Request URL:
+                </span>
+                <code className="text-sky-300 break-all bg-slate-950 px-2 py-1 rounded border border-slate-800 block mt-0.5 text-[11px]">
+                  {item.requestUrl}
+                </code>
+              </div>
+
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                  HTTP Status:
+                </span>
+                <span
+                  className={`font-bold ${
+                    String(item.httpStatus).startsWith('2')
+                      ? 'text-emerald-400'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {item.httpStatus}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
+                  Error Message:
+                </span>
+                <span className="text-rose-300 font-semibold break-words">{item.errorMessage}</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-1">
+                Response Body:
+              </span>
+              <pre className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px] text-amber-200/90 whitespace-pre-wrap break-all max-h-36 overflow-y-auto font-mono">
+                {item.responseBody}
+              </pre>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const MusicPlayViewer: React.FC = () => {
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchDebugList, setSearchDebugList] = useState<ApiDebugInfo[]>([]);
 
   // Loading & Active Media State
   const [loadingMedia, setLoadingMedia] = useState<{
@@ -37,6 +149,7 @@ export const MusicPlayViewer: React.FC = () => {
   } | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [activeMedia, setActiveMedia] = useState<MediaState | null>(null);
+  const [mediaDebugList, setMediaDebugList] = useState<ApiDebugInfo[]>([]);
 
   // Quick preset suggestions
   const presetQueries = [
@@ -57,32 +170,89 @@ export const MusicPlayViewer: React.FC = () => {
     setSearchError(null);
     setHasSearched(true);
     setSearchResults([]);
+    setSearchDebugList([]);
+
+    const debugAttempts: ApiDebugInfo[] = [];
+    let data: any = null;
+
+    const apiKey = 'nz-880c23d4fd';
+    const apiKeyStatus = apiKey ? `Tersedia (${apiKey})` : 'Kosong';
 
     try {
-      let data: any = null;
-
       // 1. Try server proxy endpoint first
+      const proxyPath = `/api/naze-search?query=${encodeURIComponent(searchQuery)}`;
+      const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
       try {
-        const res = await fetch(`/api/naze-search?query=${encodeURIComponent(searchQuery)}`);
-        if (res.ok) {
-          data = await res.json();
+        const res = await fetch(proxyPath);
+        const status = res.status;
+        const bodyText = await res.text();
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(bodyText);
+        } catch {}
+
+        if (res.ok && parsed && (parsed.result || parsed.items || Array.isArray(parsed))) {
+          data = parsed;
+        } else {
+          debugAttempts.push({
+            stepName: 'Attempt 1: Express Server Proxy',
+            requestUrl: proxyFullUrl,
+            httpStatus: status,
+            errorMessage: parsed?.error || `HTTP Status ${status}`,
+            responseBody: bodyText || '(Empty Response)',
+            provider: 'Express Backend Proxy (/api/naze-search)',
+            apiKeyStatus,
+          });
         }
-      } catch (e1) {
-        console.warn('Server proxy search failed, trying direct/corsproxy...');
+      } catch (e1: any) {
+        debugAttempts.push({
+          stepName: 'Attempt 1: Express Server Proxy',
+          requestUrl: proxyFullUrl,
+          httpStatus: '0 / Fetch Exception (Network / CORS)',
+          errorMessage: e1.message || 'Fetch failed',
+          responseBody: '(Failed before receiving response - Server endpoint missing or proxy blocked)',
+          provider: 'Express Backend Proxy (/api/naze-search)',
+          apiKeyStatus,
+        });
       }
 
       // 2. Direct fetch fallback
       if (!data) {
         const directEndpoint = `https://api.naze.biz.id/search/youtube?query=${encodeURIComponent(
           searchQuery
-        )}&apikey=nz-880c23d4fd`;
+        )}&apikey=${apiKey}`;
         try {
           const res = await fetch(directEndpoint);
-          if (res.ok) {
-            data = await res.json();
+          const status = res.status;
+          const bodyText = await res.text();
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(bodyText);
+          } catch {}
+
+          if (res.ok && parsed && (parsed.result || parsed.items || Array.isArray(parsed))) {
+            data = parsed;
+          } else {
+            debugAttempts.push({
+              stepName: 'Attempt 2: Direct Client Fetch',
+              requestUrl: directEndpoint,
+              httpStatus: status,
+              errorMessage: parsed?.error || `HTTP Status ${status}`,
+              responseBody: bodyText || '(Empty Response)',
+              provider: 'Naze API Direct (https://api.naze.biz.id)',
+              apiKeyStatus,
+            });
           }
-        } catch (e2) {
-          console.warn('Direct search fetch failed, trying corsproxy...');
+        } catch (e2: any) {
+          debugAttempts.push({
+            stepName: 'Attempt 2: Direct Client Fetch',
+            requestUrl: directEndpoint,
+            httpStatus: '0 / CORS / Network Exception',
+            errorMessage: e2.message || 'Direct fetch failed',
+            responseBody: '(Failed before receiving response - likely blocked by CORS on browser / Cloudflare)',
+            provider: 'Naze API Direct (https://api.naze.biz.id)',
+            apiKeyStatus,
+          });
         }
       }
 
@@ -90,14 +260,40 @@ export const MusicPlayViewer: React.FC = () => {
       if (!data) {
         const directEndpoint = `https://api.naze.biz.id/search/youtube?query=${encodeURIComponent(
           searchQuery
-        )}&apikey=nz-880c23d4fd`;
+        )}&apikey=${apiKey}`;
+        const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(directEndpoint)}`;
         try {
-          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(directEndpoint)}`);
-          if (res.ok) {
-            data = await res.json();
+          const res = await fetch(corsProxyUrl);
+          const status = res.status;
+          const bodyText = await res.text();
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(bodyText);
+          } catch {}
+
+          if (res.ok && parsed && (parsed.result || parsed.items || Array.isArray(parsed))) {
+            data = parsed;
+          } else {
+            debugAttempts.push({
+              stepName: 'Attempt 3: Corsproxy Fallback',
+              requestUrl: corsProxyUrl,
+              httpStatus: status,
+              errorMessage: parsed?.error || `HTTP Status ${status}`,
+              responseBody: bodyText || '(Empty Response)',
+              provider: 'Corsproxy.io -> Naze API',
+              apiKeyStatus,
+            });
           }
-        } catch (e3) {
-          console.warn('Corsproxy failed...');
+        } catch (e3: any) {
+          debugAttempts.push({
+            stepName: 'Attempt 3: Corsproxy Fallback',
+            requestUrl: corsProxyUrl,
+            httpStatus: '0 / Fetch Exception',
+            errorMessage: e3.message || 'Corsproxy fetch failed',
+            responseBody: '(Failed before receiving response)',
+            provider: 'Corsproxy.io -> Naze API',
+            apiKeyStatus,
+          });
         }
       }
 
@@ -114,6 +310,18 @@ export const MusicPlayViewer: React.FC = () => {
       }
 
       if (!rawItems || rawItems.length === 0) {
+        if (data) {
+          debugAttempts.push({
+            stepName: 'Data Validation Failure',
+            requestUrl: 'N/A (Payload received)',
+            httpStatus: '200 OK (Unexpected payload format)',
+            errorMessage: `Pencarian untuk "${searchQuery}" tidak mengembalikan array items dalam JSON.`,
+            responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
+            provider: 'Naze API Response Parser',
+            apiKeyStatus,
+          });
+        }
+        setSearchDebugList(debugAttempts);
         throw new Error(`Pencarian untuk "${searchQuery}" tidak mengembalikan hasil dari API.`);
       }
 
@@ -130,7 +338,6 @@ export const MusicPlayViewer: React.FC = () => {
         const publishTime = item.snippet?.publishTime || item.publishTime || item.ago || '';
         const description = item.snippet?.description || item.description || '';
 
-        // Thumbnail strictly from snippet.thumbnails.high.url (or medium / default)
         const thumbnail =
           item.snippet?.thumbnails?.high?.url ||
           item.snippet?.thumbnails?.medium?.url ||
@@ -152,6 +359,7 @@ export const MusicPlayViewer: React.FC = () => {
       setSearchResults(formatted);
     } catch (err: any) {
       console.error('Search API error:', err);
+      setSearchDebugList(debugAttempts);
       setSearchError(err.message || 'Gagal mengambil data pencarian dari API. Silakan coba lagi.');
     } finally {
       setIsSearching(false);
@@ -162,38 +370,91 @@ export const MusicPlayViewer: React.FC = () => {
     setLoadingMedia({ type, item });
     setMediaError(null);
     setActiveMedia(null);
+    setMediaDebugList([]);
 
-    // Format: 'mp3' for Audio, '720' for Video (strictly '720', NOT '720p')
+    const debugAttempts: ApiDebugInfo[] = [];
     const format = type === 'audio' ? 'mp3' : '720';
     const youtubeUrl = `https://www.youtube.com/watch?v=${item.videoId}`;
+    const apiKey = 'nz-880c23d4fd';
+    const apiKeyStatus = apiKey ? `Tersedia (${apiKey})` : 'Kosong';
 
     try {
       let data: any = null;
 
       // 1. Try server proxy endpoint first
+      const proxyPath = `/api/naze-download?url=${encodeURIComponent(youtubeUrl)}&format=${format}`;
+      const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
       try {
-        const res = await fetch(
-          `/api/naze-download?url=${encodeURIComponent(youtubeUrl)}&format=${format}`
-        );
-        if (res.ok) {
-          data = await res.json();
+        const res = await fetch(proxyPath);
+        const status = res.status;
+        const bodyText = await res.text();
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(bodyText);
+        } catch {}
+
+        if (res.ok && parsed && parsed.result) {
+          data = parsed;
+        } else {
+          debugAttempts.push({
+            stepName: 'Attempt 1: Express Server Proxy',
+            requestUrl: proxyFullUrl,
+            httpStatus: status,
+            errorMessage: parsed?.error || `HTTP Status ${status}`,
+            responseBody: bodyText || '(Empty Response)',
+            provider: 'Express Backend Proxy (/api/naze-download)',
+            apiKeyStatus,
+          });
         }
-      } catch (e1) {
-        console.warn('Server proxy download failed, trying direct fetch...');
+      } catch (e1: any) {
+        debugAttempts.push({
+          stepName: 'Attempt 1: Express Server Proxy',
+          requestUrl: proxyFullUrl,
+          httpStatus: '0 / Fetch Exception (Network / CORS)',
+          errorMessage: e1.message || 'Fetch failed',
+          responseBody: '(Failed before receiving response - Server endpoint missing or proxy blocked)',
+          provider: 'Express Backend Proxy (/api/naze-download)',
+          apiKeyStatus,
+        });
       }
 
       // 2. Direct fetch fallback
       if (!data) {
         const directEndpoint = `https://api.naze.biz.id/download/youtube?url=${encodeURIComponent(
           youtubeUrl
-        )}&format=${format}&apikey=nz-880c23d4fd`;
+        )}&format=${format}&apikey=${apiKey}`;
         try {
           const res = await fetch(directEndpoint);
-          if (res.ok) {
-            data = await res.json();
+          const status = res.status;
+          const bodyText = await res.text();
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(bodyText);
+          } catch {}
+
+          if (res.ok && parsed && parsed.result) {
+            data = parsed;
+          } else {
+            debugAttempts.push({
+              stepName: 'Attempt 2: Direct Client Fetch',
+              requestUrl: directEndpoint,
+              httpStatus: status,
+              errorMessage: parsed?.error || `HTTP Status ${status}`,
+              responseBody: bodyText || '(Empty Response)',
+              provider: 'Naze API Direct (https://api.naze.biz.id)',
+              apiKeyStatus,
+            });
           }
-        } catch (e2) {
-          console.warn('Direct download fetch failed, trying corsproxy...');
+        } catch (e2: any) {
+          debugAttempts.push({
+            stepName: 'Attempt 2: Direct Client Fetch',
+            requestUrl: directEndpoint,
+            httpStatus: '0 / CORS / Network Exception',
+            errorMessage: e2.message || 'Direct fetch failed',
+            responseBody: '(Failed before receiving response - likely blocked by CORS on browser / Cloudflare)',
+            provider: 'Naze API Direct (https://api.naze.biz.id)',
+            apiKeyStatus,
+          });
         }
       }
 
@@ -201,18 +462,56 @@ export const MusicPlayViewer: React.FC = () => {
       if (!data) {
         const directEndpoint = `https://api.naze.biz.id/download/youtube?url=${encodeURIComponent(
           youtubeUrl
-        )}&format=${format}&apikey=nz-880c23d4fd`;
+        )}&format=${format}&apikey=${apiKey}`;
+        const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(directEndpoint)}`;
         try {
-          const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(directEndpoint)}`);
-          if (res.ok) {
-            data = await res.json();
+          const res = await fetch(corsProxyUrl);
+          const status = res.status;
+          const bodyText = await res.text();
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(bodyText);
+          } catch {}
+
+          if (res.ok && parsed && parsed.result) {
+            data = parsed;
+          } else {
+            debugAttempts.push({
+              stepName: 'Attempt 3: Corsproxy Fallback',
+              requestUrl: corsProxyUrl,
+              httpStatus: status,
+              errorMessage: parsed?.error || `HTTP Status ${status}`,
+              responseBody: bodyText || '(Empty Response)',
+              provider: 'Corsproxy.io -> Naze API',
+              apiKeyStatus,
+            });
           }
-        } catch (e3) {
-          console.warn('Corsproxy failed...');
+        } catch (e3: any) {
+          debugAttempts.push({
+            stepName: 'Attempt 3: Corsproxy Fallback',
+            requestUrl: corsProxyUrl,
+            httpStatus: '0 / Fetch Exception',
+            errorMessage: e3.message || 'Corsproxy fetch failed',
+            responseBody: '(Failed before receiving response)',
+            provider: 'Corsproxy.io -> Naze API',
+            apiKeyStatus,
+          });
         }
       }
 
       if (!data || !data.result) {
+        if (data) {
+          debugAttempts.push({
+            stepName: 'Data Validation Failure',
+            requestUrl: 'N/A (Payload received)',
+            httpStatus: '200 OK (Missing result field)',
+            errorMessage: `Respon API tidak memberikan field result untuk media ${type}.`,
+            responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
+            provider: 'Naze API Response Parser',
+            apiKeyStatus,
+          });
+        }
+        setMediaDebugList(debugAttempts);
         throw new Error(`Respon API tidak memberikan data download untuk media ${type}.`);
       }
 
@@ -220,6 +519,16 @@ export const MusicPlayViewer: React.FC = () => {
       const downloadUrl = resObj.download || resObj.url || resObj.link || '';
 
       if (!downloadUrl) {
+        debugAttempts.push({
+          stepName: 'Download Link Missing',
+          requestUrl: 'N/A',
+          httpStatus: '200 OK',
+          errorMessage: `API tidak mengembalikan link download ${type} yang valid dalam object result.`,
+          responseBody: JSON.stringify(resObj, null, 2).substring(0, 1000),
+          provider: 'Naze API Response Parser',
+          apiKeyStatus,
+        });
+        setMediaDebugList(debugAttempts);
         throw new Error(`API tidak mengembalikan link download ${type} yang valid.`);
       }
 
@@ -240,6 +549,7 @@ export const MusicPlayViewer: React.FC = () => {
       );
     } catch (err: any) {
       console.error('Media download error:', err);
+      setMediaDebugList(debugAttempts);
       setMediaError(err.message || `Gagal memuat media ${type} dari API. Silakan coba lagi.`);
     } finally {
       setLoadingMedia(null);
@@ -331,25 +641,30 @@ export const MusicPlayViewer: React.FC = () => {
 
       {/* Media Download/Fetch Error Box */}
       {mediaError && !loadingMedia && (
-        <div className="bg-red-950/40 border border-red-500/50 rounded-2xl p-6 shadow-xl text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-          <h3 className="text-sm font-bold text-red-300">Gagal Menyiapkan Media</h3>
-          <p className="text-xs text-red-200/80 max-w-lg mx-auto">{mediaError}</p>
-          <div className="flex justify-center gap-3 pt-2">
-            <button
-              onClick={() => mediaError && activeMedia && handleFetchMedia(activeMedia.item, activeMedia.type)}
-              className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-md"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Coba Lagi (Retry)</span>
-            </button>
-            <button
-              onClick={() => setMediaError(null)}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
-            >
-              Tutup
-            </button>
+        <div className="space-y-4">
+          <div className="bg-red-950/40 border border-red-500/50 rounded-2xl p-6 shadow-xl text-center space-y-3">
+            <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+            <h3 className="text-sm font-bold text-red-300">Gagal Menyiapkan Media</h3>
+            <p className="text-xs text-red-200/80 max-w-lg mx-auto">{mediaError}</p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={() => mediaError && activeMedia && handleFetchMedia(activeMedia.item, activeMedia.type)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-md"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Coba Lagi (Retry)</span>
+              </button>
+              <button
+                onClick={() => setMediaError(null)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
+
+          {/* Temporary Debug Card for Media Request Failures */}
+          <DebugCard debugList={mediaDebugList} title="🐛 Card Debug Media API (Temporary Cloudflare / Server Inspector)" />
         </div>
       )}
 
@@ -557,16 +872,21 @@ export const MusicPlayViewer: React.FC = () => {
 
         {/* Error message for search */}
         {searchError && (
-          <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2 mb-4">
-            <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
-            <p className="text-xs text-red-300">{searchError}</p>
-            <button
-              onClick={() => handleSearch()}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-1"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Coba Lagi</span>
-            </button>
+          <div className="space-y-4 mb-4">
+            <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2">
+              <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
+              <p className="text-xs text-red-300">{searchError}</p>
+              <button
+                onClick={() => handleSearch()}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Coba Lagi</span>
+              </button>
+            </div>
+
+            {/* Temporary Debug Card for Search Request Failures */}
+            <DebugCard debugList={searchDebugList} title="🐛 Card Debug Search API (Temporary Cloudflare / Server Inspector)" />
           </div>
         )}
 
