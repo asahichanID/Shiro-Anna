@@ -17,9 +17,7 @@ import { ArchitectureAnalysisModal } from './components/ArchitectureAnalysisModa
 import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
-import { FriendsView } from './components/FriendsView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
-import { FloatingChatButton } from './components/FloatingChatButton';
 
 const DEFAULT_CHAT_ID = 'chat_default';
 const CURRENT_USER_ID = 'trainer_01';
@@ -168,8 +166,6 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
 
         {activeTab === 'play' && <MusicPlayViewer />}
 
-        {activeTab === 'friends' && <FriendsView />}
-
         {activeTab === 'devpanel' && <DeveloperPanelView />}
 
         {activeTab === 'profile' && <ProfileView />}
@@ -180,9 +176,6 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
 
         {activeTab === 'analysis' && <ArchitectureAnalysisModal />}
       </main>
-
-      {/* Floating Action Button for Friends & Chat */}
-      <FloatingChatButton onClick={() => setActiveTab('friends')} />
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 px-4 text-center text-xs text-slate-500">

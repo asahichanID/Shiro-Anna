@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Trophy, Coins, Zap, HelpCircle, Gamepad2, Database, ShieldCheck, Music, User, Sparkles, Users, Wrench } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Trophy, Coins, Zap, HelpCircle, Gamepad2, Database, ShieldCheck, Music, Sparkles, Wrench, MoreVertical } from 'lucide-react';
 import { ProjectDownloadButton } from './ProjectDownloadButton';
 import { useProfile } from '../context/ProfileContext';
 import { BotService, BotProfile } from '../services/BotService';
 import { BotAvatar } from './BotAvatar';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 
-export type HeaderTab = 'chat' | 'play' | 'friends' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
+export type HeaderTab = 'chat' | 'play' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
 
 interface OguriCapHeaderProps {
   userCoins: number;
@@ -29,6 +29,8 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
   const isDeveloper = profile?.role === 'Developer' || profile?.username.toLowerCase() === 'shiro anna';
 
   const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfile());
+  const [isDevMenuOpen, setIsDevMenuOpen] = useState(false);
+  const devMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const unsub = BotService.onBotProfileUpdate((updated) => {
@@ -36,6 +38,19 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
     });
     return () => unsub();
   }, []);
+
+  // Close dev menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (devMenuRef.current && !devMenuRef.current.contains(event.target as Node)) {
+        setIsDevMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const isDevTabActive = ['devpanel', 'database', 'queue', 'analysis'].includes(activeTab);
 
   return (
     <header className="bg-slate-900 border-b border-slate-800 text-white sticky top-0 z-50 backdrop-blur-md bg-slate-900/90 shadow-lg">
@@ -103,10 +118,15 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
               </div>
             )}
 
-            {/* User Profile Tag Button */}
+            {/* User Profile Tag Button (Single Primary Profile Button) */}
             <button
               onClick={() => setActiveTab('profile')}
-              className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-all cursor-pointer group"
+              title="Buka Profile"
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border transition-all cursor-pointer group ${
+                activeTab === 'profile'
+                  ? 'bg-indigo-950/80 border-indigo-500 text-white shadow-md shadow-indigo-500/20'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700'
+              }`}
             >
               <div className="w-6 h-6 rounded-full overflow-hidden border border-sky-400/50 flex-shrink-0">
                 <img
@@ -145,104 +165,119 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center space-x-2 mt-3 pt-2 border-t border-slate-800 text-xs font-medium overflow-x-auto pb-1 sm:pb-0">
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 ${
-              activeTab === 'chat'
-                ? 'bg-sky-600 text-white font-semibold shadow-md shadow-sky-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <Gamepad2 className="w-3.5 h-3.5" />
-            <span>Chat Bot Simulator</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('play')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 ${
-              activeTab === 'play'
-                ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
-                : 'text-sky-400 hover:text-sky-200 hover:bg-sky-950/40 border border-sky-500/20'
-            }`}
-          >
-            <Music className="w-3.5 h-3.5" />
-            <span>🎵 Play</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('friends')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 ${
-              activeTab === 'friends'
-                ? 'bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-sky-600/30'
-                : 'text-sky-300 hover:text-white hover:bg-slate-800/80 border border-sky-500/20'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Friends & Chat</span>
-          </button>
-
-          {isDeveloper && (
+        <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-800 text-xs font-medium">
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0">
             <button
-              onClick={() => setActiveTab('devpanel')}
+              onClick={() => setActiveTab('chat')}
               className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 ${
-                activeTab === 'devpanel'
-                  ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 text-white font-bold shadow-md shadow-indigo-600/30'
-                  : 'text-rose-300 hover:text-white hover:bg-rose-950/40 border border-rose-500/30'
+                activeTab === 'chat'
+                  ? 'bg-sky-600 text-white font-semibold shadow-md shadow-sky-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
               }`}
             >
-              <Wrench className="w-3.5 h-3.5 text-rose-400" />
-              <span>Developer Panel</span>
+              <Gamepad2 className="w-3.5 h-3.5" />
+              <span>Chat Bot Simulator</span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('play')}
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 ${
+                activeTab === 'play'
+                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
+                  : 'text-sky-400 hover:text-sky-200 hover:bg-sky-950/40 border border-sky-500/20'
+              }`}
+            >
+              <Music className="w-3.5 h-3.5" />
+              <span>🎵 Play</span>
+            </button>
+          </div>
+
+          {/* Unified Developer Tools Dropdown Menu (Shiro Anna ONLY) */}
+          {isDeveloper && (
+            <div className="relative flex-shrink-0" ref={devMenuRef}>
+              <button
+                onClick={() => setIsDevMenuOpen((prev) => !prev)}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md transition-all font-bold cursor-pointer border ${
+                  isDevTabActive || isDevMenuOpen
+                    ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 text-white border-rose-400 shadow-md shadow-indigo-600/30'
+                    : 'bg-rose-950/30 text-rose-300 hover:text-white hover:bg-rose-900/40 border-rose-500/30'
+                }`}
+              >
+                <MoreVertical className="w-4 h-4 text-rose-300" />
+                <span>Developer Tools</span>
+              </button>
+
+              {/* Popup / Dropdown Menu */}
+              {isDevMenuOpen && (
+                <div className="absolute right-0 mt-2 w-64 bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-xl p-1.5 z-50 space-y-1 animate-fadeIn">
+                  <div className="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-rose-400 border-b border-slate-800 flex items-center justify-between">
+                    <span>Developer Utilities</span>
+                    <span className="text-slate-500 font-normal">Shiro Anna</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('devpanel');
+                      setIsDevMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all ${
+                      activeTab === 'devpanel'
+                        ? 'bg-rose-600/30 text-rose-200 border border-rose-500/40'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <Wrench className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Developer Panel</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('database');
+                      setIsDevMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all ${
+                      activeTab === 'database'
+                        ? 'bg-sky-600/30 text-sky-200 border border-sky-500/40'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <Database className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Database Inspector</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('queue');
+                      setIsDevMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all ${
+                      activeTab === 'queue'
+                        ? 'bg-amber-600/30 text-amber-200 border border-amber-500/40'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Word Data & Queue</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('analysis');
+                      setIsDevMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all ${
+                      activeTab === 'analysis'
+                        ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40'
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Project Architecture Analysis</span>
+                  </button>
+                </div>
+              )}
+            </div>
           )}
-
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all ${
-              activeTab === 'profile'
-                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-md shadow-indigo-600/30'
-                : 'text-indigo-400 hover:text-indigo-200 hover:bg-indigo-950/40 border border-indigo-500/30'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>Profile</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('database')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all ${
-              activeTab === 'database'
-                ? 'bg-sky-600 text-white font-semibold shadow-md shadow-sky-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <Database className="w-3.5 h-3.5" />
-            <span>Database Inspector</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('queue')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all ${
-              activeTab === 'queue'
-                ? 'bg-sky-600 text-white font-semibold shadow-md shadow-sky-600/30'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>Word Data & Queue</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('analysis')}
-            className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all ${
-              activeTab === 'analysis'
-                ? 'bg-purple-600 text-white font-semibold shadow-md shadow-purple-600/30'
-                : 'text-purple-400 hover:text-purple-200 hover:bg-purple-950/40 border border-purple-500/30'
-            }`}
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-purple-300" />
-            <span>Analisis Arsitektur Project</span>
-          </button>
         </div>
       </div>
     </header>

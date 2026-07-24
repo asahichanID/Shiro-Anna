@@ -699,8 +699,6 @@ export const DeveloperPanelView: React.FC = () => {
               <option value="Coins">Carrot Coins</option>
               <option value="Music">Music & Play</option>
               <option value="Bot Profile">Bot Profile</option>
-              <option value="Friends">Friends</option>
-
               <option value="System">System</option>
             </select>
           </div>

@@ -1,7 +1,6 @@
 import { ChatRoom, DirectMessage, Friend } from '../types';
 import { StorageService } from './StorageService';
 import { DeveloperService } from './DeveloperService';
-import { FriendService } from './FriendService';
 
 const STORAGE_KEY_CHAT_ROOMS = 'chatRooms';
 const STORAGE_KEY_MESSAGES = 'messages';
@@ -119,8 +118,8 @@ export class ChatService {
     allMessages.push(userMsg);
     StorageService.setItem(STORAGE_KEY_MESSAGES, allMessages);
 
-    // Update Friend's lastMessage in friends list
-    const friends = FriendService.getFriends();
+    // Update Friend's lastMessage in friends list if exists
+    const friends = StorageService.getItem<any[]>('friends', []);
     const fIdx = friends.findIndex((f) => f.id === friend.id);
     if (fIdx !== -1) {
       friends[fIdx].lastMessage = text;
@@ -161,7 +160,7 @@ export class ChatService {
       StorageService.setItem(STORAGE_KEY_MESSAGES, globalMsgs);
 
       // Update friend's lastMessage
-      const freshFriends = FriendService.getFriends();
+      const freshFriends = StorageService.getItem<any[]>('friends', []);
       const ffIdx = freshFriends.findIndex((f) => f.id === friend.id);
       if (ffIdx !== -1) {
         freshFriends[ffIdx].lastMessage = replyText;
