@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trophy, Coins, Zap, HelpCircle, Gamepad2, Database, ShieldCheck, Music, Sparkles, Wrench, MoreVertical } from 'lucide-react';
+import { Trophy, Coins, Zap, HelpCircle, Gamepad2, Database, ShieldCheck, Music, Sparkles, Wrench, MoreVertical, Headset } from 'lucide-react';
 import { ProjectDownloadButton } from './ProjectDownloadButton';
 import { useProfile } from '../context/ProfileContext';
 import { BotService, BotProfile } from '../services/BotService';
 import { BotAvatar } from './BotAvatar';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 
-export type HeaderTab = 'chat' | 'play' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
+export type HeaderTab = 'chat' | 'play' | 'service' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
 
 interface OguriCapHeaderProps {
   userCoins: number;
@@ -189,6 +189,19 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
             >
               <Music className="w-3.5 h-3.5" />
               <span>🎵 Play</span>
+            </button>
+
+            {/* Service Button (Premium Gold / Yellow) */}
+            <button
+              onClick={() => setActiveTab('service')}
+              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 cursor-pointer ${
+                activeTab === 'service'
+                  ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-extrabold shadow-md shadow-amber-500/30 border border-yellow-200 scale-105'
+                  : 'bg-amber-500/10 text-amber-300 hover:text-amber-100 hover:bg-amber-500/20 border border-amber-500/30 font-bold'
+              }`}
+            >
+              <Headset className="w-3.5 h-3.5 text-amber-400" />
+              <span>Service</span>
             </button>
           </div>
 

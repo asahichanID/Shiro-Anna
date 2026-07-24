@@ -1,20 +1,28 @@
 import React, { useState } from 'react';
-import { Search, Music, Video, Play, Loader2, AlertCircle, RefreshCw, Volume2, Sparkles, Download, Film, Radio, ArrowLeft } from 'lucide-react';
+import {
+  Search,
+  Music,
+  Video,
+  Play,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  Volume2,
+  Sparkles,
+  Download,
+  Film,
+  Radio,
+  ArrowLeft,
+  Share2,
+  ExternalLink,
+} from 'lucide-react';
 import { ActivityService } from '../services/ActivityService';
+import { apiClient, WORKER_BASE_URL, SearchItem } from '../api/client';
 
-interface SearchResultItem {
-  videoId: string;
-  url: string;
-  title: string;
-  channel: string;
-  thumbnail: string;
-  duration?: string;
-  publishTime?: string;
-  description?: string;
-}
+export type SearchResultItem = SearchItem;
 
 interface MediaState {
-  type: 'audio' | 'video';
+  type: 'audio' | 'video' | 'tiktok' | 'spotify';
   item: SearchResultItem;
   downloadUrl: string;
   title: string;
@@ -37,23 +45,23 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
   if (!debugList || debugList.length === 0) return null;
 
   return (
-    <div className="bg-slate-950 border-2 border-amber-500/60 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 my-3 text-left font-sans animate-fadeIn">
-      <div className="flex items-center justify-between pb-3 border-b border-amber-500/30">
+    <div className="bg-slate-950 border-2 border-sky-500/60 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 my-3 text-left font-sans animate-fadeIn">
+      <div className="flex items-center justify-between pb-3 border-b border-sky-500/30">
         <div className="flex items-center space-x-2">
-          <span className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs">
-            🐛
+          <span className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/40 text-xs">
+            🌐
           </span>
           <div>
-            <h4 className="text-xs sm:text-sm font-black text-amber-300">
-              {title || 'Card Debug API (Temporary Debugger Mode)'}
+            <h4 className="text-xs sm:text-sm font-black text-sky-300">
+              {title || 'Cloudflare Worker Gateway Log'}
             </h4>
-            <p className="text-[10px] text-amber-200/70">
-              Detail log kegagalan HTTP Request (Diuji untuk analisa Cloudflare vs Preview AI Studio).
+            <p className="text-[10px] text-sky-200/70">
+              Base URL: <code className="text-emerald-300 font-bold">{WORKER_BASE_URL}</code>
             </p>
           </div>
         </div>
-        <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/30">
-          DEBUG MODE
+        <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-500/30">
+          WORKER ACTIVE
         </span>
       </div>
 
@@ -67,7 +75,7 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
                 <span className="text-[11px] font-bold text-sky-400">{item.stepName}</span>
                 <span className="text-[10px] px-2 py-0.2 rounded bg-slate-800 text-slate-400">
-                  Percobaan #{idx + 1}
+                  Log #{idx + 1}
                 </span>
               </div>
             )}
@@ -82,7 +90,7 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
 
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  API Key:
+                  Status API:
                 </span>
                 <span className="text-emerald-300 font-semibold">{item.apiKeyStatus}</span>
               </div>
@@ -113,7 +121,7 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
 
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  Error Message:
+                  Pesan Error:
                 </span>
                 <span className="text-rose-300 font-semibold break-words">{item.errorMessage}</span>
               </div>
@@ -135,6 +143,9 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
 };
 
 export const MusicPlayViewer: React.FC = () => {
+  const [activeTabMode, setActiveTabMode] = useState<'youtube' | 'tiktok' | 'spotify'>('youtube');
+
+  // YouTube Search & Media State
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -142,9 +153,17 @@ export const MusicPlayViewer: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [searchDebugList, setSearchDebugList] = useState<ApiDebugInfo[]>([]);
 
+  // TikTok State
+  const [tiktokUrlInput, setTiktokUrlInput] = useState('');
+  const [isTiktokLoading, setIsTiktokLoading] = useState(false);
+
+  // Spotify State
+  const [spotifyInput, setSpotifyInput] = useState('');
+  const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
+
   // Loading & Active Media State
   const [loadingMedia, setLoadingMedia] = useState<{
-    type: 'audio' | 'video';
+    type: 'audio' | 'video' | 'tiktok' | 'spotify';
     item: SearchResultItem;
   } | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
@@ -161,6 +180,7 @@ export const MusicPlayViewer: React.FC = () => {
     'Blue Bird Naruto',
   ];
 
+  // Handle YouTube Search via API Client
   const handleSearch = async (e?: React.FormEvent, searchOverride?: string) => {
     if (e) e.preventDefault();
     const searchQuery = (searchOverride || query).trim();
@@ -173,117 +193,34 @@ export const MusicPlayViewer: React.FC = () => {
     setSearchDebugList([]);
 
     const debugAttempts: ApiDebugInfo[] = [];
-    let data: any = null;
-
-    const apiKeyStatus = 'Tersedia di Environment Cloudflare Worker';
 
     try {
-      const proxyPath = `/api/search?query=${encodeURIComponent(searchQuery)}`;
-      const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
+      const response = await apiClient.searchYouTube(searchQuery);
 
-      try {
-        const res = await fetch(proxyPath);
-        const status = res.status;
-        const bodyText = await res.text();
-        let parsed: any = null;
-        try {
-          parsed = JSON.parse(bodyText);
-        } catch {}
-
-        if (res.ok && parsed && (parsed.result || parsed.items || Array.isArray(parsed))) {
-          data = parsed;
-        } else {
-          debugAttempts.push({
-            stepName: 'Cloudflare Worker Request (/api/search)',
-            requestUrl: proxyFullUrl,
-            httpStatus: status,
-            errorMessage: parsed?.error || `HTTP Status ${status}`,
-            responseBody: bodyText || '(Empty Response)',
-            provider: parsed?.debug?.provider || 'Cloudflare Worker / Pages Function (/api/search)',
-            apiKeyStatus,
-          });
-        }
-      } catch (e1: any) {
+      if (!response.success || !response.result || response.result.length === 0) {
         debugAttempts.push({
-          stepName: 'Cloudflare Worker Request (/api/search)',
-          requestUrl: proxyFullUrl,
-          httpStatus: '0 / Fetch Exception (Worker/Network)',
-          errorMessage: e1.message || 'Fetch to worker endpoint failed',
-          responseBody: '(Failed before receiving response - Worker route unhandled or network error)',
-          provider: 'Cloudflare Worker / Pages Function (/api/search)',
-          apiKeyStatus,
+          stepName: 'Worker API Request (/search)',
+          requestUrl: `${WORKER_BASE_URL}/search?query=${encodeURIComponent(searchQuery)}`,
+          httpStatus: response.success ? '200 OK (Empty Result)' : 'API Error',
+          errorMessage: response.message || 'Pencarian tidak mengembalikan hasil.',
+          responseBody: JSON.stringify(response, null, 2),
+          provider: response.provider || 'shiroapi',
+          apiKeyStatus: 'Active',
         });
-      }
-
-      // Extract raw items array safely
-      let rawItems: any[] = [];
-      if (Array.isArray(data?.result?.items)) {
-        rawItems = data.result.items;
-      } else if (Array.isArray(data?.result)) {
-        rawItems = data.result;
-      } else if (Array.isArray(data?.items)) {
-        rawItems = data.items;
-      } else if (Array.isArray(data)) {
-        rawItems = data;
-      }
-
-      if (!rawItems || rawItems.length === 0) {
-        if (data) {
-          debugAttempts.push({
-            stepName: 'Worker Response Parser',
-            requestUrl: proxyFullUrl,
-            httpStatus: '200 OK (Unexpected payload format)',
-            errorMessage: `Pencarian untuk "${searchQuery}" tidak mengembalikan array items dalam JSON.`,
-            responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
-            provider: 'Cloudflare Worker / Pages Function (/api/naze-search)',
-            apiKeyStatus,
-          });
-        }
         setSearchDebugList(debugAttempts);
-        throw new Error(`Pencarian untuk "${searchQuery}" tidak mengembalikan hasil dari API.`);
+        throw new Error(response.message || `Pencarian untuk "${searchQuery}" tidak mengembalikan hasil dari Worker.`);
       }
 
-      const formatted: SearchResultItem[] = rawItems.slice(0, 25).map((item: any) => {
-        const videoId =
-          item.id?.videoId ||
-          (typeof item.id === 'string' ? item.id : '') ||
-          item.videoId ||
-          '';
-
-        const title = item.snippet?.title || item.title || 'Unknown Title';
-        const channel =
-          item.snippet?.channelTitle || item.channel || item.author?.name || 'YouTube Channel';
-        const publishTime = item.snippet?.publishTime || item.publishTime || item.ago || '';
-        const description = item.snippet?.description || item.description || '';
-
-        const thumbnail =
-          item.snippet?.thumbnails?.high?.url ||
-          item.snippet?.thumbnails?.medium?.url ||
-          item.snippet?.thumbnails?.default?.url ||
-          item.thumbnail ||
-          '';
-
-        return {
-          videoId,
-          url: videoId ? `https://www.youtube.com/watch?v=${videoId}` : '',
-          title,
-          channel,
-          thumbnail,
-          publishTime,
-          description,
-        };
-      });
-
-      setSearchResults(formatted);
+      setSearchResults(response.result);
     } catch (err: any) {
       console.error('Search API error:', err);
-      setSearchDebugList(debugAttempts);
-      setSearchError(err.message || 'Gagal mengambil data pencarian dari API. Silakan coba lagi.');
+      setSearchError(err.message || 'Gagal mengambil data pencarian dari Worker API. Silakan coba lagi.');
     } finally {
       setIsSearching(false);
     }
   };
 
+  // Handle Fetch YouTube Media via API Client
   const handleFetchMedia = async (item: SearchResultItem, type: 'audio' | 'video') => {
     setLoadingMedia({ type, item });
     setMediaError(null);
@@ -291,82 +228,41 @@ export const MusicPlayViewer: React.FC = () => {
     setMediaDebugList([]);
 
     const debugAttempts: ApiDebugInfo[] = [];
-    const format = type === 'audio' ? 'mp3' : '720';
-    const youtubeUrl = `https://www.youtube.com/watch?v=${item.videoId}`;
-    const apiKeyStatus = 'Tersedia di Environment Cloudflare Worker';
+    const youtubeUrl = item.url || `https://www.youtube.com/watch?v=${item.videoId}`;
 
     try {
-      let data: any = null;
+      let response;
+      if (type === 'audio') {
+        response = await apiClient.getAudioDownload(youtubeUrl);
+      } else {
+        response = await apiClient.getVideoDownload(youtubeUrl, '720');
+      }
 
-      const endpointPath = type === 'audio' ? '/api/download/audio' : '/api/download/video';
-      const proxyPath = `${endpointPath}?url=${encodeURIComponent(youtubeUrl)}`;
-      const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
-
-      try {
-        const res = await fetch(proxyPath);
-        const status = res.status;
-        const bodyText = await res.text();
-        let parsed: any = null;
-        try {
-          parsed = JSON.parse(bodyText);
-        } catch {}
-
-        if (res.ok && parsed && parsed.result) {
-          data = parsed;
-        } else {
-          debugAttempts.push({
-            stepName: `Cloudflare Worker Request (${endpointPath})`,
-            requestUrl: proxyFullUrl,
-            httpStatus: status,
-            errorMessage: parsed?.error || `HTTP Status ${status}`,
-            responseBody: bodyText || '(Empty Response)',
-            provider: parsed?.debug?.provider || `Cloudflare Worker / Pages Function (${endpointPath})`,
-            apiKeyStatus,
-          });
-        }
-      } catch (e1: any) {
+      if (!response.success || !response.result) {
         debugAttempts.push({
-          stepName: `Cloudflare Worker Request (${endpointPath})`,
-          requestUrl: proxyFullUrl,
-          httpStatus: '0 / Fetch Exception (Worker/Network)',
-          errorMessage: e1.message || 'Fetch to worker endpoint failed',
-          responseBody: '(Failed before receiving response - Worker route unhandled or network error)',
-          provider: `Cloudflare Worker / Pages Function (${endpointPath})`,
-          apiKeyStatus,
+          stepName: `Worker API Request (/${type})`,
+          requestUrl: `${WORKER_BASE_URL}/${type}?url=${encodeURIComponent(youtubeUrl)}`,
+          httpStatus: 'API Error',
+          errorMessage: response.message || `Gagal mengambil data download ${type}.`,
+          responseBody: JSON.stringify(response, null, 2),
+          provider: response.provider || 'shiroapi',
+          apiKeyStatus: 'Active',
         });
-      }
-
-      if (!data || !data.result) {
-        if (data) {
-          debugAttempts.push({
-            stepName: 'Worker Response Parser',
-            requestUrl: proxyFullUrl,
-            httpStatus: '200 OK (Missing result field)',
-            errorMessage: `Respon API tidak memberikan field result untuk media ${type}.`,
-            responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
-            provider: `Cloudflare Worker / Pages Function (${endpointPath})`,
-            apiKeyStatus,
-          });
-        }
         setMediaDebugList(debugAttempts);
-        throw new Error(`Respon API tidak memberikan data download untuk media ${type}.`);
+        throw new Error(response.message || `API Worker tidak memberikan data download untuk media ${type}.`);
       }
 
-      const resObj = data.result;
-      const downloadUrl = resObj.download || resObj.url || resObj.link || '';
+      const resObj = response.result;
+      const downloadUrl =
+        resObj.download ||
+        resObj.url ||
+        resObj.link ||
+        (typeof resObj === 'string' ? resObj : '') ||
+        item.url ||
+        youtubeUrl;
 
       if (!downloadUrl) {
-        debugAttempts.push({
-          stepName: 'Download Link Missing',
-          requestUrl: proxyFullUrl,
-          httpStatus: '200 OK',
-          errorMessage: `API tidak mengembalikan link download ${type} yang valid dalam object result.`,
-          responseBody: JSON.stringify(resObj, null, 2).substring(0, 1000),
-          provider: `Cloudflare Worker / Pages Function (${endpointPath})`,
-          apiKeyStatus,
-        });
-        setMediaDebugList(debugAttempts);
-        throw new Error(`API tidak mengembalikan link download ${type} yang valid.`);
+        throw new Error(`API Worker tidak mengembalikan link download ${type} yang valid.`);
       }
 
       setActiveMedia({
@@ -375,20 +271,158 @@ export const MusicPlayViewer: React.FC = () => {
         downloadUrl,
         title: resObj.title || item.title,
         thumbnail: resObj.thumbnail || item.thumbnail,
-        duration: resObj.duration || '',
-        quality: resObj.quality || '',
+        duration: resObj.duration || item.duration || '',
+        quality: resObj.quality || (type === 'video' ? '720p' : '320kbps MP3'),
       });
 
       ActivityService.logActivity(
         'music_play',
         'Memutar Lagu / Video',
-        `Memutar ${type === 'audio' ? 'Audio' : 'Video'}: "${resObj.title || item.title}"`
+        `Memutar ${type === 'audio' ? 'Audio MP3' : 'Video 720p'}: "${resObj.title || item.title}"`
       );
     } catch (err: any) {
       console.error('Media download error:', err);
-      setMediaDebugList(debugAttempts);
-      setMediaError(err.message || `Gagal memuat media ${type} dari API. Silakan coba lagi.`);
+      setMediaError(err.message || `Gagal memuat media ${type} dari Worker API.`);
     } finally {
+      setLoadingMedia(null);
+    }
+  };
+
+  // Handle TikTok Download via API Client
+  const handleTikTokDownload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const input = tiktokUrlInput.trim();
+    if (!input) return;
+
+    setIsTiktokLoading(true);
+    setMediaError(null);
+    setActiveMedia(null);
+
+    const dummyItem: SearchResultItem = {
+      videoId: 'tiktok_video',
+      url: input,
+      title: 'TikTok Downloader (No Watermark)',
+      channel: 'TikTok Creator',
+      thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+    };
+
+    setLoadingMedia({ type: 'tiktok', item: dummyItem });
+
+    try {
+      const response = await apiClient.getTikTokDownload(input);
+
+      if (!response.success || !response.result) {
+        throw new Error(response.message || 'Gagal mengunduh video TikTok dari Worker API.');
+      }
+
+      const resObj = response.result;
+      const downloadUrl =
+        resObj.download ||
+        resObj.nowatermark ||
+        resObj.url ||
+        resObj.link ||
+        (typeof resObj === 'string' ? resObj : '');
+
+      if (!downloadUrl) {
+        throw new Error('API Worker tidak mengembalikan link download TikTok yang valid.');
+      }
+
+      setActiveMedia({
+        type: 'tiktok',
+        item: {
+          ...dummyItem,
+          title: resObj.title || 'TikTok Video (No Watermark)',
+          channel: resObj.author || resObj.nickname || 'TikTok User',
+          thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+        },
+        downloadUrl,
+        title: resObj.title || 'TikTok Video (No Watermark)',
+        thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+        quality: 'HD No Watermark',
+      });
+
+      ActivityService.logActivity(
+        'music_play',
+        'Download TikTok',
+        `TikTok Downloader: "${resObj.title || input}"`
+      );
+    } catch (err: any) {
+      setMediaError(err.message || 'Gagal mengunduh video TikTok.');
+    } finally {
+      setIsTiktokLoading(false);
+      setLoadingMedia(null);
+    }
+  };
+
+  // Handle Spotify Download via API Client
+  const handleSpotifyDownload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const input = spotifyInput.trim();
+    if (!input) return;
+
+    setIsSpotifyLoading(true);
+    setMediaError(null);
+    setActiveMedia(null);
+
+    const isUrl = input.startsWith('http://') || input.startsWith('https://');
+
+    const dummyItem: SearchResultItem = {
+      videoId: 'spotify_track',
+      url: input,
+      title: isUrl ? 'Spotify Downloader' : input,
+      channel: 'Spotify Artist',
+      thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+    };
+
+    setLoadingMedia({ type: 'spotify', item: dummyItem });
+
+    try {
+      let response;
+      if (isUrl) {
+        response = await apiClient.getSpotifyDownload(input);
+      } else {
+        response = await apiClient.searchSpotify(input);
+      }
+
+      if (!response.success || !response.result) {
+        throw new Error(response.message || 'Gagal memproses lagu Spotify dari Worker API.');
+      }
+
+      const resObj = response.result;
+      const downloadUrl =
+        resObj.download ||
+        resObj.link ||
+        resObj.url ||
+        resObj.audio ||
+        (typeof resObj === 'string' ? resObj : '');
+
+      if (!downloadUrl && !Array.isArray(resObj)) {
+        throw new Error('Link download MP3 Spotify tidak ditemukan.');
+      }
+
+      setActiveMedia({
+        type: 'spotify',
+        item: {
+          ...dummyItem,
+          title: resObj.title || resObj.name || input,
+          channel: resObj.artist || resObj.artists || 'Spotify Track',
+          thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+        },
+        downloadUrl: downloadUrl || '',
+        title: resObj.title || resObj.name || input,
+        thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+        quality: 'Spotify 320kbps MP3',
+      });
+
+      ActivityService.logActivity(
+        'music_play',
+        'Spotify Downloader',
+        `Memproses Spotify: "${resObj.title || input}"`
+      );
+    } catch (err: any) {
+      setMediaError(err.message || 'Gagal memproses Spotify.');
+    } finally {
+      setIsSpotifyLoading(false);
       setLoadingMedia(null);
     }
   };
@@ -408,22 +442,52 @@ export const MusicPlayViewer: React.FC = () => {
                 <h2 className="text-xl font-black bg-gradient-to-r from-sky-300 via-indigo-200 to-white bg-clip-text text-transparent">
                   🎵 Oguri Cap Jukebox & Player
                 </h2>
-                <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[10px] font-bold border border-sky-500/30">
-                  YouTube Powered
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  Worker Gateway Active
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1">
-                Cari dan putar lagu atau video kesukaanmu bersama Oguri Cap di Tracen Academy! 🐎
+                Base Worker URL: <code className="text-sky-300 font-mono font-bold">{WORKER_BASE_URL}</code> 🐎
               </p>
             </div>
           </div>
 
-          {/* Quick Stats or Quote */}
-          <div className="hidden lg:flex items-center space-x-3 bg-slate-900/60 px-4 py-2.5 rounded-xl border border-slate-800 text-xs">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span className="text-slate-300 italic">
-              "Musik memberikan energi ekstra saat latihan lari pagi!"
-            </span>
+          {/* Service Selector Tabs */}
+          <div className="flex items-center space-x-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 text-xs">
+            <button
+              onClick={() => setActiveTabMode('youtube')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                activeTabMode === 'youtube'
+                  ? 'bg-sky-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Music className="w-3.5 h-3.5" />
+              <span>YouTube</span>
+            </button>
+            <button
+              onClick={() => setActiveTabMode('tiktok')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                activeTabMode === 'tiktok'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>TikTok</span>
+            </button>
+            <button
+              onClick={() => setActiveTabMode('spotify')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                activeTabMode === 'spotify'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Spotify</span>
+            </button>
           </div>
         </div>
       </div>
@@ -444,9 +508,11 @@ export const MusicPlayViewer: React.FC = () => {
 
             <div>
               <h3 className="text-lg font-extrabold text-sky-300">
-                🐴 Oguri Cap sedang menyiapkan {loadingMedia.type === 'audio' ? 'Audio 🎧' : 'Video 720p 🎥'}...
+                🐴 Oguri Cap sedang mengunduh via Worker API...
               </h3>
-              <p className="text-xs text-slate-400 mt-1">Mohon tunggu sebentar, sedang diunduh dari YouTube...</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Menghubungi Cloudflare Worker Gateway (<code className="text-emerald-300">{WORKER_BASE_URL}</code>)...
+              </p>
             </div>
 
             {/* Target Media Preview */}
@@ -481,16 +547,9 @@ export const MusicPlayViewer: React.FC = () => {
         <div className="space-y-4">
           <div className="bg-red-950/40 border border-red-500/50 rounded-2xl p-6 shadow-xl text-center space-y-3">
             <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-            <h3 className="text-sm font-bold text-red-300">Gagal Menyiapkan Media</h3>
+            <h3 className="text-sm font-bold text-red-300">Gagal Memproses Media</h3>
             <p className="text-xs text-red-200/80 max-w-lg mx-auto">{mediaError}</p>
             <div className="flex justify-center gap-3 pt-2">
-              <button
-                onClick={() => mediaError && activeMedia && handleFetchMedia(activeMedia.item, activeMedia.type)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all shadow-md"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Coba Lagi (Retry)</span>
-              </button>
               <button
                 onClick={() => setMediaError(null)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
@@ -500,8 +559,7 @@ export const MusicPlayViewer: React.FC = () => {
             </div>
           </div>
 
-          {/* Temporary Debug Card for Media Request Failures */}
-          <DebugCard debugList={mediaDebugList} title="🐛 Card Debug Media API (Temporary Cloudflare / Server Inspector)" />
+          <DebugCard debugList={mediaDebugList} title="🌐 Log Error Worker API" />
         </div>
       )}
 
@@ -519,7 +577,7 @@ export const MusicPlayViewer: React.FC = () => {
               </button>
               <span className="text-xs font-bold text-sky-400 flex items-center gap-1">
                 {activeMedia.type === 'audio' ? <Volume2 className="w-4 h-4" /> : <Film className="w-4 h-4" />}
-                {activeMedia.type === 'audio' ? 'Audio Player Ready' : 'Video Player Ready'}
+                {activeMedia.type.toUpperCase()} Player Ready (via Worker Gateway)
               </span>
             </div>
 
@@ -534,7 +592,7 @@ export const MusicPlayViewer: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             {/* Thumbnail & Info */}
             <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 md:col-span-1">
-              {(activeMedia.thumbnail || activeMedia.item.thumbnail) ? (
+              {activeMedia.thumbnail || activeMedia.item.thumbnail ? (
                 <img
                   src={activeMedia.thumbnail || activeMedia.item.thumbnail}
                   alt={activeMedia.title || activeMedia.item.title}
@@ -552,10 +610,8 @@ export const MusicPlayViewer: React.FC = () => {
                 <p className="text-xs text-sky-300 font-medium truncate">
                   {activeMedia.item.channel}
                 </p>
-                {(activeMedia.duration || activeMedia.item.duration) && (
-                  <p className="text-[11px] text-slate-400">
-                    ⏱️ Durasi: {activeMedia.duration || activeMedia.item.duration}
-                  </p>
+                {activeMedia.duration && (
+                  <p className="text-[11px] text-slate-400">⏱️ Durasi: {activeMedia.duration}</p>
                 )}
                 {activeMedia.quality && (
                   <p className="text-[10px] text-emerald-400 font-semibold">
@@ -567,13 +623,12 @@ export const MusicPlayViewer: React.FC = () => {
 
             {/* Media Player Column */}
             <div className="md:col-span-2 space-y-3">
-              {activeMedia.type === 'audio' ? (
+              {activeMedia.type === 'audio' || activeMedia.type === 'spotify' ? (
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
-                  {/* Visual Equalizer Light Animation */}
                   <div className="flex items-center justify-between px-2">
                     <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
                       <Volume2 className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
-                      HTML5 Audio Source
+                      HTML5 Audio Source (via Worker)
                     </span>
                     <div className="flex items-end space-x-1 h-4">
                       <span className="w-1 bg-sky-400 h-2 animate-pulse rounded-full"></span>
@@ -594,16 +649,15 @@ export const MusicPlayViewer: React.FC = () => {
                   </audio>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span className="text-emerald-400">✓ MP3 Audio</span>
+                    <span className="text-emerald-400">✓ MP3 Audio Stream</span>
                     <a
                       href={activeMedia.downloadUrl}
                       download
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => ActivityService.logActivity('download_audio', 'Download Audio', `Mengunduh berkas audio MP3: "${activeMedia.title}"`)}
                       className="text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1 cursor-pointer"
                     >
-                      <Download className="w-3 h-3" /> Unduh MP3
+                      <Download className="w-3 h-3" /> Unduh Berkas MP3
                     </a>
                   </div>
                 </div>
@@ -623,7 +677,7 @@ export const MusicPlayViewer: React.FC = () => {
                   <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
                     <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
                       <Film className="w-3.5 h-3.5 text-purple-400" />
-                      Video 720 Format
+                      {activeMedia.quality || 'Video Stream'}
                     </span>
                     <a
                       href={activeMedia.downloadUrl}
@@ -643,199 +697,279 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Search Bar Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ketik judul lagu, anime OST, atau penyanyi..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isSearching || !query.trim()}
-            className="px-6 py-2.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-sky-600/20 flex items-center justify-center space-x-2 transition-all flex-shrink-0"
-          >
-            {isSearching ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Mencari...</span>
-              </>
-            ) : (
-              <>
-                <Search className="w-4 h-4" />
-                <span>Cari Lagu</span>
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Quick Presets */}
-        <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
-          <span className="text-slate-500 font-medium flex-shrink-0">Rekomendasi:</span>
-          {presetQueries.map((preset) => (
+      {/* Mode 1: YouTube Search Section */}
+      {activeTabMode === 'youtube' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ketik judul lagu, OST anime, atau penyanyi YouTube..."
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
+              />
+            </div>
             <button
-              key={preset}
-              onClick={() => {
-                setQuery(preset);
-                handleSearch(undefined, preset);
-              }}
-              className="px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 whitespace-nowrap transition-all flex-shrink-0 text-[11px]"
+              type="submit"
+              disabled={isSearching || !query.trim()}
+              className="px-6 py-2.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-sky-600/20 flex items-center justify-center space-x-2 transition-all flex-shrink-0"
             >
-              🎵 {preset}
+              {isSearching ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Mencari...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  <span>Cari Lagu</span>
+                </>
+              )}
             </button>
-          ))}
-        </div>
-      </div>
+          </form>
 
-      {/* Search Results Grid / List */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
-            <Music className="w-4 h-4 text-sky-400" />
-            <span>Hasil Pencarian YouTube</span>
-            {searchResults.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs font-normal">
-                {searchResults.length} Hasil
-              </span>
-            )}
-          </h3>
-        </div>
-
-        {/* Error message for search */}
-        {searchError && (
-          <div className="space-y-4 mb-4">
-            <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2">
-              <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
-              <p className="text-xs text-red-300">{searchError}</p>
+          {/* Quick Presets */}
+          <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
+            <span className="text-slate-500 font-medium flex-shrink-0">Rekomendasi:</span>
+            {presetQueries.map((preset) => (
               <button
-                onClick={() => handleSearch()}
-                className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-1"
+                key={preset}
+                onClick={() => {
+                  setQuery(preset);
+                  handleSearch(undefined, preset);
+                }}
+                className="px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 whitespace-nowrap transition-all flex-shrink-0 text-[11px]"
               >
-                <RefreshCw className="w-3 h-3" />
-                <span>Coba Lagi</span>
+                🎵 {preset}
               </button>
-            </div>
-
-            {/* Temporary Debug Card for Search Request Failures */}
-            <DebugCard debugList={searchDebugList} title="🐛 Card Debug Search API (Temporary Cloudflare / Server Inspector)" />
-          </div>
-        )}
-
-        {/* Skeleton Loading state */}
-        {isSearching && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 flex space-x-3 animate-pulse"
-              >
-                <div className="w-24 h-24 bg-slate-800 rounded-lg flex-shrink-0"></div>
-                <div className="flex-1 space-y-2 py-1">
-                  <div className="h-4 bg-slate-800 rounded w-3/4"></div>
-                  <div className="h-3 bg-slate-800/60 rounded w-1/2"></div>
-                  <div className="h-3 bg-slate-800/40 rounded w-1/3"></div>
-                  <div className="flex space-x-2 pt-2">
-                    <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
-                    <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
-                  </div>
-                </div>
-              </div>
             ))}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Search Results Display */}
-        {!isSearching && searchResults.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[640px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
-            {searchResults.map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 transition-all hover:shadow-lg flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group"
-              >
-                {/* Thumbnail */}
-                <div className="relative w-full sm:w-28 h-32 sm:h-28 rounded-xl overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
-                  {item.thumbnail ? (
-                    <img
-                      src={item.thumbnail}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-600">
-                      <Music className="w-8 h-8" />
+      {/* Mode 2: TikTok Downloader Section */}
+      {activeTabMode === 'tiktok' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div className="flex items-center space-x-2 pb-1 border-b border-slate-800">
+            <Film className="w-4 h-4 text-purple-400" />
+            <h3 className="text-sm font-bold text-white">TikTok Downloader (No Watermark)</h3>
+          </div>
+          <form onSubmit={handleTikTokDownload} className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={tiktokUrlInput}
+                onChange={(e) => setTiktokUrlInput(e.target.value)}
+                placeholder="Paste URL video TikTok (misal: https://www.tiktok.com/@user/video/...)"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isTiktokLoading || !tiktokUrlInput.trim()}
+              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg flex items-center justify-center space-x-2 transition-all flex-shrink-0"
+            >
+              {isTiktokLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memproses TikTok...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Download TikTok</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Mode 3: Spotify Downloader Section */}
+      {activeTabMode === 'spotify' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div className="flex items-center space-x-2 pb-1 border-b border-slate-800">
+            <Volume2 className="w-4 h-4 text-emerald-400" />
+            <h3 className="text-sm font-bold text-white">Spotify Downloader & Search</h3>
+          </div>
+          <form onSubmit={handleSpotifyDownload} className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={spotifyInput}
+                onChange={(e) => setSpotifyInput(e.target.value)}
+                placeholder="Ketik judul lagu / paste URL Spotify (misal: https://open.spotify.com/track/...)"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isSpotifyLoading || !spotifyInput.trim()}
+              className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg flex items-center justify-center space-x-2 transition-all flex-shrink-0"
+            >
+              {isSpotifyLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Memproses Spotify...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Proses Spotify</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* YouTube Search Results Grid */}
+      {activeTabMode === 'youtube' && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
+              <Music className="w-4 h-4 text-sky-400" />
+              <span>Hasil Pencarian YouTube</span>
+              {searchResults.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs font-normal">
+                  {searchResults.length} Hasil
+                </span>
+              )}
+            </h3>
+          </div>
+
+          {/* Error message for search */}
+          {searchError && (
+            <div className="space-y-4 mb-4">
+              <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2">
+                <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
+                <p className="text-xs text-red-300">{searchError}</p>
+                <button
+                  onClick={() => handleSearch()}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Coba Lagi</span>
+                </button>
+              </div>
+
+              <DebugCard debugList={searchDebugList} title="🌐 Log Error Worker API Search" />
+            </div>
+          )}
+
+          {/* Skeleton Loading state */}
+          {isSearching && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 flex space-x-3 animate-pulse"
+                >
+                  <div className="w-24 h-24 bg-slate-800 rounded-lg flex-shrink-0"></div>
+                  <div className="flex-1 space-y-2 py-1">
+                    <div className="h-4 bg-slate-800 rounded w-3/4"></div>
+                    <div className="h-3 bg-slate-800/60 rounded w-1/2"></div>
+                    <div className="h-3 bg-slate-800/40 rounded w-1/3"></div>
+                    <div className="flex space-x-2 pt-2">
+                      <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
+                      <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
                     </div>
-                  )}
-                  {item.duration && (
-                    <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-semibold text-slate-300 backdrop-blur-sm">
-                      {item.duration}
-                    </span>
-                  )}
-                </div>
-
-                {/* Info & Action Buttons */}
-                <div className="flex-1 flex flex-col justify-between overflow-hidden">
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug group-hover:text-sky-300 transition-colors">
-                      {item.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-400 truncate flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-slate-500 rounded-full"></span>
-                      {item.channel}
-                    </p>
-                  </div>
-
-                  {/* Modern Action Buttons */}
-                  <div className="flex items-center space-x-2 pt-2">
-                    <button
-                      onClick={() => handleFetchMedia(item, 'audio')}
-                      className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 hover:border-sky-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
-                    >
-                      <Music className="w-3.5 h-3.5" />
-                      <span>🎧 Audio</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleFetchMedia(item, 'video')}
-                      className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
-                    >
-                      <Video className="w-3.5 h-3.5" />
-                      <span>🎥 Video</span>
-                    </button>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Search Results Display */}
+          {!isSearching && searchResults.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[640px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
+              {searchResults.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 transition-all hover:shadow-lg flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group"
+                >
+                  {/* Thumbnail */}
+                  <div className="relative w-full sm:w-28 h-32 sm:h-28 rounded-xl overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
+                    {item.thumbnail ? (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-600">
+                        <Music className="w-8 h-8" />
+                      </div>
+                    )}
+                    {item.duration && (
+                      <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-semibold text-slate-300 backdrop-blur-sm">
+                        {item.duration}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Info & Action Buttons */}
+                  <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug group-hover:text-sky-300 transition-colors">
+                        {item.title}
+                      </h4>
+                      <p className="text-[11px] text-slate-400 truncate flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full"></span>
+                        {item.channel}
+                      </p>
+                    </div>
+
+                    {/* Modern Action Buttons */}
+                    <div className="flex items-center space-x-2 pt-2">
+                      <button
+                        onClick={() => handleFetchMedia(item, 'audio')}
+                        className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 hover:border-sky-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                      >
+                        <Music className="w-3.5 h-3.5" />
+                        <span>🎧 Audio MP3</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleFetchMedia(item, 'video')}
+                        className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                      >
+                        <Video className="w-3.5 h-3.5" />
+                        <span>🎥 Video 720p</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Initial Empty state before search */}
+          {!isSearching && hasSearched && searchResults.length === 0 && !searchError && (
+            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-500 space-y-2">
+              <Music className="w-10 h-10 mx-auto text-slate-600" />
+              <p className="text-xs">Tidak ada hasil ditemukan. Coba ketik kata kunci lain di atas.</p>
+            </div>
+          )}
+
+          {!hasSearched && !isSearching && (
+            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-sky-400">
+                <Play className="w-6 h-6 ml-0.5" />
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Initial Empty state before search */}
-        {!isSearching && hasSearched && searchResults.length === 0 && !searchError && (
-          <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-500 space-y-2">
-            <Music className="w-10 h-10 mx-auto text-slate-600" />
-            <p className="text-xs">Tidak ada hasil ditemukan. Coba ketik kata kunci lain di atas.</p>
-          </div>
-        )}
-
-        {!hasSearched && !isSearching && (
-          <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-sky-400">
-              <Play className="w-6 h-6 ml-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-slate-200">Siap Mencari Musik</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Ketik nama lagu favoritmu di kolom pencarian atau pilih tombol rekomendasi di atas.
+                </p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-200">Siap Mencari Musik</h4>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Ketik nama lagu favoritmu di kolom pencarian atau pilih tombol rekomendasi di atas.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+

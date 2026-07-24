@@ -18,6 +18,7 @@ import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
+import { ServiceView } from './components/ServiceView';
 
 const DEFAULT_CHAT_ID = 'chat_default';
 const CURRENT_USER_ID = 'trainer_01';
@@ -165,6 +166,8 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
         )}
 
         {activeTab === 'play' && <MusicPlayViewer />}
+
+        {activeTab === 'service' && <ServiceView />}
 
         {activeTab === 'devpanel' && <DeveloperPanelView />}
 
