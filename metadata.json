@@ -1,0 +1,6 @@
+{
+  "name": "Oguri Cap Tebak Kata",
+  "description": "Tebak Kata game simulator themed around Oguri Cap (Umamusume) with local word databases, timer, reward system, and interactive chat bot interface.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

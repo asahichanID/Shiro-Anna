@@ -1,0 +1,58 @@
+[
+  {
+    "id": "tk_201",
+    "soal": "Sensasi paling enak di perut pas Oguri baru aja menghabiskan 5 porsi makanan!",
+    "jawaban": "Kenyang",
+    "clue": "Perasaan nikmat habis makan banyak",
+    "kategori": "Sensasi"
+  },
+  {
+    "id": "tk_202",
+    "soal": "Aksi melesat kencang sekuat tenaga di tikungan terakhir menjelang garis finis!",
+    "jawaban": "Spurt",
+    "clue": "Akselerasi puncak di akhir balapan",
+    "kategori": "Taktik"
+  },
+  {
+    "id": "tk_203",
+    "soal": "Suara ramai dari ribuan penonton di tribun yang bikin semangat Oguri makin membara!",
+    "jawaban": "Sorakan",
+    "clue": "Teriakan heboh penonton di stadium",
+    "kategori": "Suasana"
+  },
+  {
+    "id": "tk_204",
+    "soal": "Benda bulat mengkilap warna emas yang dikalungin ke leher pas naik podium juara 1!",
+    "jawaban": "Medali",
+    "clue": "Penghargaan emas di leher juara",
+    "kategori": "Penghargaan"
+  },
+  {
+    "id": "tk_205",
+    "soal": "Koin gambar wortel yang bisa kamu kumpulin kalau berhasil jawab tebak kata Oguri!",
+    "jawaban": "Carrot Coin",
+    "clue": "Mata uang koin di bot ini",
+    "kategori": "Ekonomi"
+  },
+  {
+    "id": "tk_206",
+    "soal": "Teman rival Oguri yang mungil tapi semangatnya membara banget kayak petasan dari Edo!",
+    "jawaban": "Inari One",
+    "clue": "Rival Oguri yang ceplas-ceplos dari Edo",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "tk_207",
+    "soal": "Suasana waktu pagi-pagi banget sebelum matahari nongol, pas Oguri mulai bangun tidur.",
+    "jawaban": "Fajar",
+    "clue": "Waktu subuh menjelang pagi",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_208",
+    "soal": "Momen membanggakan waktu Oguri berhasil nembus garis finis paling pertama!",
+    "jawaban": "Kemenangan",
+    "clue": "Hasil akhir kalau jadi Juara 1",
+    "kategori": "Pencapaian"
+  }
+]

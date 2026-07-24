@@ -1,0 +1,37 @@
+[
+  {
+    "id": "tk_301",
+    "soal": "Cairan manis buatan lebah yang rasanya lezat banget kalau dicampur ke teh hangat!",
+    "jawaban": "Madu",
+    "clue": "Cairan manis, buatan lebah",
+    "kategori": "Kuliner"
+  },
+  {
+    "id": "tk_302",
+    "soal": "Lemari dingin yang sering Oguri buka pas malam hari buat nyari cemilan rahasia!",
+    "jawaban": "Kulkas",
+    "clue": "Lemari pendingin simpan makanan",
+    "kategori": "Peralatan"
+  },
+  {
+    "id": "tk_303",
+    "soal": "Sepatu besi khusus yang dipasang di kaki biar lari di lintasan rumput nggak gampang kepleset.",
+    "jawaban": "Tapal Kuda",
+    "clue": "Pelindung besi di telapak kaki pelari",
+    "kategori": "Peralatan"
+  },
+  {
+    "id": "tk_304",
+    "soal": "Nasi kepal bentuk segitiga dibungkus rumput laut, cemilan praktis Oguri pas jeda latihan!",
+    "jawaban": "Onigiri",
+    "clue": "Nasi kepal segitiga khas Jepang",
+    "kategori": "Makanan"
+  },
+  {
+    "id": "tk_305",
+    "soal": "Seberapa kencang Oguri melesat di lintasan balap, biasanya diukur pake jam stopwatch Trainer!",
+    "jawaban": "Kecepatan",
+    "clue": "Tingkat kencangnya lari",
+    "kategori": "Atribut"
+  }
+]

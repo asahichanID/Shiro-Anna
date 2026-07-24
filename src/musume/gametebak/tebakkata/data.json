@@ -1,0 +1,72 @@
+[
+  {
+    "id": "tk_001",
+    "soal": "Hewan yang larinya kencang banget dan sukanya makan wortel... mirip teman-temanku di Tracen!",
+    "jawaban": "Kuda",
+    "clue": "Lari kencang di lapangan, suka wortel",
+    "kategori": "Hewan & Umamusume"
+  },
+  {
+    "id": "tk_002",
+    "soal": "Makanan oranye ini super renyah dan manis, Oguri bisa makan berkarung-karung tanpa bosen!",
+    "jawaban": "Wortel",
+    "clue": "Sayuran oranye kesukaan Oguri Cap",
+    "kategori": "Makanan"
+  },
+  {
+    "id": "tk_003",
+    "soal": "Orang hebat yang selalu nemenin Oguri latihan dan nyiapin strategi balap... kamu tau kan siapa?",
+    "jawaban": "Trainer",
+    "clue": "Orang yang bimbing dan latih Uma Musume",
+    "kategori": "Umamusume"
+  },
+  {
+    "id": "tk_004",
+    "soal": "Balapan G1 penutup tahun di Jepang yang bikin jantung Oguri berdebar kencang saat garis finis!",
+    "jawaban": "Arima Kinen",
+    "clue": "Balapan megah penutup tahun",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "tk_005",
+    "soal": "Julukan keren yang orang-orang kasih ke Oguri gara-gara warna bulu dan lariku yang kencang!",
+    "jawaban": "Monster Grey",
+    "clue": "Julukan si Abu-abu legendaris",
+    "kategori": "Gelar"
+  },
+  {
+    "id": "tk_006",
+    "soal": "Coba tebak... wadah bulat apa yang hampir selalu ada di meja makan Oguri buat porsi jumbo?",
+    "jawaban": "Mangkuk",
+    "clue": "Wadah kuah atau nasi porsi kenyang",
+    "kategori": "Barang"
+  },
+  {
+    "id": "tk_007",
+    "soal": "Lintasan rumput hijau tempat Oguri sama teman-teman adu lari kencang!",
+    "jawaban": "Racetrack",
+    "clue": "Tempat adu lari Uma Musume",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "tk_008",
+    "soal": "Kegiatan capek tapi seru tiap pagi bareng Trainer biar lari Oguri makin kencang!",
+    "jawaban": "Latihan",
+    "clue": "Kegiatan ngelatih stamina dan fisik",
+    "kategori": "Aktivitas"
+  },
+  {
+    "id": "tk_009",
+    "soal": "Rival sekaligus temanku di Tracen yang sifatnya perhatian banget kayak ibu-ibu, hihi!",
+    "jawaban": "Super Creek",
+    "clue": "Rival Oguri yang keibuan dan lembut",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "tk_0010",
+    "soal": "Minuman oranye segar nan bergizi yang pas banget diminum Oguri habis lari capek!",
+    "jawaban": "Susu Wortel",
+    "clue": "Minuman sehat olahan sayur oranye",
+    "kategori": "Minuman"
+  }
+]

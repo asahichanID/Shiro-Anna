@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+@keyframes winStreakGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(251, 191, 36, 0.7), 0 0 22px rgba(245, 158, 11, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 1), 0 0 35px rgba(245, 158, 11, 0.8);
+    transform: scale(1.06);
+  }
+}
+
+@keyframes streakFire {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px #f59e0b) drop-shadow(0 0 6px #ef4444);
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 14px #dc2626);
+    transform: translateY(-2px) scale(1.15);
+  }
+}
+
+@keyframes streakPulseBg {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-streak-glow {
+  animation: winStreakGlow 1.6s infinite ease-in-out;
+}
+
+.animate-streak-fire {
+  animation: streakFire 1.1s infinite ease-in-out;
+}
+
+.animate-streak-gradient {
+  background-size: 200% 200%;
+  animation: streakPulseBg 3s ease infinite, winStreakGlow 1.6s infinite ease-in-out;
+}
+
+@keyframes badgeShine {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  35%, 100% {
+    transform: translateX(250%) skewX(-20deg);
+  }
+}
+
+.animate-badge-shine {
+  animation: badgeShine 2s infinite ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.22s ease-out forwards;
+}
+
+@keyframes floatBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-bounce-slow {
+  animation: floatBounce 3.2s ease-in-out infinite;
+}
+
