@@ -175,13 +175,12 @@ export const MusicPlayViewer: React.FC = () => {
     const debugAttempts: ApiDebugInfo[] = [];
     let data: any = null;
 
-    const apiKey = 'nz-880c23d4fd';
-    const apiKeyStatus = apiKey ? `Tersedia (${apiKey})` : 'Kosong';
+    const apiKeyStatus = 'Tersedia di Environment Cloudflare Worker';
 
     try {
-      // 1. Try server proxy endpoint first
       const proxyPath = `/api/naze-search?query=${encodeURIComponent(searchQuery)}`;
       const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
+
       try {
         const res = await fetch(proxyPath);
         const status = res.status;
@@ -195,106 +194,25 @@ export const MusicPlayViewer: React.FC = () => {
           data = parsed;
         } else {
           debugAttempts.push({
-            stepName: 'Attempt 1: Express Server Proxy',
+            stepName: 'Cloudflare Worker Request (/api/naze-search)',
             requestUrl: proxyFullUrl,
             httpStatus: status,
             errorMessage: parsed?.error || `HTTP Status ${status}`,
             responseBody: bodyText || '(Empty Response)',
-            provider: 'Express Backend Proxy (/api/naze-search)',
+            provider: 'Cloudflare Worker / Pages Function (/api/naze-search)',
             apiKeyStatus,
           });
         }
       } catch (e1: any) {
         debugAttempts.push({
-          stepName: 'Attempt 1: Express Server Proxy',
+          stepName: 'Cloudflare Worker Request (/api/naze-search)',
           requestUrl: proxyFullUrl,
-          httpStatus: '0 / Fetch Exception (Network / CORS)',
-          errorMessage: e1.message || 'Fetch failed',
-          responseBody: '(Failed before receiving response - Server endpoint missing or proxy blocked)',
-          provider: 'Express Backend Proxy (/api/naze-search)',
+          httpStatus: '0 / Fetch Exception (Worker/Network)',
+          errorMessage: e1.message || 'Fetch to worker endpoint failed',
+          responseBody: '(Failed before receiving response - Worker route unhandled or network error)',
+          provider: 'Cloudflare Worker / Pages Function (/api/naze-search)',
           apiKeyStatus,
         });
-      }
-
-      // 2. Direct fetch fallback
-      if (!data) {
-        const directEndpoint = `https://api.naze.biz.id/search/youtube?query=${encodeURIComponent(
-          searchQuery
-        )}&apikey=${apiKey}`;
-        try {
-          const res = await fetch(directEndpoint);
-          const status = res.status;
-          const bodyText = await res.text();
-          let parsed: any = null;
-          try {
-            parsed = JSON.parse(bodyText);
-          } catch {}
-
-          if (res.ok && parsed && (parsed.result || parsed.items || Array.isArray(parsed))) {
-            data = parsed;
-          } else {
-            debugAttempts.push({
-              stepName: 'Attempt 2: Direct Client Fetch',
-              requestUrl: directEndpoint,
-              httpStatus: status,
-              errorMessage: parsed?.error || `HTTP Status ${status}`,
-              responseBody: bodyText || '(Empty Response)',
-              provider: 'Naze API Direct (https://api.naze.biz.id)',
-              apiKeyStatus,
-            });
-          }
-        } catch (e2: any) {
-          debugAttempts.push({
-            stepName: 'Attempt 2: Direct Client Fetch',
-            requestUrl: directEndpoint,
-            httpStatus: '0 / CORS / Network Exception',
-            errorMessage: e2.message || 'Direct fetch failed',
-            responseBody: '(Failed before receiving response - likely blocked by CORS on browser / Cloudflare)',
-            provider: 'Naze API Direct (https://api.naze.biz.id)',
-            apiKeyStatus,
-          });
-        }
-      }
-
-      // 3. Corsproxy fallback
-      if (!data) {
-        const directEndpoint = `https://api.naze.biz.id/search/youtube?query=${encodeURIComponent(
-          searchQuery
-        )}&apikey=${apiKey}`;
-        const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(directEndpoint)}`;
-        try {
-          const res = await fetch(corsProxyUrl);
-          const status = res.status;
-          const bodyText = await res.text();
-          let parsed: any = null;
-          try {
-            parsed = JSON.parse(bodyText);
-          } catch {}
-
-          if (res.ok && parsed && (parsed.result || parsed.items || Array.isArray(parsed))) {
-            data = parsed;
-          } else {
-            debugAttempts.push({
-              stepName: 'Attempt 3: Corsproxy Fallback',
-              requestUrl: corsProxyUrl,
-              httpStatus: status,
-              errorMessage: parsed?.error || `HTTP Status ${status}`,
-              responseBody: bodyText || '(Empty Response)',
-              provider: 'Corsproxy.io -> Naze API',
-              apiKeyStatus,
-            });
-          }
-        } catch (e3: any) {
-          debugAttempts.push({
-            stepName: 'Attempt 3: Corsproxy Fallback',
-            requestUrl: corsProxyUrl,
-            httpStatus: '0 / Fetch Exception',
-            errorMessage: e3.message || 'Corsproxy fetch failed',
-            responseBody: '(Failed before receiving response)',
-            provider: 'Corsproxy.io -> Naze API',
-            apiKeyStatus,
-          });
-        }
       }
 
       // Extract raw items array safely
@@ -312,12 +230,12 @@ export const MusicPlayViewer: React.FC = () => {
       if (!rawItems || rawItems.length === 0) {
         if (data) {
           debugAttempts.push({
-            stepName: 'Data Validation Failure',
-            requestUrl: 'N/A (Payload received)',
+            stepName: 'Worker Response Parser',
+            requestUrl: proxyFullUrl,
             httpStatus: '200 OK (Unexpected payload format)',
             errorMessage: `Pencarian untuk "${searchQuery}" tidak mengembalikan array items dalam JSON.`,
             responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
-            provider: 'Naze API Response Parser',
+            provider: 'Cloudflare Worker / Pages Function (/api/naze-search)',
             apiKeyStatus,
           });
         }
@@ -375,15 +293,14 @@ export const MusicPlayViewer: React.FC = () => {
     const debugAttempts: ApiDebugInfo[] = [];
     const format = type === 'audio' ? 'mp3' : '720';
     const youtubeUrl = `https://www.youtube.com/watch?v=${item.videoId}`;
-    const apiKey = 'nz-880c23d4fd';
-    const apiKeyStatus = apiKey ? `Tersedia (${apiKey})` : 'Kosong';
+    const apiKeyStatus = 'Tersedia di Environment Cloudflare Worker';
 
     try {
       let data: any = null;
 
-      // 1. Try server proxy endpoint first
       const proxyPath = `/api/naze-download?url=${encodeURIComponent(youtubeUrl)}&format=${format}`;
       const proxyFullUrl = typeof window !== 'undefined' ? `${window.location.origin}${proxyPath}` : proxyPath;
+
       try {
         const res = await fetch(proxyPath);
         const status = res.status;
@@ -397,117 +314,36 @@ export const MusicPlayViewer: React.FC = () => {
           data = parsed;
         } else {
           debugAttempts.push({
-            stepName: 'Attempt 1: Express Server Proxy',
+            stepName: 'Cloudflare Worker Request (/api/naze-download)',
             requestUrl: proxyFullUrl,
             httpStatus: status,
             errorMessage: parsed?.error || `HTTP Status ${status}`,
             responseBody: bodyText || '(Empty Response)',
-            provider: 'Express Backend Proxy (/api/naze-download)',
+            provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
             apiKeyStatus,
           });
         }
       } catch (e1: any) {
         debugAttempts.push({
-          stepName: 'Attempt 1: Express Server Proxy',
+          stepName: 'Cloudflare Worker Request (/api/naze-download)',
           requestUrl: proxyFullUrl,
-          httpStatus: '0 / Fetch Exception (Network / CORS)',
-          errorMessage: e1.message || 'Fetch failed',
-          responseBody: '(Failed before receiving response - Server endpoint missing or proxy blocked)',
-          provider: 'Express Backend Proxy (/api/naze-download)',
+          httpStatus: '0 / Fetch Exception (Worker/Network)',
+          errorMessage: e1.message || 'Fetch to worker endpoint failed',
+          responseBody: '(Failed before receiving response - Worker route unhandled or network error)',
+          provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
           apiKeyStatus,
         });
-      }
-
-      // 2. Direct fetch fallback
-      if (!data) {
-        const directEndpoint = `https://api.naze.biz.id/download/youtube?url=${encodeURIComponent(
-          youtubeUrl
-        )}&format=${format}&apikey=${apiKey}`;
-        try {
-          const res = await fetch(directEndpoint);
-          const status = res.status;
-          const bodyText = await res.text();
-          let parsed: any = null;
-          try {
-            parsed = JSON.parse(bodyText);
-          } catch {}
-
-          if (res.ok && parsed && parsed.result) {
-            data = parsed;
-          } else {
-            debugAttempts.push({
-              stepName: 'Attempt 2: Direct Client Fetch',
-              requestUrl: directEndpoint,
-              httpStatus: status,
-              errorMessage: parsed?.error || `HTTP Status ${status}`,
-              responseBody: bodyText || '(Empty Response)',
-              provider: 'Naze API Direct (https://api.naze.biz.id)',
-              apiKeyStatus,
-            });
-          }
-        } catch (e2: any) {
-          debugAttempts.push({
-            stepName: 'Attempt 2: Direct Client Fetch',
-            requestUrl: directEndpoint,
-            httpStatus: '0 / CORS / Network Exception',
-            errorMessage: e2.message || 'Direct fetch failed',
-            responseBody: '(Failed before receiving response - likely blocked by CORS on browser / Cloudflare)',
-            provider: 'Naze API Direct (https://api.naze.biz.id)',
-            apiKeyStatus,
-          });
-        }
-      }
-
-      // 3. Corsproxy fallback
-      if (!data) {
-        const directEndpoint = `https://api.naze.biz.id/download/youtube?url=${encodeURIComponent(
-          youtubeUrl
-        )}&format=${format}&apikey=${apiKey}`;
-        const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(directEndpoint)}`;
-        try {
-          const res = await fetch(corsProxyUrl);
-          const status = res.status;
-          const bodyText = await res.text();
-          let parsed: any = null;
-          try {
-            parsed = JSON.parse(bodyText);
-          } catch {}
-
-          if (res.ok && parsed && parsed.result) {
-            data = parsed;
-          } else {
-            debugAttempts.push({
-              stepName: 'Attempt 3: Corsproxy Fallback',
-              requestUrl: corsProxyUrl,
-              httpStatus: status,
-              errorMessage: parsed?.error || `HTTP Status ${status}`,
-              responseBody: bodyText || '(Empty Response)',
-              provider: 'Corsproxy.io -> Naze API',
-              apiKeyStatus,
-            });
-          }
-        } catch (e3: any) {
-          debugAttempts.push({
-            stepName: 'Attempt 3: Corsproxy Fallback',
-            requestUrl: corsProxyUrl,
-            httpStatus: '0 / Fetch Exception',
-            errorMessage: e3.message || 'Corsproxy fetch failed',
-            responseBody: '(Failed before receiving response)',
-            provider: 'Corsproxy.io -> Naze API',
-            apiKeyStatus,
-          });
-        }
       }
 
       if (!data || !data.result) {
         if (data) {
           debugAttempts.push({
-            stepName: 'Data Validation Failure',
-            requestUrl: 'N/A (Payload received)',
+            stepName: 'Worker Response Parser',
+            requestUrl: proxyFullUrl,
             httpStatus: '200 OK (Missing result field)',
             errorMessage: `Respon API tidak memberikan field result untuk media ${type}.`,
             responseBody: JSON.stringify(data, null, 2).substring(0, 1000),
-            provider: 'Naze API Response Parser',
+            provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
             apiKeyStatus,
           });
         }
@@ -521,11 +357,11 @@ export const MusicPlayViewer: React.FC = () => {
       if (!downloadUrl) {
         debugAttempts.push({
           stepName: 'Download Link Missing',
-          requestUrl: 'N/A',
+          requestUrl: proxyFullUrl,
           httpStatus: '200 OK',
           errorMessage: `API tidak mengembalikan link download ${type} yang valid dalam object result.`,
           responseBody: JSON.stringify(resObj, null, 2).substring(0, 1000),
-          provider: 'Naze API Response Parser',
+          provider: 'Cloudflare Worker / Pages Function (/api/naze-download)',
           apiKeyStatus,
         });
         setMediaDebugList(debugAttempts);
