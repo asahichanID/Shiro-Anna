@@ -188,7 +188,7 @@ class ApiClient {
 
     if (!response.success) {
       // Try secondary endpoint if /search failed
-      response = await this.request('/spotify/search', { query: trimmed, q: trimmed });
+      response = await this.request('/search', { query: trimmed, q: trimmed });
     }
 
     const payload = response.result !== undefined ? response.result : response;
@@ -539,7 +539,7 @@ class ApiClient {
   }
 
   /**
-   * Search Spotify songs/tracks via Worker (/spotify/search?query=)
+   * Search Spotify songs/tracks via Worker (/spotify?query=)
    */
   public async searchSpotify(query: string): Promise<ApiResponse<any>> {
     const trimmed = query.trim();
@@ -551,7 +551,7 @@ class ApiClient {
       };
     }
 
-    return this.request('/spotify/search', { query: trimmed });
+    return this.request('/spotify', { query: trimmed });
   }
 
   /**
