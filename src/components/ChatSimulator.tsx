@@ -8,6 +8,7 @@ import { GlobalChatService } from '../services/GlobalChatService';
 import { FriendsService } from '../services/FriendsService';
 import { LiveDuelService } from '../services/LiveDuelService';
 import { PresenceService } from '../services/PresenceService';
+import { ChatService } from '../services/ChatService';
 import { BotAvatar } from './BotAvatar';
 import { LiveDuelPanel } from './LiveDuelPanel';
 
@@ -45,6 +46,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   const [timerSeconds, setTimerSeconds] = useState<number>(60);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [typingStatus, setTypingStatus] = useState<{ active: boolean; text: string; dots: string } | null>(null);
+  const [friendTypingStatus, setFriendTypingStatus] = useState<{ friendId: string; isTyping: boolean; text: string } | null>(null);
   const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfileSync());
   
   // New Friend Input state
@@ -72,6 +74,9 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
     const unsubFriends = FriendsService.onFriendsUpdate(setFriendsList);
     const unsubDuel = LiveDuelService.onDuelUpdate(setActiveDuel);
     const unsubTyping = messageHandler.onTyping(setTypingStatus);
+    const unsubFriendTyping = ChatService.onTyping((status) => {
+      setFriendTypingStatus(status);
+    });
 
     return () => {
       unsubBot();
@@ -79,6 +84,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
       unsubFriends();
       unsubDuel();
       unsubTyping();
+      unsubFriendTyping();
       GlobalChatService.stopPolling();
       PresenceService.stopPresenceTracking();
     };
@@ -376,6 +382,25 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
               );
             })}
             <div ref={messagesEndRef} />
+            <div className="pt-1">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: '.tebakkata', command: '.tebakkata', tone: 'from-sky-600 to-blue-600' },
+                  { label: '.hint', command: '.hint', tone: 'from-amber-600 to-orange-600' },
+                  { label: '.nyerah', command: '.nyerah', tone: 'from-rose-600 to-red-600' },
+                  { label: '.coin', command: '.coin', tone: 'from-emerald-600 to-teal-600' },
+                ].map((item) => (
+                  <button
+                    key={item.command}
+                    type="button"
+                    onClick={() => onSendMessage(item.command)}
+                    className={`px-3 py-2 rounded-xl text-[11px] font-black text-white bg-gradient-to-r ${item.tone} shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -482,6 +507,15 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                     </button>
                   </div>
 
+                  {friendTypingStatus?.isTyping && friendTypingStatus.friendId === selectedFriend.id && (
+                    <div className="px-4 pt-3">
+                      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 shadow-md">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>{friendTypingStatus.text}</span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* DM Feed */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {directMessages.map((dm) => {
@@ -530,6 +564,14 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
         {/* MODE 3: BOT GAME SIMULATOR */}
         {chatMode === 'bot' && (
           <div className="flex-1 flex flex-col bg-slate-950/80 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+            {typingStatus?.active && (
+              <div className="flex justify-start">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-[11px] font-semibold text-sky-200 shadow-md">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                  <span>{typingStatus.text}{typingStatus.dots}</span>
+                </div>
+              </div>
+            )}
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
@@ -554,7 +596,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
         )}
 
       </div>
-
       {/* INPUT FORM */}
       <form onSubmit={handleSubmit} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center space-x-2">
         <input
