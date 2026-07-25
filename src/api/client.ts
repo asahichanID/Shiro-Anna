@@ -544,7 +544,7 @@ class ApiClient {
    * For text-query downloads, use getSpotifyDownload() after extracting
    * a Spotify track URL from the search results.
    */
-  public async searchSpotify(query: string): Promise<ApiResponse<any>> {
+  public async searchSpotify(query: string, limit: number = 20): Promise<ApiResponse<any>> {
     const trimmed = query.trim();
     if (!trimmed) {
       return {
@@ -554,7 +554,13 @@ class ApiClient {
       };
     }
 
-    return this.request('/spotify', { query: trimmed, q: trimmed, search: trimmed });
+    // Menambahkan parameter 'limit' agar Worker API tahu kita menginginkan 20 hasil
+    return this.request('/spotify', { 
+      query: trimmed, 
+      q: trimmed, 
+      search: trimmed,
+      limit: limit.toString() 
+    });
   }
 
   /**
