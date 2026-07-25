@@ -27,6 +27,9 @@ export interface AppUser {
   role: 'Developer' | 'Trainer';
   status: UserStatus;
   coin: number;
+  carrotCoins?: number;
+  winStreak?: number;
+  maxWinStreak?: number;
   level: number;
   friends: string[];
   createdAt: string;
@@ -44,14 +47,70 @@ export interface Friend {
   status: UserStatus;
   lastMessage: string;
   lastOnline: string;
+  bio?: string;
+  role?: 'Developer' | 'Trainer';
+  isOnline?: boolean;
 }
+
+export type MessageDeliveryStatus = 'sent' | 'delivered' | 'read';
 
 export interface DirectMessage {
   id: string;
   senderId: string;
+  receiverId?: string;
   text: string;
   time: string;
   timestamp: number;
+  status?: MessageDeliveryStatus;
+  isRead?: boolean;
+}
+
+export interface GlobalChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole?: 'Developer' | 'Trainer';
+  senderAvatar?: string;
+  text: string;
+  isDuelAnswer?: boolean;
+  time: string;
+  timestamp: number;
+}
+
+export type DuelStep = 'countdown' | 'question' | 'answer_correct' | 'scores' | 'finished' | 'idle';
+
+export interface LiveDuelPlayer {
+  id: string;
+  name: string;
+  avatar?: string;
+  score: number;
+}
+
+export interface LiveDuelSession {
+  id: string;
+  status: DuelStep;
+  player1: LiveDuelPlayer;
+  player2: LiveDuelPlayer;
+  currentRound: number;
+  totalRounds: number;
+  question?: QuestionData;
+  countdownSeconds?: number;
+  lastAnswerUser?: string;
+  lastAnswerText?: string;
+  winnerId?: string;
+  winnerName?: string;
+  updatedAt: number;
+}
+
+export interface DeveloperSettings {
+  globalChatEnabled: boolean;
+  liveDuelEnabled: boolean;
+  autoDuelEnabled: boolean;
+  minStreakBanner: number;
+  minStreakMarquee: number;
+  maxPollingMs: number;
+  duelRewardCoins: number;
+  duelCooldownSec: number;
 }
 
 export interface ChatRoom {

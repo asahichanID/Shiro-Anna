@@ -28,11 +28,14 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
   const { profile } = useProfile();
   const isDeveloper = profile?.role === 'Developer' || profile?.username.toLowerCase() === 'shiro anna';
 
-  const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfile());
+  const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfileSync());
   const [isDevMenuOpen, setIsDevMenuOpen] = useState(false);
   const devMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    BotService.getBotProfile().then((p) => {
+      if (p) setBotProfile(p);
+    });
     const unsub = BotService.onBotProfileUpdate((updated) => {
       setBotProfile(updated);
     });

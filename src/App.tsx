@@ -19,6 +19,7 @@ import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
 import { ServiceView } from './components/ServiceView';
+import { RunningMarquee } from './components/RunningMarquee';
 
 const DEFAULT_CHAT_ID = 'chat_default';
 const CURRENT_USER_ID = 'trainer_01';
@@ -151,6 +152,9 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
         activeTab={activeTab}
         setActiveTab={setActiveTab}
       />
+
+      {/* Global Duel Announcement Marquee */}
+      <RunningMarquee />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

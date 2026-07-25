@@ -1,71 +1,91 @@
-import { AutoReplyRule } from '../types';
+import { D1DatabaseService, DeveloperBadgeData } from './D1DatabaseService';
 import { StorageService } from './StorageService';
+import { BadgeThemeId } from '../config/badgeThemes';
 
-const STORAGE_KEY_AUTO_REPLY = 'autoReplyRules';
+export interface AutoReplyRule {
+  id: string;
+  keyword: string;
+  reply: string;
+  matchType?: 'contains' | 'exact';
+}
 
-const DEFAULT_AUTO_REPLIES: AutoReplyRule[] = [
-  { id: 'ar_1', trigger: 'hallo', response: 'Hallo, Trainer! Ada yang bisa Oguri bantu hari ini?' },
-  { id: 'ar_2', trigger: 'halo', response: 'Halo! Salam dari Oguri Cap! 🐴✨' },
-  { id: 'ar_3', trigger: 'makan', response: 'Wah, kamu bilang makan? Oguri mau 5 porsi mangkuk ramen dan susu wortel! 🥕🍜' },
-  { id: 'ar_4', trigger: 'latihan', response: 'Ayo semangat latihan lari di lintasan Tracen hari ini! 💪' },
-  { id: 'ar_5', trigger: 'tebak', response: 'Ketik .tebakkata di simulator bot untuk main tebak kata sama Oguri ya!' },
-  { id: 'ar_6', trigger: 'siapa', response: 'Aku Oguri Cap, si Monster Grey dari Kasamatsu & Tracen Academy! 🏆' },
+const STORAGE_KEY_AUTO_REPLIES = 'oguri_auto_replies';
+const STORAGE_KEY_DEV_BADGE = 'oguri_dev_badge';
+
+const DEFAULT_RULES: AutoReplyRule[] = [
+  { id: '1', keyword: 'halo', reply: 'Halo Trainer! Ada yang bisa Oguri bantu?', matchType: 'contains' },
+  { id: '2', keyword: 'pagi', reply: 'Selamat pagi! Semangat latihannya hari ini 🏃‍♀️', matchType: 'contains' },
+  { id: '3', keyword: 'wortel', reply: 'Wortel?! Oguri mau dong! 🥕🥕', matchType: 'contains' },
 ];
 
 export class DeveloperService {
-  /**
-   * Get Auto Reply Rules
-   */
-  public static getAutoReplyRules(): AutoReplyRule[] {
-    const rules = StorageService.getItem<AutoReplyRule[]>(STORAGE_KEY_AUTO_REPLY, []);
-    if (rules.length === 0) {
-      StorageService.setItem(STORAGE_KEY_AUTO_REPLY, DEFAULT_AUTO_REPLIES);
-      return DEFAULT_AUTO_REPLIES;
-    }
-    return rules;
+  public static getAutoReplies(): AutoReplyRule[] {
+    return StorageService.getItem<AutoReplyRule[]>(STORAGE_KEY_AUTO_REPLIES, DEFAULT_RULES);
   }
 
-  public static addAutoReplyRule(trigger: string, response: string): AutoReplyRule {
-    const rules = this.getAutoReplyRules();
-    const newRule: AutoReplyRule = {
-      id: `ar_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      trigger: trigger.trim().toLowerCase(),
-      response: response.trim(),
-    };
-    rules.push(newRule);
-    StorageService.setItem(STORAGE_KEY_AUTO_REPLY, rules);
-    return newRule;
+  public static saveAutoReplies(rules: AutoReplyRule[]): void {
+    StorageService.setItem(STORAGE_KEY_AUTO_REPLIES, rules);
   }
 
-  public static updateAutoReplyRule(id: string, trigger: string, response: string): boolean {
-    const rules = this.getAutoReplyRules();
-    const idx = rules.findIndex((r) => r.id === id);
-    if (idx === -1) return false;
+  public static matchAutoReply(inputMessage: string): string | null {
+    const rules = this.getAutoReplies();
+    const cleanMsg = inputMessage.toLowerCase().trim();
 
-    rules[idx] = {
-      ...rules[idx],
-      trigger: trigger.trim().toLowerCase(),
-      response: response.trim(),
-    };
-    StorageService.setItem(STORAGE_KEY_AUTO_REPLY, rules);
-    return true;
-  }
-
-  public static deleteAutoReplyRule(id: string): boolean {
-    const rules = this.getAutoReplyRules();
-    const filtered = rules.filter((r) => r.id !== id);
-    StorageService.setItem(STORAGE_KEY_AUTO_REPLY, filtered);
-    return true;
-  }
-
-  public static matchAutoReply(text: string): string | null {
-    const rules = this.getAutoReplyRules();
-    const lower = text.toLowerCase();
     for (const rule of rules) {
-      if (lower.includes(rule.trigger)) {
-        return rule.response;
+      const kw = rule.keyword.toLowerCase().trim();
+      if (!kw) continue;
+
+      if (rule.matchType === 'exact') {
+        if (cleanMsg === kw) return rule.reply;
+      } else {
+        if (cleanMsg.includes(kw)) return rule.reply;
       }
     }
     return null;
+  }
+
+  public static async getDeveloperBadge(): Promise<DeveloperBadgeData> {
+    const cached = StorageService.getItem<DeveloperBadgeData>(STORAGE_KEY_DEV_BADGE, {
+      userId: '#1',
+      badgeName: 'Ruby Developer',
+      themeId: 'ruby' as BadgeThemeId,
+      icon: '🔥',
+      effect: 'Shine & Glow',
+    });
+
+    try {
+      const d1Badge = await D1DatabaseService.getDeveloperBadge();
+      if (d1Badge && d1Badge.badgeName) {
+        StorageService.setItem(STORAGE_KEY_DEV_BADGE, d1Badge);
+        return d1Badge;
+      }
+    } catch (e) {
+      console.warn('Error fetching developer badge from D1:', e);
+    }
+
+    return cached;
+  }
+
+  public static async updateDeveloperBadge(data: Partial<DeveloperBadgeData>): Promise<DeveloperBadgeData> {
+    const current = await this.getDeveloperBadge();
+    const updated: DeveloperBadgeData = {
+      ...current,
+      ...data,
+      updatedAt: Date.now(),
+    };
+
+    StorageService.setItem(STORAGE_KEY_DEV_BADGE, updated);
+
+    try {
+      const result = await D1DatabaseService.updateDeveloperBadge(updated);
+      if (result) {
+        StorageService.setItem(STORAGE_KEY_DEV_BADGE, result);
+        return result;
+      }
+    } catch (e) {
+      console.warn('Error updating developer badge on D1:', e);
+    }
+
+    return updated;
   }
 }

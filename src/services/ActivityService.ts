@@ -1,123 +1,90 @@
+import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 
 export interface ActivityLog {
   id: string;
   userId: string;
   userName: string;
-  category: 'Auth' | 'Game' | 'Coins' | 'Music' | 'BotProfile' | 'System' | 'Friends' | string;
-  type:
-    | 'login'
-    | 'profile_name'
-    | 'profile_avatar'
-    | 'game_start'
-    | 'game_win'
-    | 'game_lose'
-    | 'coin_earned'
-    | 'music_play'
-    | 'download_audio'
-    | 'download_video'
-    | 'bot_update'
-    | 'system';
+  category: 'music' | 'game' | 'system' | 'profile' | 'badge' | 'chat' | 'login' | 'coin_earned' | 'profile_name' | 'profile_avatar' | string;
+  type: string;
   title: string;
   detail: string;
   time: string;
   timestamp: number;
 }
 
-const STORAGE_KEY_LOGS = 'activity_logs';
+const STORAGE_KEY_ACTIVITIES = 'oguri_activity_history';
 
 export class ActivityService {
-  public static getLogs(): ActivityLog[] {
-    return StorageService.getItem<ActivityLog[]>(STORAGE_KEY_LOGS, []);
+  public static getHistorySync(limit: number = 50): ActivityLog[] {
+    const cached = StorageService.getItem<ActivityLog[]>(STORAGE_KEY_ACTIVITIES, []);
+    return Array.isArray(cached) ? cached.slice(0, limit) : [];
   }
 
-  public static logActivity(
-    type: ActivityLog['type'],
+  public static getLogsSync(limit: number = 50): ActivityLog[] {
+    return this.getHistorySync(limit);
+  }
+
+  public static async getHistory(limit: number = 50): Promise<ActivityLog[]> {
+    const cached = this.getHistorySync(limit);
+    try {
+      const d1Logs = await D1DatabaseService.getActivityLogs(limit);
+      if (d1Logs && Array.isArray(d1Logs) && d1Logs.length > 0) {
+        StorageService.setItem(STORAGE_KEY_ACTIVITIES, d1Logs);
+        return d1Logs;
+      }
+    } catch (e) {
+      console.warn('Error fetching activity history from D1:', e);
+    }
+    return cached;
+  }
+
+  // Alias for backward compatibility
+  public static async getLogs(limit: number = 50): Promise<ActivityLog[]> {
+    return this.getHistory(limit);
+  }
+
+  public static async logActivity(
+    category: ActivityLog['category'],
+    type: string,
     title: string,
-    detail: string,
-    userId?: string,
-    userName?: string,
-    category?: string
-  ): ActivityLog {
-    const logs = this.getLogs();
+    detail: string = '',
+    user: { id: string; name: string } = { id: '#1', name: 'Shiro Anna' }
+  ): Promise<ActivityLog> {
     const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    // Auto-resolve current logged in profile if not passed
-    let activeUserId = userId;
-    let activeUserName = userName;
-
-    if (!activeUserId || !activeUserName) {
-      try {
-        const savedProfile = localStorage.getItem('oguri_profile');
-        if (savedProfile) {
-          const parsed = JSON.parse(savedProfile);
-          activeUserId = activeUserId || parsed.id || '#Unregistered';
-          activeUserName = activeUserName || parsed.username || 'Guest';
-        }
-      } catch (e) {
-        // Fallback
-      }
-    }
-
-    activeUserId = activeUserId || '#System';
-    activeUserName = activeUserName || 'System';
-
-    // Auto-determine category if omitted
-    let resolvedCategory = category;
-    if (!resolvedCategory) {
-      switch (type) {
-        case 'login':
-        case 'profile_name':
-        case 'profile_avatar':
-          resolvedCategory = 'Auth / Profile';
-          break;
-        case 'game_start':
-        case 'game_win':
-        case 'game_lose':
-          resolvedCategory = 'Game';
-          break;
-        case 'coin_earned':
-          resolvedCategory = 'Coins';
-          break;
-        case 'music_play':
-        case 'download_audio':
-        case 'download_video':
-          resolvedCategory = 'Music';
-          break;
-        case 'bot_update':
-          resolvedCategory = 'Bot Profile';
-          break;
-        default:
-          resolvedCategory = 'System';
-          break;
-      }
-    }
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const newLog: ActivityLog = {
-      id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      userId: activeUserId,
-      userName: activeUserName,
-      category: resolvedCategory,
+      id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: user.id,
+      userName: user.name,
+      category,
       type,
       title,
-      detail,
+      detail: detail || title,
       time: timeStr,
       timestamp: Date.now(),
     };
 
-    // Keep max 300 logs globally
-    const updated = [newLog, ...logs].slice(0, 300);
-    StorageService.setItem(STORAGE_KEY_LOGS, updated);
+    const current = this.getHistorySync();
+    const updated = [newLog, ...current].slice(0, 100);
+    StorageService.setItem(STORAGE_KEY_ACTIVITIES, updated);
 
-    // Dispatch custom event for real-time listener updates
-    window.dispatchEvent(new CustomEvent('activity_log_updated', { detail: newLog }));
+    try {
+      await D1DatabaseService.logActivity(newLog);
+    } catch (e) {
+      console.warn('Failed to send activity log to D1:', e);
+    }
 
     return newLog;
   }
 
-  public static clearLogs(): void {
-    StorageService.setItem(STORAGE_KEY_LOGS, []);
-    window.dispatchEvent(new CustomEvent('activity_log_updated'));
+  public static async clearHistory(): Promise<void> {
+    StorageService.removeItem(STORAGE_KEY_ACTIVITIES);
+  }
+
+  // Alias for backward compatibility
+  public static async clearLogs(): Promise<void> {
+    return this.clearHistory();
   }
 }

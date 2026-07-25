@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ActivityService } from '../services/ActivityService';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
+import { D1DatabaseService } from '../services/D1DatabaseService';
+import { NotificationService } from '../services/NotificationService';
 
 export interface UserAccount {
   id: string;
@@ -36,7 +38,12 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<UserAccount | null>(null);
 
-  // Load profile on startup
+  // Request browser notifications permission
+  useEffect(() => {
+    NotificationService.requestPermission();
+  }, []);
+
+  // Load profile on startup & sync with D1
   useEffect(() => {
     try {
       const savedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
@@ -46,11 +53,48 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           parsed.avatar = BOT_DEFAULT_AVATAR;
         }
         setProfile(parsed);
+
+        // Register/Login to D1
+        D1DatabaseService.registerOrLoginUser({
+          username: parsed.username,
+          role: parsed.role,
+          avatar: parsed.avatar,
+        });
       }
     } catch (e) {
       console.error('Failed to load profile:', e);
     }
   }, []);
+
+  // Real-time Presence & Sync Polling Engine (3–5 seconds)
+  useEffect(() => {
+    if (!profile) return;
+
+    const intervalId = setInterval(() => {
+      // 1. Send Presence Heartbeat
+      D1DatabaseService.updatePresence({
+        userId: profile.id,
+        status: 'Online',
+        device: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop',
+        browser: navigator.userAgent,
+      }).catch((e) => console.warn('Presence heartbeat skipped:', e));
+
+      // 2. Poll Sync
+      D1DatabaseService.pollSync(profile.id, Date.now() - 10000)
+        .then((syncData) => {
+          if (!syncData) return;
+          if (syncData.unreadNotificationsCount && syncData.unreadNotificationsCount > 0) {
+            NotificationService.sendNotification(
+              'Oguri Cap Notice',
+              `Anda memiliki ${syncData.unreadNotificationsCount} pesan/notifikasi baru.`
+            );
+          }
+        })
+        .catch(() => {});
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [profile]);
 
   // Helper to get all registered accounts map
   const getRegisteredAccountsMap = (): Record<string, UserAccount> => {
@@ -92,7 +136,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEY_ID_COUNTER, next.toString());
   };
 
-  // Save profile to active storage and accounts map
+  // Save profile to active storage and accounts map & D1
   const saveProfile = (newProfile: UserAccount) => {
     setProfile(newProfile);
     try {
@@ -100,6 +144,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const map = getRegisteredAccountsMap();
       map[newProfile.id] = newProfile;
       saveRegisteredAccountsMap(map);
+
+      D1DatabaseService.registerOrLoginUser({
+        username: newProfile.username,
+        role: newProfile.role,
+        avatar: newProfile.avatar,
+      });
     } catch (e) {
       console.error('Failed to save profile:', e);
     }
@@ -115,11 +165,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const lower = trimmed.toLowerCase();
     const accountsMap = getRegisteredAccountsMap();
 
-    // 1. Check if user with this username (case-insensitive) already exists in registered accounts database
     const existingUser = Object.values(accountsMap).find((a) => a.username.toLowerCase() === lower);
 
     if (existingUser) {
-      // Log in to existing user account directly!
       if (!existingUser.avatar || existingUser.avatar === '/assets/avatar.png' || existingUser.avatar.trim() === '') {
         existingUser.avatar = BOT_DEFAULT_AVATAR;
       }
@@ -128,7 +176,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return { success: true };
     }
 
-    // 2. Register new account if not exists
     const isDevName = lower === 'shiro anna';
     const formattedDate = new Date().toLocaleDateString('id-ID', {
       day: 'numeric',
@@ -172,7 +219,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { success: true };
   };
 
-  // Edit Username
   const updateUsername = (newUsername: string): { success: boolean; error?: string } => {
     if (!profile) return { success: false, error: 'Belum login.' };
 
@@ -183,7 +229,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const lower = trimmed.toLowerCase();
     if (lower === profile.username.toLowerCase()) {
-      return { success: true }; // No change
+      return { success: true };
     }
 
     const accountsMap = getRegisteredAccountsMap();
@@ -191,7 +237,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .filter((a) => a.id !== profile.id)
       .map((a) => a.username.toLowerCase());
 
-    // Disallow reserved developer name unless current user is already Developer
     if (RESERVED_NAMES.includes(lower) && profile.role !== 'Developer') {
       return { success: false, error: 'Nama sudah dipakai.' };
     }
@@ -211,7 +256,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return { success: true };
   };
 
-  // Edit Avatar Photo
   const updateAvatar = (base64Image: string) => {
     if (!profile) return;
     const updatedProfile: UserAccount = {
@@ -222,7 +266,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ActivityService.logActivity('profile_avatar', 'Mengubah Foto Profile', `Pembaruan foto profil untuk akun ${profile.username}.`);
   };
 
-  // Sync Stats (Coins, totalGame, win, lose)
   const updateStats = (coins: number, totalGame: number, win: number, lose: number) => {
     if (!profile) return;
 
@@ -241,6 +284,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const logout = () => {
+    if (profile) {
+      D1DatabaseService.updatePresence({ userId: profile.id, status: 'Offline' }).catch(() => {});
+    }
     setProfile(null);
     localStorage.removeItem(STORAGE_KEY_PROFILE);
   };

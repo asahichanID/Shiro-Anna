@@ -2,23 +2,29 @@ import { QuestionData, QueueState } from '../../../types';
 import data1 from './data.json';
 import data2 from './data2.json';
 import data3 from './data3.json';
+import wordsData from '../../../database/quiz/words.json';
+import imagesData from '../../../database/quiz/images.json';
+import eventsData from '../../../database/quiz/events.json';
 
 class TebakKataManager {
   private allQuestions: QuestionData[] = [];
   private permanentQueue: QuestionData[] = [];
   private queueIndex: number = 0;
-  private sources: string[] = ['data.json', 'data2.json', 'data3.json'];
+  private sources: string[] = ['words.json', 'images.json', 'events.json', 'data.json', 'data2.json', 'data3.json'];
 
   constructor() {
     this.initDataSources();
   }
 
   private initDataSources() {
+    const dWords = (wordsData as any[]).map(q => ({ ...q, sourceFile: 'words.json' }));
+    const dImages = (imagesData as any[]).map(q => ({ ...q, sourceFile: 'images.json' }));
+    const dEvents = (eventsData as any[]).map(q => ({ ...q, sourceFile: 'events.json' }));
     const d1 = (data1 as any[]).map(q => ({ ...q, sourceFile: 'data.json' }));
     const d2 = (data2 as any[]).map(q => ({ ...q, sourceFile: 'data2.json' }));
     const d3 = (data3 as any[]).map(q => ({ ...q, sourceFile: 'data3.json' }));
 
-    this.allQuestions = [...d1, ...d2, ...d3];
+    this.allQuestions = [...dWords, ...dImages, ...dEvents, ...d1, ...d2, ...d3];
     this.shufflePermanentQueue();
   }
 

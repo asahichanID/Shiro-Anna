@@ -188,7 +188,7 @@ class ApiClient {
 
     if (!response.success) {
       // Try secondary endpoint if /search failed
-      response = await this.request('/search', { query: trimmed, q: trimmed });
+      response = await this.request('/spotify/search', { query: trimmed, q: trimmed });
     }
 
     const payload = response.result !== undefined ? response.result : response;
@@ -539,12 +539,9 @@ class ApiClient {
   }
 
   /**
-   * Search Spotify songs/tracks via Worker (/spotify?query=)
-   * Returns raw search results (list of tracks from Naze API).
-   * For text-query downloads, use getSpotifyDownload() after extracting
-   * a Spotify track URL from the search results.
+   * Search Spotify songs/tracks via Worker (/spotify/search?query=)
    */
-  public async searchSpotify(query: string, limit: number = 20): Promise<ApiResponse<any>> {
+  public async searchSpotify(query: string): Promise<ApiResponse<any>> {
     const trimmed = query.trim();
     if (!trimmed) {
       return {
@@ -554,19 +551,11 @@ class ApiClient {
       };
     }
 
-    // Menambahkan parameter 'limit' agar Worker API tahu kita menginginkan 20 hasil
-    return this.request('/spotify', { 
-      query: trimmed, 
-      q: trimmed, 
-      search: trimmed,
-      limit: limit.toString() 
-    });
+    return this.request('/spotify/search', { query: trimmed });
   }
 
   /**
    * Download Spotify track/playlist info via Worker (/spotify?url=)
-   * Mirrors the normalization pattern of getAudioDownload / getVideoDownload / getTikTokDownload
-   * so that extractDownloadUrl() is applied to handle any Naze API response shape.
    */
   public async getSpotifyDownload(spotifyUrl: string): Promise<ApiResponse<MediaDownloadResult>> {
     const trimmed = spotifyUrl.trim();
@@ -578,32 +567,7 @@ class ApiClient {
       };
     }
 
-    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed, link: trimmed });
-
-    // If request itself failed, return as-is
-    if (!response.success) {
-      return response;
-    }
-
-    const payload = response.result !== undefined ? response.result : response;
-
-    // Apply the same recursive URL extraction used by all other download methods
-    let extractedUrl = this.extractDownloadUrl(payload);
-
-    const resultObj: MediaDownloadResult =
-      typeof payload === 'object' && payload !== null ? { ...payload } : {};
-
-    if (extractedUrl) {
-      resultObj.download = extractedUrl;
-      resultObj.url      = extractedUrl;
-    }
-
-    return {
-      success: true,
-      provider: response.provider || 'shiroapi',
-      cached:   response.cached,
-      result:   resultObj,
-    };
+    return this.request<MediaDownloadResult>('/spotify', { url: trimmed });
   }
 
   /**

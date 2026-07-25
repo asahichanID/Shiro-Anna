@@ -1,0 +1,23 @@
+[
+  {
+    "id": "evt_001",
+    "soal": "Konser musik spektakuler tempat para Uma Musume bernyanyi di panggung setelah menang balapan!",
+    "jawaban": "Winning Live",
+    "clue": "Pesta musik usai lomba balap",
+    "kategori": "Event Tracen"
+  },
+  {
+    "id": "evt_002",
+    "soal": "Acara festival olahraga tahunan Tracen Academy di mana seluruh tim saling bertanding uji ketangkasan!",
+    "jawaban": "Festival Olahraga",
+    "clue": "Lomba antar kelas di akademi",
+    "kategori": "Event Tracen"
+  },
+  {
+    "id": "evt_003",
+    "soal": "Sesi duel adu kecepatan dan pengetahuan kata antar Trainer di Tracen Arena!",
+    "jawaban": "Live Duel",
+    "clue": "Pertandingan 1 lawan 1 secara langsung",
+    "kategori": "Event Duel"
+  }
+]

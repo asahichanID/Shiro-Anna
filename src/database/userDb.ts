@@ -1,137 +1,190 @@
-import { UserProfile } from '../types';
+import { AppUser, UserProfile, Friend } from '../types';
+import { StorageService } from '../services/StorageService';
+import { D1DatabaseService } from '../services/D1DatabaseService';
 
-const USER_STORAGE_KEY = 'musume_user_db_v1';
+const STORAGE_KEY_USER = 'oguri_user_profile';
+const STORAGE_KEY_USERS_ALL = 'oguri_all_registered_users';
+const STORAGE_KEY_FRIENDS = 'friends';
 
-// Default mock users to make the leaderboard and database feel alive
-const DEFAULT_USERS: Record<string, UserProfile> = {
-  'trainer_01': {
-    id: 'trainer_01',
-    name: 'Trainer Sensei',
-    carrotCoins: 12500,
-    gamesPlayed: 15,
-    gamesWon: 12,
-    winStreak: 2,
-    maxWinStreak: 5,
-    lastActive: Date.now(),
-  },
-  'trainer_02': {
-    id: 'trainer_02',
-    name: 'Tamamo Cross',
-    carrotCoins: 8900,
-    gamesPlayed: 10,
-    gamesWon: 8,
-    winStreak: 1,
-    maxWinStreak: 4,
-    lastActive: Date.now() - 3600000,
-  },
-  'trainer_03': {
-    id: 'trainer_03',
-    name: 'Kipasan Oguri',
-    carrotCoins: 5400,
-    gamesPlayed: 6,
-    gamesWon: 5,
-    winStreak: 0,
-    maxWinStreak: 3,
-    lastActive: Date.now() - 7200000,
-  },
-};
+export class UserDatabaseService {
+  /**
+   * Synchronous getUser to maintain existing game handler & UI compatibility
+   */
+  public static getUser(id: string = '#1', defaultName?: string): UserProfile & AppUser {
+    const all = this.getAllUsers();
+    let found = all.find((u) => u.id === id || u.username === defaultName);
 
-class UserDatabase {
-  private users: Record<string, UserProfile> = {};
-
-  constructor() {
-    this.load();
-  }
-
-  private load() {
-    try {
-      const stored = localStorage.getItem(USER_STORAGE_KEY);
-      if (stored) {
-        this.users = JSON.parse(stored);
-      } else {
-        this.users = { ...DEFAULT_USERS };
-        this.save();
-      }
-    } catch (e) {
-      this.users = { ...DEFAULT_USERS };
-    }
-  }
-
-  private save() {
-    try {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(this.users));
-    } catch (e) {
-      console.error('Failed to save user db:', e);
-    }
-  }
-
-  public getUser(id: string, name: string = 'Trainer'): UserProfile {
-    if (!this.users[id]) {
-      this.users[id] = {
+    if (!found) {
+      found = {
         id,
-        name,
-        carrotCoins: 1000,
+        username: defaultName || 'Shiro Anna',
+        name: defaultName || 'Shiro Anna',
+        role: defaultName === 'Shiro Anna' ? 'Developer' : 'Trainer',
+        avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+        status: 'Online',
+        coin: 100000,
+        carrotCoins: 100000,
+        level: 100,
+        friends: [],
+        createdAt: '2026-01-01',
+        totalGame: 0,
         gamesPlayed: 0,
+        win: 0,
         gamesWon: 0,
+        lose: 0,
         winStreak: 0,
         maxWinStreak: 0,
         lastActive: Date.now(),
-      };
-      this.save();
-    } else {
-      let changed = false;
-      if (name && this.users[id].name !== name) {
-        this.users[id].name = name;
-        changed = true;
-      }
-      if (this.users[id].winStreak === undefined) {
-        this.users[id].winStreak = 0;
-        changed = true;
-      }
-      if (this.users[id].maxWinStreak === undefined) {
-        this.users[id].maxWinStreak = 0;
-        changed = true;
-      }
-      if (changed) {
-        this.save();
-      }
+        lastOnline: 'Baru saja',
+        lastMessage: 'Halo!',
+      } as any;
+      all.push(found as any);
+      StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
+
+      // Async sync to D1
+      D1DatabaseService.registerOrLoginUser({
+        username: found!.username,
+        role: found!.role,
+        avatar: found!.avatar,
+      }).catch(() => {});
     }
-    return this.users[id];
+
+    // Ensure all compatibility fields exist
+    (found as any).carrotCoins = found.carrotCoins !== undefined ? found.carrotCoins : (found.coin || 1000);
+    (found as any).coin = (found as any).carrotCoins;
+    (found as any).name = found.name || found.username;
+    (found as any).gamesPlayed = found.gamesPlayed !== undefined ? found.gamesPlayed : (found.totalGame || 0);
+    (found as any).gamesWon = found.gamesWon !== undefined ? found.gamesWon : (found.win || 0);
+    (found as any).winStreak = found.winStreak || 0;
+    (found as any).maxWinStreak = found.maxWinStreak || 0;
+
+    return found as any;
   }
 
-  public addCarrotCoins(userId: string, amount: number): UserProfile {
-    const user = this.getUser(userId);
-    user.carrotCoins += amount;
-    user.lastActive = Date.now();
-    this.save();
+  public static getCurrentUser(): AppUser {
+    return this.getUser('#1');
+  }
+
+  public static getAllUsers(): (AppUser & UserProfile)[] {
+    const cached = StorageService.getItem<any[]>(STORAGE_KEY_USERS_ALL, []);
+    if (cached.length === 0) {
+      const defaultUser = {
+        id: '#1',
+        username: 'Shiro Anna',
+        name: 'Shiro Anna',
+        role: 'Developer',
+        avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+        status: 'Online',
+        coin: 100000,
+        carrotCoins: 100000,
+        level: 100,
+        friends: [],
+        createdAt: '2026-01-01',
+        totalGame: 0,
+        gamesPlayed: 0,
+        win: 0,
+        gamesWon: 0,
+        lose: 0,
+        winStreak: 0,
+        maxWinStreak: 0,
+        lastActive: Date.now(),
+        lastOnline: 'Baru saja',
+        lastMessage: 'Halo!',
+      };
+      cached.push(defaultUser);
+      StorageService.setItem(STORAGE_KEY_USERS_ALL, cached);
+    }
+    return cached;
+  }
+
+  public static saveUser(user: any): AppUser {
+    StorageService.setItem(STORAGE_KEY_USER, user);
+
+    const all = StorageService.getItem<any[]>(STORAGE_KEY_USERS_ALL, []);
+    const idx = all.findIndex((u) => u.id === user.id);
+    if (idx !== -1) {
+      all[idx] = user;
+    } else {
+      all.push(user);
+    }
+    StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
+
+    // Sync to D1 Database
+    D1DatabaseService.registerOrLoginUser({
+      username: user.username || user.name,
+      role: user.role,
+      avatar: user.avatar,
+    }).catch(() => {});
+
     return user;
   }
 
-  public recordGameAttempt(userId: string, isWin: boolean): UserProfile {
+  public static addCarrotCoins(userIdOrAmount: string | number, amountOrNothing?: number): AppUser {
+    let userId = '#1';
+    let amount = 0;
+
+    if (typeof userIdOrAmount === 'number') {
+      amount = userIdOrAmount;
+    } else {
+      userId = userIdOrAmount;
+      amount = typeof amountOrNothing === 'number' ? amountOrNothing : 0;
+    }
+
     const user = this.getUser(userId);
-    user.gamesPlayed += 1;
-    if (isWin) {
-      user.gamesWon += 1;
+    user.carrotCoins = (user.carrotCoins || 0) + amount;
+    user.coin = user.carrotCoins;
+    return this.saveUser(user);
+  }
+
+  public static recordGameAttempt(userId: string = '#1', isWon: boolean): AppUser {
+    const user = this.getUser(userId);
+    user.gamesPlayed = (user.gamesPlayed || 0) + 1;
+    user.totalGame = user.gamesPlayed;
+
+    if (isWon) {
+      user.gamesWon = (user.gamesWon || 0) + 1;
+      user.win = user.gamesWon;
       user.winStreak = (user.winStreak || 0) + 1;
       if (user.winStreak > (user.maxWinStreak || 0)) {
         user.maxWinStreak = user.winStreak;
       }
+      user.carrotCoins = (user.carrotCoins || 0) + 100;
+      user.coin = user.carrotCoins;
     } else {
+      user.lose = (user.lose || 0) + 1;
       user.winStreak = 0;
     }
-    user.lastActive = Date.now();
-    this.save();
-    return user;
+
+    return this.saveUser(user);
   }
 
-  public getAllUsers(): UserProfile[] {
-    return Object.values(this.users).sort((a, b) => b.carrotCoins - a.carrotCoins);
+  public static resetDatabase(): void {
+    StorageService.removeItem(STORAGE_KEY_USER);
+    StorageService.removeItem(STORAGE_KEY_USERS_ALL);
+    StorageService.removeItem(STORAGE_KEY_FRIENDS);
   }
 
-  public resetDatabase() {
-    this.users = { ...DEFAULT_USERS };
-    this.save();
+  public static getFriends(userId: string = '#1'): Friend[] {
+    const cached = StorageService.getItem<Friend[]>(STORAGE_KEY_FRIENDS, []);
+    // Sync with D1 in background
+    D1DatabaseService.getFriends(userId).then((d1Friends) => {
+      if (d1Friends && d1Friends.length > 0) {
+        StorageService.setItem(STORAGE_KEY_FRIENDS, d1Friends);
+      }
+    }).catch(() => {});
+
+    return cached;
+  }
+
+  public static addFriend(friend: Friend, userId: string = '#1'): Friend[] {
+    const friends = this.getFriends(userId);
+    if (!friends.some((f) => f.id === friend.id)) {
+      friends.push(friend);
+      StorageService.setItem(STORAGE_KEY_FRIENDS, friends);
+      D1DatabaseService.addFriend(userId, friend).catch(() => {});
+    }
+    return friends;
   }
 }
 
-export const userDb = new UserDatabase();
+export const userDb = UserDatabaseService;

@@ -1,19 +1,11 @@
 import { ChatRoom, DirectMessage, Friend } from '../types';
 import { StorageService } from './StorageService';
 import { DeveloperService } from './DeveloperService';
+import { D1DatabaseService } from './D1DatabaseService';
+import { NotificationService } from './NotificationService';
 
 const STORAGE_KEY_CHAT_ROOMS = 'chatRooms';
 const STORAGE_KEY_MESSAGES = 'messages';
-
-const DEFAULT_REPLIES = [
-  'Hallo! Terima kasih sudah menyapa.',
-  'Hallo, Trainer! Semoga harimu menyenangkan!',
-  'Iya! Ada apa, Trainer?',
-  'Semangat terus ya!',
-  'Nanti kita obrolin lagi pas selesai latihan 🏃‍♀️',
-  'Oguri lagi bersiap buat balapan berikutnya!',
-  'Jangan lupa makan wortel hari ini! 🥕'
-];
 
 export interface TypingCallbackStatus {
   friendId: string;
@@ -41,6 +33,19 @@ export class ChatService {
 
   public static getRooms(): ChatRoom[] {
     return StorageService.getItem<ChatRoom[]>(STORAGE_KEY_CHAT_ROOMS, []);
+  }
+
+  public static async getChatMessagesFromD1(friendId: string): Promise<DirectMessage[]> {
+    const roomId = this.getRoomId(friendId);
+    try {
+      const messages = await D1DatabaseService.getChatMessages(roomId);
+      if (messages && messages.length > 0) {
+        return messages;
+      }
+    } catch (e) {
+      console.warn('Error getting messages from D1:', e);
+    }
+    return this.getMessages(friendId);
   }
 
   public static getChatRoom(friendId: string): ChatRoom {
@@ -76,11 +81,11 @@ export class ChatService {
     return room.messages || [];
   }
 
-  public static sendMessage(
+  public static async sendMessage(
     friend: Friend,
     text: string,
     onReceiveReply?: (msg: DirectMessage) => void
-  ): DirectMessage {
+  ): Promise<DirectMessage> {
     const rooms = StorageService.getItem<ChatRoom[]>(STORAGE_KEY_CHAT_ROOMS, []);
     const roomId = this.getRoomId(friend.id);
     let room = rooms.find((r) => r.roomId === roomId);
@@ -104,7 +109,7 @@ export class ChatService {
     room.lastMessage = text;
     room.lastMessageTime = Date.now();
 
-    // Update room in storage
+    // Local Storage cache
     const roomIdx = rooms.findIndex((r) => r.roomId === roomId);
     if (roomIdx !== -1) {
       rooms[roomIdx] = room;
@@ -113,28 +118,39 @@ export class ChatService {
     }
     StorageService.setItem(STORAGE_KEY_CHAT_ROOMS, rooms);
 
-    // Save globally to messages array too as requested
-    const allMessages = StorageService.getItem<DirectMessage[]>(STORAGE_KEY_MESSAGES, []);
-    allMessages.push(userMsg);
-    StorageService.setItem(STORAGE_KEY_MESSAGES, allMessages);
-
-    // Update Friend's lastMessage in friends list if exists
-    const friends = StorageService.getItem<any[]>('friends', []);
-    const fIdx = friends.findIndex((f) => f.id === friend.id);
-    if (fIdx !== -1) {
-      friends[fIdx].lastMessage = text;
-      StorageService.setItem('friends', friends);
+    // Save to D1 Database
+    try {
+      await D1DatabaseService.sendChatMessage({
+        id: userMsg.id,
+        roomId,
+        senderId: 'me',
+        receiverId: friend.id,
+        text,
+        time: userMsg.time,
+        timestamp: userMsg.timestamp,
+      });
+    } catch (e) {
+      console.warn('Failed to send message to D1:', e);
     }
 
-    // Trigger Typing & Auto Reply Simulation after ~1 sec
+    // Trigger Typing & Auto Reply Simulation
     this.notifyTyping(friend.id, true, `${friend.username} sedang mengetik...`);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       this.notifyTyping(friend.id, false, '');
 
-      // Determine response
       const customReply = DeveloperService.matchAutoReply(text);
-      const replyText = customReply || DEFAULT_REPLIES[Math.floor(Math.random() * DEFAULT_REPLIES.length)];
+      const replyText =
+        customReply ||
+        [
+          'Hallo! Terima kasih sudah menyapa.',
+          'Hallo, Trainer! Semoga harimu menyenangkan!',
+          'Iya! Ada apa, Trainer?',
+          'Semangat terus ya!',
+          'Nanti kita obrolin lagi pas selesai latihan 🏃‍♀️',
+          'Oguri lagi bersiap buat balapan berikutnya!',
+          'Jangan lupa makan wortel hari ini! 🥕',
+        ][Math.floor(Math.random() * 7)];
 
       const replyMsg: DirectMessage = {
         id: `msg_${friend.id}_${Date.now()}`,
@@ -144,7 +160,6 @@ export class ChatService {
         timestamp: Date.now(),
       };
 
-      // Reload fresh rooms & add reply
       const freshRooms = StorageService.getItem<ChatRoom[]>(STORAGE_KEY_CHAT_ROOMS, []);
       const fRoom = freshRooms.find((r) => r.roomId === roomId);
       if (fRoom) {
@@ -154,18 +169,26 @@ export class ChatService {
         StorageService.setItem(STORAGE_KEY_CHAT_ROOMS, freshRooms);
       }
 
-      // Save to global messages
-      const globalMsgs = StorageService.getItem<DirectMessage[]>(STORAGE_KEY_MESSAGES, []);
-      globalMsgs.push(replyMsg);
-      StorageService.setItem(STORAGE_KEY_MESSAGES, globalMsgs);
-
-      // Update friend's lastMessage
-      const freshFriends = StorageService.getItem<any[]>('friends', []);
-      const ffIdx = freshFriends.findIndex((f) => f.id === friend.id);
-      if (ffIdx !== -1) {
-        freshFriends[ffIdx].lastMessage = replyText;
-        StorageService.setItem('friends', freshFriends);
+      // Save reply to D1
+      try {
+        await D1DatabaseService.sendChatMessage({
+          id: replyMsg.id,
+          roomId,
+          senderId: friend.id,
+          receiverId: 'me',
+          text: replyText,
+          time: replyMsg.time,
+          timestamp: replyMsg.timestamp,
+        });
+      } catch (e) {
+        console.warn('Failed to send reply to D1:', e);
       }
+
+      // Trigger Browser Notification
+      NotificationService.sendNotification(friend.username, replyText, {
+        icon: friend.avatar,
+        tag: `chat_${friend.id}`,
+      });
 
       if (onReceiveReply) {
         onReceiveReply(replyMsg);

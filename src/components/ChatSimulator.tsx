@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Clock, Sparkles, Coins, HelpCircle, Flag, Zap, RotateCcw, AlertCircle } from 'lucide-react';
-import { BotMessage, GameSession } from '../types';
+import { Send, Clock, Sparkles, Coins, HelpCircle, Flag, Zap, RotateCcw, AlertCircle, Users, Globe, MessageSquare, Swords, UserPlus, UserMinus, Check, CheckCheck, Eye } from 'lucide-react';
+import { BotMessage, GameSession, GlobalChatMessage, DirectMessage, Friend, LiveDuelSession } from '../types';
 import { gameDb } from '../database/gameDb';
 import { messageHandler } from '../handler/messageHandler';
 import { BotService, BotProfile } from '../services/BotService';
+import { GlobalChatService } from '../services/GlobalChatService';
+import { FriendsService } from '../services/FriendsService';
+import { LiveDuelService } from '../services/LiveDuelService';
+import { PresenceService } from '../services/PresenceService';
 import { BotAvatar } from './BotAvatar';
+import { LiveDuelPanel } from './LiveDuelPanel';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
@@ -23,37 +28,83 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   userCoins,
   userWinStreak = 0,
 }) => {
+  const currentUserId = 'trainer_01';
+
+  // Navigation state
+  const [chatMode, setChatMode] = useState<'global' | 'friends' | 'bot'>('global');
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+
+  // Chat Data state
+  const [globalMessages, setGlobalMessages] = useState<GlobalChatMessage[]>(() => GlobalChatService.getGlobalMessagesSync());
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
+  const [friendsList, setFriendsList] = useState<Friend[]>(() => FriendsService.getFriendsSync());
+  const [activeDuel, setActiveDuel] = useState<LiveDuelSession | null>(() => LiveDuelService.getActiveDuelSync());
+
+  // Input & notice state
   const [inputText, setInputText] = useState('');
   const [timerSeconds, setTimerSeconds] = useState<number>(60);
-  const [silentNotice, setSilentNotice] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [typingStatus, setTypingStatus] = useState<{ active: boolean; text: string; dots: string } | null>(null);
-  const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfile());
+  const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfileSync());
+  
+  // New Friend Input state
+  const [showAddFriendModal, setShowAddFriendModal] = useState(false);
+  const [newFriendName, setNewFriendName] = useState('');
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to bot profile updates
+  // Initialize Services & Subscriptions
   useEffect(() => {
-    const unsub = BotService.onBotProfileUpdate((updated) => {
-      setBotProfile(updated);
-    });
-    return () => unsub();
-  }, []);
+    // Start presence tracking
+    PresenceService.startPresenceTracking(currentUserId);
 
-  // Subscribe to bot typing updates
-  useEffect(() => {
-    const unsubscribeTyping = messageHandler.onTyping((status) => {
-      setTypingStatus(status);
-    });
+    // Start lightweight polling for Global Chat
+    GlobalChatService.startPolling(currentUserId);
+
+    // Load initial data
+    GlobalChatService.fetchGlobalMessages().then(setGlobalMessages);
+    FriendsService.getFriends(currentUserId).then(setFriendsList);
+    LiveDuelService.getActiveDuel().then(setActiveDuel);
+
+    // Subscriptions
+    const unsubBot = BotService.onBotProfileUpdate(setBotProfile);
+    const unsubGlobal = GlobalChatService.onGlobalMessagesUpdate(setGlobalMessages);
+    const unsubFriends = FriendsService.onFriendsUpdate(setFriendsList);
+    const unsubDuel = LiveDuelService.onDuelUpdate(setActiveDuel);
+    const unsubTyping = messageHandler.onTyping(setTypingStatus);
+
     return () => {
-      unsubscribeTyping();
+      unsubBot();
+      unsubGlobal();
+      unsubFriends();
+      unsubDuel();
+      unsubTyping();
+      GlobalChatService.stopPolling();
+      PresenceService.stopPresenceTracking();
     };
   }, []);
 
-  // Auto scroll message feed
+  // Sync Direct Messages when selectedFriend changes
+  useEffect(() => {
+    if (selectedFriend) {
+      const roomId = `room_${currentUserId}_${selectedFriend.id}`;
+      setDirectMessages(GlobalChatService.getDirectMessagesSync(roomId));
+      GlobalChatService.fetchDirectMessages(roomId, currentUserId).then(setDirectMessages);
+
+      const unsubDM = GlobalChatService.onDirectMessagesUpdate(roomId, (_, msgs) => {
+        setDirectMessages(msgs);
+      });
+
+      return () => unsubDM();
+    }
+  }, [selectedFriend]);
+
+  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, silentNotice, typingStatus]);
+  }, [messages, globalMessages, directMessages, typingStatus, activeDuel]);
 
-  // Handle active game timer updates
+  // Game timer
   useEffect(() => {
     if (activeSession && activeSession.status === 'active') {
       const interval = setInterval(() => {
@@ -68,298 +119,501 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
     }
   }, [activeSession]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim()) return;
+  const showTemporaryNotice = (text: string) => {
+    setNoticeMessage(text);
+    setTimeout(() => setNoticeMessage(null), 4000);
+  };
 
-    const userText = inputText.trim();
-    setInputText('');
-    setSilentNotice(null);
+  const handleStartLiveDuel = async (targetOpponent?: { id: string; name: string }) => {
+    const opponent = targetOpponent || { id: 'bot_oguri', name: 'Oguri Cap 🐎' };
+    const result = await LiveDuelService.startDuel(
+      { id: currentUserId, name: userName },
+      opponent
+    );
 
-    // Track if session is active before sending message
-    const isGameActive = gameDb.isGameActive('chat_default');
-
-    // Send to message handler
-    onSendMessage(userText);
-
-    // If game was active, and user sent text that wasn't a command, check if bot replied
-    if (isGameActive && !userText.startsWith('.') && !userText.startsWith('!')) {
-      setTimeout(() => {
-        if (gameDb.isGameActive('chat_default')) {
-          setSilentNotice(`🤐 Bot DIAM (Tidak mereply) karena jawaban "${userText}" kurang tepat.`);
-          setTimeout(() => setSilentNotice(null), 4000);
-        }
-      }, 100);
+    if (!result.success) {
+      showTemporaryNotice(`⚠️ ${result.message || 'Gagal memulai duel.'}`);
+    } else {
+      showTemporaryNotice(`⚔ Live Duel Dimulai melawan ${opponent.name}!`);
+      // Broadcast to Global Chat
+      GlobalChatService.sendGlobalMessage({
+        senderId: 'system',
+        senderName: 'SYSTEM ARENA',
+        text: `⚔ LIVE DUEL DIMULAI: ${userName} vs ${opponent.name}! Semua Trainer dapat menonton!`,
+      });
     }
   };
 
-  const sendQuickCommand = (cmd: string) => {
-    setSilentNotice(null);
-    onSendMessage(cmd);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputText.trim()) return;
+
+    const text = inputText.trim();
+    setInputText('');
+    setNoticeMessage(null);
+
+    // Check if user is triggering duel command
+    if (text.toLowerCase() === '.duel' || text.toLowerCase() === '!duel') {
+      handleStartLiveDuel();
+      return;
+    }
+
+    if (chatMode === 'global') {
+      // Check if there is an active duel and user is a participant answering
+      if (activeDuel && activeDuel.status === 'question') {
+        const isParticipant = activeDuel.player1.id === currentUserId || activeDuel.player2.id === currentUserId;
+
+        if (isParticipant) {
+          // Send as duel answer in global chat
+          await GlobalChatService.sendGlobalMessage({
+            senderId: currentUserId,
+            senderName: userName,
+            text,
+            isDuelAnswer: true,
+          });
+
+          const answerRes = await LiveDuelService.submitAnswer(currentUserId, userName, text);
+          if (answerRes.isCorrect) {
+            showTemporaryNotice('🎉 JAWABAN BENAR DALAM DUEL!');
+            LiveDuelService.triggerGlobalStreakAnnouncement(userName, (userWinStreak || 0) + 1);
+          }
+          return;
+        }
+      }
+
+      // Standard Global Message
+      await GlobalChatService.sendGlobalMessage({
+        senderId: currentUserId,
+        senderName: userName,
+        text,
+      });
+
+    } else if (chatMode === 'friends' && selectedFriend) {
+      const roomId = `room_${currentUserId}_${selectedFriend.id}`;
+      await GlobalChatService.sendDirectMessage(roomId, currentUserId, selectedFriend.id, text);
+
+    } else if (chatMode === 'bot') {
+      const isGameActive = gameDb.isGameActive('chat_default');
+      onSendMessage(text);
+
+      if (isGameActive && !text.startsWith('.') && !text.startsWith('!')) {
+        setTimeout(() => {
+          if (gameDb.isGameActive('chat_default')) {
+            showTemporaryNotice(`🤐 Bot DIAM karena jawaban "${text}" kurang tepat.`);
+          }
+        }, 100);
+      }
+    }
+  };
+
+  const handleAddFriend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFriendName.trim()) return;
+
+    await FriendsService.addFriend(currentUserId, {
+      username: newFriendName.trim(),
+      status: 'Online',
+      bio: 'Trainer Tracen Academy Baru',
+      role: 'Trainer',
+    });
+
+    setNewFriendName('');
+    setShowAddFriendModal(false);
+    showTemporaryNotice(`✅ Berhasil menambahkan ${newFriendName.trim()} sebagai teman!`);
+  };
+
+  const handleRemoveFriend = async (friendId: string, friendName: string) => {
+    if (friendId === '#1') {
+      showTemporaryNotice('⚠️ Tidak dapat menghapus Lead Developer dari daftar teman!');
+      return;
+    }
+    await FriendsService.removeFriend(currentUserId, friendId);
+    if (selectedFriend?.id === friendId) {
+      setSelectedFriend(null);
+    }
+    showTemporaryNotice(`❌ ${friendName} telah dihapus dari teman.`);
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[500px] bg-slate-950 rounded-xl border border-slate-800 shadow-2xl overflow-hidden">
+    <div className="relative flex flex-col h-[calc(100vh-140px)] min-h-[520px] bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden">
       
-      {/* Chat Room Top Bar */}
-      <div className="bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <BotAvatar
-            src={botProfile.avatar}
-            alt={botProfile.name}
-            className="w-10 h-10"
-            showGlow={true}
-          />
-          <div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-sm font-bold text-white">{botProfile.name}</h2>
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-[10px] text-sky-400 bg-sky-950/60 px-2 py-0.5 rounded border border-sky-500/30 font-medium">
-                {botProfile.status}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 truncate max-w-xs sm:max-w-md">
-              {botProfile.bio}
-            </p>
-          </div>
+      {/* FLOATING LIVE DUEL PANEL OVERLAY */}
+      {activeDuel && activeDuel.status !== 'idle' && (
+        <LiveDuelPanel duel={activeDuel} currentUserId={currentUserId} />
+      )}
+
+      {/* TOP NAVIGATION BAR: Channel Tabs */}
+      <div className="bg-slate-900 border-b border-slate-800 px-3 py-2.5 flex items-center justify-between gap-2 overflow-x-auto">
+        <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <button
+            onClick={() => setChatMode('global')}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              chatMode === 'global'
+                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Global Chat</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          </button>
+
+          <button
+            onClick={() => setChatMode('friends')}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              chatMode === 'friends'
+                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Friends ({friendsList.length})</span>
+          </button>
+
+          <button
+            onClick={() => setChatMode('bot')}
+            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              chatMode === 'bot'
+                ? 'bg-sky-600 text-white shadow-md shadow-sky-600/30'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Oguri Bot</span>
+          </button>
         </div>
 
-        {/* Live Active Game Status & Win Streak Indicator */}
-        <div className="flex items-center space-x-2">
-          {userWinStreak > 0 && (
-            <div
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                userWinStreak >= 3
-                  ? 'bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 text-slate-950 border border-amber-200 shadow-xl animate-streak-gradient'
-                  : 'bg-orange-500/15 border border-orange-500/30 text-orange-300'
-              }`}
-            >
-              <span className={userWinStreak >= 3 ? 'animate-streak-fire inline-block' : ''}>🔥</span>
-              <span>{userWinStreak}x Streak</span>
-              {userWinStreak >= 3 && (
-                <span className="bg-slate-950 text-amber-300 text-[10px] px-1.5 py-0.2 rounded font-black border border-amber-400/50">
-                  1.5x ⚡
-                </span>
-              )}
+        {/* Live Duel Action Trigger & Win Streak Badge */}
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          {userWinStreak >= 3 && (
+            <div className="flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border badge-gold-steady">
+              <span>🔥 {userWinStreak}x Win Streak</span>
             </div>
           )}
 
-          {activeSession && activeSession.status === 'active' ? (
-            <div className="flex items-center space-x-2 bg-amber-500/20 border border-amber-500/40 px-3 py-1.5 rounded-full text-amber-300 text-xs font-semibold animate-pulse">
-              <Clock className="w-3.5 h-3.5 text-amber-400 animate-spin" />
-              <span>Sisa Waktu: {timerSeconds}s</span>
-            </div>
-          ) : (
-            <div className="hidden sm:block text-xs text-slate-500 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700/50">
-              Siap Bertanding • Ketik .tebakkata
-            </div>
-          )}
+          <button
+            onClick={() => handleStartLiveDuel()}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black transition-all shadow-lg shadow-amber-500/20"
+          >
+            <Swords className="w-3.5 h-3.5" />
+            <span>Start Live Duel</span>
+          </button>
         </div>
       </div>
 
-      {/* Active Game Banner Box */}
-      {activeSession && activeSession.status === 'active' && (
-        <div className="bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 border-b border-sky-500/30 p-3.5 text-xs text-slate-200">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <span className="px-2 py-0.5 rounded bg-sky-500/20 border border-sky-500/40 text-sky-300 font-bold text-[10px] uppercase">
-                  Active Game
-                </span>
-                <span className="font-semibold text-sky-200">{activeSession.question.kategori || 'Umamusume'}</span>
-              </div>
-              <p className="text-sm font-medium text-white">
-                "{activeSession.question.soal}"
-              </p>
-              <p className="text-xs text-sky-300/80">
-                💡 Clue: <span className="font-semibold text-white">{activeSession.question.clue}</span>
-              </p>
-            </div>
-
-            <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 flex-shrink-0 bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-              <div className="flex items-center space-x-1 text-amber-300 font-bold text-xs">
-                <Coins className="w-3.5 h-3.5" />
-                <span>
-                  {userWinStreak >= 3 ? '4,498 - 6,832 Coins (1.5x)' : '2,999 - 4,555 Coins'}
-                </span>
-              </div>
-              {userWinStreak > 0 ? (
-                <div className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 transition-all ${
-                  userWinStreak >= 3
-                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black border border-amber-300 shadow-md animate-streak-glow'
-                    : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
-                }`}>
-                  <span className={userWinStreak >= 3 ? 'animate-streak-fire inline-block' : ''}>🔥</span>
-                  <span>
-                    Streak: {userWinStreak}x {userWinStreak >= 3 ? '⚡ (1.5x Active!)' : `(${3 - userWinStreak} more for 1.5x)`}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-1 text-slate-400 text-[10px]">
-                  <Clock className="w-3 h-3 text-amber-400" />
-                  <span>Timer 60s Count: {timerSeconds}s</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Silent Response Indicator Notification */}
-      {silentNotice && (
-        <div className="bg-slate-900/90 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-300 flex items-center justify-between animate-fadeIn">
+      {/* NOTICE BANNER */}
+      {noticeMessage && (
+        <div className="bg-slate-900/90 border-b border-amber-500/30 px-4 py-2 text-xs text-amber-300 flex items-center justify-between animate-fadeIn z-10">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span>{silentNotice}</span>
+            <span>{noticeMessage}</span>
           </div>
-          <span className="text-[10px] text-slate-400 italic">Rules: Jawaban salah = Bot Diam</span>
         </div>
       )}
 
-      {/* Message Feed */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/80 scrollbar-thin scrollbar-thumb-slate-800">
-        {messages.map((msg) => {
-          const isUser = msg.sender === 'user';
-          const isSystem = msg.sender === 'system';
+      {/* MAIN CHAT CONTENT AREA */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* MODE 1: GLOBAL CHAT */}
+        {chatMode === 'global' && (
+          <div className="flex-1 flex flex-col bg-slate-950/80 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+            {globalMessages.map((msg) => {
+              const isMe = msg.senderId === currentUserId;
+              const isDev = msg.senderRole === 'Developer';
+              const isSystem = msg.senderId === 'system';
 
-          if (isSystem) {
-            return (
-              <div key={msg.id} className="flex justify-center my-2">
-                <span className="text-[11px] text-slate-400 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800">
-                  {msg.text}
-                </span>
-              </div>
-            );
-          }
+              if (isSystem) {
+                return (
+                  <div key={msg.id} className="flex justify-center my-1.5">
+                    <span className="text-[11px] font-bold text-amber-300 bg-amber-950/70 border border-amber-500/30 px-3 py-1 rounded-full shadow-md">
+                      {msg.text}
+                    </span>
+                  </div>
+                );
+              }
 
-          return (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}
-            >
-              <div className="flex items-center space-x-2 px-1">
-                <span className="text-[10px] font-medium text-slate-400">
-                  {isUser ? msg.senderName : botProfile.name}
-                </span>
-                <span className="text-[9px] text-slate-500">
-                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </span>
-              </div>
+              return (
+                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
+                  <div className="flex items-center space-x-2 px-1">
+                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                      {msg.senderName}
+                      {isDev && (
+                        <span className="text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-1.5 py-0.2 rounded font-black">
+                          DEV
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[9px] text-slate-500">{msg.time}</span>
+                  </div>
 
-              <div className="flex items-start gap-2">
-                {!isUser && (
-                  <BotAvatar
-                    src={botProfile.avatar}
-                    alt={botProfile.name}
-                    className="w-7 h-7 mt-0.5"
-                  />
-                )}
-                <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed shadow-lg ${
-                    isUser
-                      ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white rounded-br-none border border-sky-400/20'
-                      : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800 font-sans'
-                  }`}
-                >
-                  {msg.text}
+                  <div className="flex items-start gap-2">
+                    {!isMe && (
+                      <img
+                        src={msg.senderAvatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1'}
+                        alt={msg.senderName}
+                        className="w-7 h-7 rounded-full object-cover border border-slate-700 mt-0.5"
+                      />
+                    )}
+
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed shadow-lg ${
+                        isMe
+                          ? 'bg-sky-600 text-white rounded-br-none border border-sky-400/20'
+                          : isDev
+                          ? 'bg-slate-900 border border-rose-500/40 text-rose-100 rounded-bl-none shadow-rose-950/50'
+                          : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800'
+                      }`}
+                    >
+                      {msg.isDuelAnswer && (
+                        <span className="text-[10px] font-bold text-amber-400 block mb-0.5">
+                          ⚔ JAWABAN DUEL:
+                        </span>
+                      )}
+                      {msg.text}
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+
+        {/* MODE 2: FRIENDS & DIRECT MESSAGES */}
+        {chatMode === 'friends' && (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Friends Sidebar List */}
+            <div className="w-64 sm:w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
+              <div className="p-3 border-b border-slate-800 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Daftar Teman</span>
+                <button
+                  onClick={() => setShowAddFriendModal(true)}
+                  className="p-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/40 text-sky-300 border border-sky-500/30 text-xs flex items-center gap-1 transition-all"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Tambah</span>
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto divide-y divide-slate-800/60">
+                {friendsList.map((friend) => {
+                  const isSelected = selectedFriend?.id === friend.id;
+                  const isDev = friend.id === '#1';
+
+                  return (
+                    <div
+                      key={friend.id}
+                      onClick={() => setSelectedFriend(friend)}
+                      className={`p-3 flex items-center justify-between cursor-pointer transition-all ${
+                        isSelected ? 'bg-sky-950/60 border-l-4 border-sky-500' : 'hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2.5 overflow-hidden">
+                        <div className="relative">
+                          <img
+                            src={friend.avatar}
+                            alt={friend.username}
+                            className="w-9 h-9 rounded-full object-cover border border-slate-700"
+                          />
+                          <span
+                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
+                              friend.status === 'Online' ? 'bg-emerald-400' : 'bg-slate-500'
+                            }`}
+                          />
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs font-bold text-white truncate">{friend.username}</span>
+                            {isDev && (
+                              <span className="text-[8px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-1 py-0.2 rounded font-black">
+                                DEV
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 truncate">{friend.lastMessage}</p>
+                        </div>
+                      </div>
+
+                      {!isDev && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveFriend(friend.id, friend.username);
+                          }}
+                          className="text-slate-500 hover:text-rose-400 p-1"
+                          title="Hapus Teman"
+                        >
+                          <UserMinus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
 
-        {/* Animated Typing Indicator */}
-        {typingStatus && typingStatus.active && (
-          <div className="flex items-start space-x-2.5 my-2 animate-fadeIn">
-            <BotAvatar
-              src={botProfile.avatar}
-              alt={botProfile.name}
-              className="w-8 h-8"
-              showGlow={true}
-            />
-            <div className="bg-slate-900/90 border border-slate-800 text-sky-300 text-xs px-4 py-2.5 rounded-2xl rounded-bl-none shadow-md flex items-center space-x-2 font-medium">
-              <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping flex-shrink-0"></span>
-              <span className="tracking-wide">{typingStatus.text}<span className="font-mono font-bold text-sky-400">{typingStatus.dots}</span></span>
+            {/* Direct Message Area */}
+            <div className="flex-1 flex flex-col bg-slate-950">
+              {selectedFriend ? (
+                <>
+                  {/* DM Header */}
+                  <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <img
+                        src={selectedFriend.avatar}
+                        alt={selectedFriend.username}
+                        className="w-8 h-8 rounded-full object-cover border border-slate-700"
+                      />
+                      <div>
+                        <h4 className="text-xs font-bold text-white">{selectedFriend.username}</h4>
+                        <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                          {selectedFriend.status}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleStartLiveDuel({ id: selectedFriend.id, name: selectedFriend.username })}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1 hover:bg-amber-500/30 transition-all"
+                    >
+                      <Swords className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Ajak Duel</span>
+                    </button>
+                  </div>
+
+                  {/* DM Feed */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {directMessages.map((dm) => {
+                      const isMe = dm.senderId === currentUserId;
+                      return (
+                        <div key={dm.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
+                          <div className="flex items-center space-x-1 px-1 text-[9px] text-slate-500">
+                            <span>{dm.time}</span>
+                            {isMe && (
+                              <span>
+                                {dm.status === 'read' ? (
+                                  <CheckCheck className="w-3 h-3 text-sky-400 inline" />
+                                ) : dm.status === 'delivered' ? (
+                                  <CheckCheck className="w-3 h-3 text-slate-400 inline" />
+                                ) : (
+                                  <Check className="w-3 h-3 text-slate-500 inline" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm shadow-md ${
+                              isMe
+                                ? 'bg-sky-600 text-white rounded-br-none'
+                                : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800'
+                            }`}
+                          >
+                            {dm.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs space-y-2 p-6">
+                  <MessageSquare className="w-10 h-10 text-slate-700" />
+                  <p>Pilih teman di sebelah kiri untuk memulai Chat Pribadi.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        <div ref={messagesEndRef} />
+        {/* MODE 3: BOT GAME SIMULATOR */}
+        {chatMode === 'bot' && (
+          <div className="flex-1 flex flex-col bg-slate-950/80 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+            {messages.map((msg) => {
+              const isUser = msg.sender === 'user';
+              return (
+                <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
+                  <div className="flex items-center space-x-2 px-1">
+                    <span className="text-[10px] text-slate-400">{isUser ? msg.senderName : botProfile.name}</span>
+                  </div>
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed shadow-lg ${
+                      isUser
+                        ? 'bg-sky-600 text-white rounded-br-none'
+                        : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
 
       </div>
 
-      {/* Quick Command Toolbar */}
-      <div className="bg-slate-900/90 border-t border-slate-800 p-2 overflow-x-auto flex items-center space-x-2 scrollbar-none">
-        <button
-          onClick={() => sendQuickCommand('.tebakkata')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-semibold whitespace-nowrap transition-all"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-          <span>.tebakkata</span>
-        </button>
-
-        <button
-          onClick={() => sendQuickCommand('.hint')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-semibold whitespace-nowrap transition-all"
-        >
-          <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-          <span>.hint</span>
-        </button>
-
-        <button
-          onClick={() => sendQuickCommand('.nyerah')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-semibold whitespace-nowrap transition-all"
-        >
-          <Flag className="w-3.5 h-3.5 text-rose-400" />
-          <span>.nyerah</span>
-        </button>
-
-        <button
-          onClick={() => sendQuickCommand('.coin')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold whitespace-nowrap transition-all"
-        >
-          <Coins className="w-3.5 h-3.5 text-emerald-400" />
-          <span>.coin</span>
-        </button>
-
-        <button
-          onClick={() => sendQuickCommand('.leaderboard')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-xs font-semibold whitespace-nowrap transition-all"
-        >
-          <Zap className="w-3.5 h-3.5 text-purple-400" />
-          <span>.leaderboard</span>
-        </button>
-
-        <button
-          onClick={() => sendQuickCommand('.queue')}
-          className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium whitespace-nowrap transition-all"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-          <span>.queue</span>
-        </button>
-      </div>
-
-      {/* Message Input Form */}
+      {/* INPUT FORM */}
       <form onSubmit={handleSubmit} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center space-x-2">
         <input
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder={
-            activeSession && activeSession.status === 'active'
-              ? 'Ketik jawabanmu di sini (Jawaban salah = bot diam)...'
-              : 'Ketik command seperti .tebakkata atau .help...'
+            chatMode === 'global'
+              ? 'Ketik pesan global atau ketik .duel untuk tanding...'
+              : chatMode === 'friends'
+              ? selectedFriend
+                ? `Ketik pesan ke ${selectedFriend.username}...`
+                : 'Pilih teman terlebih dahulu...'
+              : 'Ketik jawaban / command...'
           }
-          className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
+          className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition-all"
         />
 
         <button
           type="submit"
-          className="bg-sky-600 hover:bg-sky-500 text-white p-2.5 rounded-xl font-medium transition-all shadow-md shadow-sky-600/20 flex items-center justify-center flex-shrink-0"
+          className="bg-sky-600 hover:bg-sky-500 text-white p-2.5 rounded-xl transition-all shadow-md flex items-center justify-center flex-shrink-0"
         >
           <Send className="w-4 h-4" />
         </button>
       </form>
+
+      {/* ADD FRIEND MODAL */}
+      {showAddFriendModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-sky-400" />
+              <span>Tambah Teman Baru</span>
+            </h3>
+            <input
+              type="text"
+              value={newFriendName}
+              onChange={(e) => setNewFriendName(e.target.value)}
+              placeholder="Masukkan Username Trainer..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+            />
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => setShowAddFriendModal(false)}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleAddFriend}
+                className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-xs font-semibold"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -35,6 +35,8 @@ import { ActivityService, ActivityLog } from '../services/ActivityService';
 import { StorageService } from '../services/StorageService';
 import { ChatService } from '../services/ChatService';
 import { BotService, BotProfile } from '../services/BotService';
+import { SettingsService } from '../services/SettingsService';
+import { DeveloperSettings } from '../types';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 import { BotAvatar } from './BotAvatar';
 
@@ -58,12 +60,12 @@ export const DeveloperPanelView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'logs' | 'bot' | 'storage' | 'system'>('dashboard');
 
   // Logs state
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [logs, setLogs] = useState<ActivityLog[]>(() => ActivityService.getLogsSync());
   const [logSearch, setLogSearch] = useState('');
   const [logFilterCategory, setLogFilterCategory] = useState<string>('all');
 
   // Bot Profile Manager state
-  const [botProfile, setBotProfileState] = useState<BotProfile>(() => BotService.getBotProfile());
+  const [botProfile, setBotProfileState] = useState<BotProfile>(() => BotService.getBotProfileSync());
   const [botNameInput, setBotNameInput] = useState(botProfile.name);
   const [botStatusInput, setBotStatusInput] = useState(botProfile.status);
   const [botBioInput, setBotBioInput] = useState(botProfile.bio);
@@ -81,6 +83,22 @@ export const DeveloperPanelView: React.FC = () => {
     title: '',
     description: '',
   });
+
+  // Developer Settings state
+  const [devSettings, setDevSettings] = useState<DeveloperSettings>(() => SettingsService.getSettingsSync());
+
+  useEffect(() => {
+    SettingsService.getSettings().then(setDevSettings);
+    const unsubSettings = SettingsService.onSettingsUpdate(setDevSettings);
+    return () => unsubSettings();
+  }, []);
+
+  const handleUpdateDevSetting = async (key: keyof DeveloperSettings, value: any) => {
+    const updated = await SettingsService.updateSettings({ [key]: value });
+    setDevSettings(updated);
+    setActionSuccess('Setting developer berhasil diperbarui!');
+    setTimeout(() => setActionSuccess(null), 3000);
+  };
 
   // Action status message
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -109,8 +127,19 @@ export const DeveloperPanelView: React.FC = () => {
     return () => unsub();
   }, []);
 
-  const loadLogs = () => {
-    setLogs(ActivityService.getLogs());
+  const loadLogs = async () => {
+    const cached = ActivityService.getLogsSync();
+    if (Array.isArray(cached)) {
+      setLogs(cached);
+    }
+    try {
+      const freshLogs = await ActivityService.getHistory();
+      if (Array.isArray(freshLogs)) {
+        setLogs(freshLogs);
+      }
+    } catch (e) {
+      console.warn('Error loading activity logs:', e);
+    }
   };
 
   // Bot Profile Image File Change Handler
@@ -346,7 +375,8 @@ export const DeveloperPanelView: React.FC = () => {
   }
 
   // Filter logs for display
-  const filteredLogs = logs.filter((l) => {
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  const filteredLogs = safeLogs.filter((l) => {
     const matchCategory =
       logFilterCategory === 'all' ||
       l.category.toLowerCase().includes(logFilterCategory.toLowerCase());
@@ -1074,16 +1104,156 @@ export const DeveloperPanelView: React.FC = () => {
 
       {/* ===================== TAB 5: RESET CONTROLS ===================== */}
       {activeTab === 'system' && (
-        <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-5 shadow-xl space-y-6">
-          <div className="pb-3 border-b border-slate-800">
-            <h3 className="text-sm font-extrabold text-rose-400 flex items-center gap-2">
-              <RotateCcw className="w-4 h-4" />
-              <span>Reset & System Control Center</span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Gunakan tombol reset di bawah ini untuk membersihkan data spesifik secara aman dengan dialog konfirmasi.
-            </p>
+        <div className="space-y-6">
+          {/* Developer Feature Settings Control Panel */}
+          <div className="bg-slate-900 border border-sky-500/30 rounded-2xl p-5 shadow-xl space-y-4">
+            <div className="pb-3 border-b border-slate-800">
+              <h3 className="text-sm font-extrabold text-sky-400 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>Pengaturan Fitur Live & Chat Global</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Kelola status ketersediaan fitur Global Chat, Live Duel, Streak Banners, Marquee, dan Polling secara realtime.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Global Chat Toggle */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Global Chat</h4>
+                  <p className="text-[10px] text-slate-400">Aktifkan obrolan seluruh trainer</p>
+                </div>
+                <button
+                  onClick={() => handleUpdateDevSetting('globalChatEnabled', !devSettings.globalChatEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                    devSettings.globalChatEnabled
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {devSettings.globalChatEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              {/* Live Duel Toggle */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Live Duel 1v1</h4>
+                  <p className="text-[10px] text-slate-400">Izinkan pertandingan duel langsung</p>
+                </div>
+                <button
+                  onClick={() => handleUpdateDevSetting('liveDuelEnabled', !devSettings.liveDuelEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                    devSettings.liveDuelEnabled
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {devSettings.liveDuelEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              {/* Auto Duel Toggle */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Auto Duel Bot</h4>
+                  <p className="text-[10px] text-slate-400">Bot otomatis menerima tantangan duel</p>
+                </div>
+                <button
+                  onClick={() => handleUpdateDevSetting('autoDuelEnabled', !devSettings.autoDuelEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                    devSettings.autoDuelEnabled
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {devSettings.autoDuelEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              {/* Min Streak Banner Input */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                <h4 className="text-xs font-bold text-white">Min Streak Banner Chat</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={devSettings.minStreakBanner}
+                    onChange={(e) => handleUpdateDevSetting('minStreakBanner', parseInt(e.target.value) || 3)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-white"
+                  />
+                  <span className="text-[11px] text-slate-400 flex-shrink-0">Win</span>
+                </div>
+              </div>
+
+              {/* Min Streak Marquee Input */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                <h4 className="text-xs font-bold text-white">Min Streak Running Text</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={devSettings.minStreakMarquee}
+                    onChange={(e) => handleUpdateDevSetting('minStreakMarquee', parseInt(e.target.value) || 5)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-white"
+                  />
+                  <span className="text-[11px] text-slate-400 flex-shrink-0">Win</span>
+                </div>
+              </div>
+
+              {/* Max Polling Interval */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                <h4 className="text-xs font-bold text-white">Polling Rate Chat (ms)</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={devSettings.maxPollingMs}
+                    onChange={(e) => handleUpdateDevSetting('maxPollingMs', parseInt(e.target.value) || 3000)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-white"
+                  />
+                  <span className="text-[11px] text-slate-400 flex-shrink-0">ms</span>
+                </div>
+              </div>
+
+              {/* Duel Reward Coins */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                <h4 className="text-xs font-bold text-white">Reward Menang Duel</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={devSettings.duelRewardCoins}
+                    onChange={(e) => handleUpdateDevSetting('duelRewardCoins', parseInt(e.target.value) || 5000)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-white"
+                  />
+                  <span className="text-[11px] text-amber-400 flex-shrink-0 font-bold">Coins</span>
+                </div>
+              </div>
+
+              {/* Duel Cooldown Sec */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                <h4 className="text-xs font-bold text-white">Cooldown Antar Duel</h4>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={devSettings.duelCooldownSec}
+                    onChange={(e) => handleUpdateDevSetting('duelCooldownSec', parseInt(e.target.value) || 10)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-white"
+                  />
+                  <span className="text-[11px] text-slate-400 flex-shrink-0">detik</span>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-5 shadow-xl space-y-6">
+            <div className="pb-3 border-b border-slate-800">
+              <h3 className="text-sm font-extrabold text-rose-400 flex items-center gap-2">
+                <RotateCcw className="w-4 h-4" />
+                <span>Reset & System Control Center</span>
+              </h3>
+              <p className="text-xs text-slate-400">
+                Gunakan tombol reset di bawah ini untuk membersihkan data spesifik secara aman dengan dialog konfirmasi.
+              </p>
+            </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             
@@ -1163,9 +1333,9 @@ export const DeveloperPanelView: React.FC = () => {
                 Reset Semua Data Aplikasi
               </button>
             </div>
-
           </div>
         </div>
+      </div>
       )}
 
       {/* ===================== STORAGE INSPECTOR MODAL ===================== */}

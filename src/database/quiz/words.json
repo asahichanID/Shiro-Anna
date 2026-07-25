@@ -1,0 +1,58 @@
+[
+  {
+    "id": "w_001",
+    "soal": "Hewan yang larinya kencang banget dan sukanya makan wortel... mirip teman-temanku di Tracen!",
+    "jawaban": "Kuda",
+    "clue": "Lari kencang di lapangan, suka wortel",
+    "kategori": "Hewan & Umamusume"
+  },
+  {
+    "id": "w_002",
+    "soal": "Makanan oranye ini super renyah dan manis, Oguri bisa makan berkarung-karung tanpa bosen!",
+    "jawaban": "Wortel",
+    "clue": "Sayuran oranye kesukaan Oguri Cap",
+    "kategori": "Makanan"
+  },
+  {
+    "id": "w_003",
+    "soal": "Orang hebat yang selalu nemenin Oguri latihan dan nyiapin strategi balap... kamu tau kan siapa?",
+    "jawaban": "Trainer",
+    "clue": "Orang yang bimbing dan latih Uma Musume",
+    "kategori": "Umamusume"
+  },
+  {
+    "id": "w_004",
+    "soal": "Balapan G1 penutup tahun di Jepang yang bikin jantung Oguri berdebar kencang saat garis finis!",
+    "jawaban": "Arima Kinen",
+    "clue": "Balapan megah penutup tahun",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "w_005",
+    "soal": "Akademi tempat Oguri dan para Uma Musume belajar serta berlatih setiap hari!",
+    "jawaban": "Tracen Academy",
+    "clue": "Sekolah dan pusat latihan para runner",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "w_006",
+    "soal": "Sesuatu yang lembut dan hangat, selalu dipasang di kaki kuda agar tak cedera saat sprint kencang!",
+    "jawaban": "Sepatu Kuda",
+    "clue": "Pelindung telapak kaki kuda",
+    "kategori": "Peralatan"
+  },
+  {
+    "id": "w_007",
+    "soal": "Minuman segar yang sering dijual di kantin Tracen pas selesai sesi latihan berat jam 5 sore...",
+    "jawaban": "Susu Segar",
+    "clue": "Minuman bergizi pelepas dahaga",
+    "kategori": "Makanan & Minuman"
+  },
+  {
+    "id": "w_008",
+    "soal": "Istilah ketika Uma Musume berhasil melewati garis batas paling depan dan jadi juara!",
+    "jawaban": "Garis Finis",
+    "clue": "Batas akhir dari lintasan balap",
+    "kategori": "Balapan"
+  }
+]

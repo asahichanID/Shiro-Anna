@@ -1,89 +1,96 @@
+import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
-import { ActivityService } from './ActivityService';
-import { BOT_DEFAULT_AVATAR } from '../config/constants';
-
-export { BOT_DEFAULT_AVATAR };
 
 export interface BotProfile {
+  id?: string;
   name: string;
   avatar: string;
-  status: string;
   bio: string;
-  updatedAt: number;
+  status: 'Online' | 'Offline' | 'Away' | 'Busy' | string;
+  updatedAt?: number;
 }
 
 const STORAGE_KEY_BOT_PROFILE = 'oguri_bot_profile';
-const BOT_PROFILE_EVENT = 'oguri_bot_profile_updated';
 
-const DEFAULT_BOT_PROFILE: BotProfile = {
+export const DEFAULT_BOT_PROFILE: BotProfile = {
+  id: 'default',
   name: 'Oguri Cap 🐎',
-  avatar: BOT_DEFAULT_AVATAR,
-  status: 'Online',
+  avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
   bio: 'Siap membantu Trainer dalam Tebak Kata & Musik Tracen Academy! 🥕',
-  updatedAt: Date.now(),
+  status: 'Online',
 };
 
+type BotProfileListener = (profile: BotProfile) => void;
+
 export class BotService {
-  /**
-   * Get current Bot Profile from global storage
-   */
-  public static getBotProfile(): BotProfile {
-    const saved = StorageService.getItem<BotProfile | null>(STORAGE_KEY_BOT_PROFILE, null);
-    if (!saved) {
-      StorageService.setItem(STORAGE_KEY_BOT_PROFILE, DEFAULT_BOT_PROFILE);
-      return DEFAULT_BOT_PROFILE;
-    }
+  private static listeners: BotProfileListener[] = [];
 
-    // Auto migrate old default '/assets/avatar.png' or empty avatar to CDN avatar
-    if (!saved.avatar || saved.avatar === '/assets/avatar.png' || saved.avatar.trim() === '') {
-      saved.avatar = BOT_DEFAULT_AVATAR;
-    }
-
-    return saved;
+  public static onBotProfileUpdate(listener: BotProfileListener): () => void {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((fn) => fn !== listener);
+    };
   }
 
-  /**
-   * Update Bot Profile (Developer Only)
-   * Synchronizes globally across all users
-   */
-  public static updateBotProfile(updated: Partial<BotProfile>): BotProfile {
-    const current = this.getBotProfile();
-    const newProfile: BotProfile = {
+  private static notifyListeners(profile: BotProfile) {
+    this.listeners.forEach((fn) => fn(profile));
+  }
+
+  public static getProfileSync(): BotProfile {
+    return StorageService.getItem<BotProfile>(STORAGE_KEY_BOT_PROFILE, DEFAULT_BOT_PROFILE);
+  }
+
+  public static getBotProfileSync(): BotProfile {
+    return this.getProfileSync();
+  }
+
+  public static async getProfile(): Promise<BotProfile> {
+    const cached = this.getProfileSync();
+    try {
+      const d1Profile = await D1DatabaseService.getBotProfile();
+      if (d1Profile && d1Profile.name) {
+        StorageService.setItem(STORAGE_KEY_BOT_PROFILE, d1Profile);
+        this.notifyListeners(d1Profile);
+        return d1Profile;
+      }
+    } catch (e) {
+      console.warn('Error fetching bot profile from D1:', e);
+    }
+    return cached;
+  }
+
+  // Alias method for backward compatibility
+  public static async getBotProfile(): Promise<BotProfile> {
+    return this.getProfile();
+  }
+
+  public static async updateProfile(profileData: Partial<BotProfile>): Promise<BotProfile> {
+    const current = this.getProfileSync();
+    const updated: BotProfile = {
       ...current,
-      ...updated,
+      ...profileData,
       updatedAt: Date.now(),
     };
 
-    StorageService.setItem(STORAGE_KEY_BOT_PROFILE, newProfile);
+    StorageService.setItem(STORAGE_KEY_BOT_PROFILE, updated);
+    this.notifyListeners(updated);
 
-    // Log global activity
-    ActivityService.logActivity(
-      'bot_update',
-      'Update Profile Bot',
-      `Nama: "${newProfile.name}" | Status: "${newProfile.status}" | Bio: "${newProfile.bio}"`,
-      undefined,
-      undefined,
-      'BotProfile'
-    );
+    try {
+      const result = await D1DatabaseService.updateBotProfile(updated);
+      if (result) {
+        StorageService.setItem(STORAGE_KEY_BOT_PROFILE, result);
+        this.notifyListeners(result);
+        return result;
+      }
+    } catch (e) {
+      console.warn('Error updating bot profile on D1:', e);
+    }
 
-    // Dispatch global event for instant reactivity across all components
-    window.dispatchEvent(new CustomEvent(BOT_PROFILE_EVENT, { detail: newProfile }));
-
-    return newProfile;
+    return updated;
   }
 
-  /**
-   * Listen to real-time updates of Bot Profile
-   */
-  public static onBotProfileUpdate(callback: (profile: BotProfile) => void) {
-    const handler = (e: Event) => {
-      const customEvent = e as CustomEvent<BotProfile>;
-      callback(customEvent.detail || this.getBotProfile());
-    };
-
-    window.addEventListener(BOT_PROFILE_EVENT, handler);
-    return () => {
-      window.removeEventListener(BOT_PROFILE_EVENT, handler);
-    };
+  // Alias method for backward compatibility
+  public static async updateBotProfile(profileData: Partial<BotProfile>): Promise<BotProfile> {
+    return this.updateProfile(profileData);
   }
 }
