@@ -1,58 +1,107 @@
 [
   {
     "id": "tk_201",
-    "soal": "Sensasi paling enak di perut pas Oguri baru aja menghabiskan 5 porsi makanan!",
+    "soal": "Perasaan nikmat banget pas perut udah bulat kayak drum abis makan 5 porsi wortel nambah nasi 😹",
     "jawaban": "Kenyang",
-    "clue": "Perasaan nikmat habis makan banyak",
+    "clue": "Pas habis makan banyak, perut puas banget",
     "kategori": "Sensasi"
   },
   {
     "id": "tk_202",
-    "soal": "Aksi melesat kencang sekuat tenaga di tikungan terakhir menjelang garis finis!",
+    "soal": "Lari ngebut banget di tikungan terakhir, sekuat tenaga biar nyalip semua di depan 🚀",
     "jawaban": "Spurt",
-    "clue": "Akselerasi puncak di akhir balapan",
+    "clue": "Ngebut maksimal pas mau garis finis",
     "kategori": "Taktik"
   },
   {
     "id": "tk_203",
-    "soal": "Suara ramai dari ribuan penonton di tribun yang bikin semangat Oguri makin membara!",
+    "soal": "Suara heboh ribuan orang yang teriak nama Oguri, bikin semangat makin nendang 🗣️🔥",
     "jawaban": "Sorakan",
-    "clue": "Teriakan heboh penonton di stadium",
+    "clue": "Teriak ramai penonton di stadion",
     "kategori": "Suasana"
   },
   {
     "id": "tk_204",
-    "soal": "Benda bulat mengkilap warna emas yang dikalungin ke leher pas naik podium juara 1!",
+    "soal": "Benda emas mengkilap yang ditalungin pas naik podium paling atas, bangga banget 😎",
     "jawaban": "Medali",
-    "clue": "Penghargaan emas di leher juara",
+    "clue": "Hadiah juara 1 yang dipasang di leher",
     "kategori": "Penghargaan"
   },
   {
     "id": "tk_205",
-    "soal": "Koin gambar wortel yang bisa kamu kumpulin kalau berhasil jawab tebak kata Oguri!",
+    "soal": "Koin gambar wortel kesayangan yang bisa kamu dapat kalau jawab tebakan Oguri bener 🥕💰",
     "jawaban": "Carrot Coin",
-    "clue": "Mata uang koin di bot ini",
+    "clue": "Uang mainan khusus bot ini",
     "kategori": "Ekonomi"
   },
   {
     "id": "tk_206",
-    "soal": "Teman rival Oguri yang mungil tapi semangatnya membara banget kayak petasan dari Edo!",
+    "soal": "Teman kecil yang semangatnya meledak-ledak kayak kembang api, ceplas ceplos dari Edo 🎇😹",
     "jawaban": "Inari One",
-    "clue": "Rival Oguri yang ceplas-ceplos dari Edo",
+    "clue": "Si mungil yang berapi-api",
     "kategori": "Karakter"
   },
   {
     "id": "tk_207",
-    "soal": "Suasana waktu pagi-pagi banget sebelum matahari nongol, pas Oguri mulai bangun tidur.",
+    "soal": "Waktu pas matahari belum muncul, udah bangun latihan biar makin kencang lari nya 🌅🏃",
     "jawaban": "Fajar",
-    "clue": "Waktu subuh menjelang pagi",
+    "clue": "Waktu sebelum pagi benar-benar terang",
     "kategori": "Alam"
   },
   {
     "id": "tk_208",
-    "soal": "Momen membanggakan waktu Oguri berhasil nembus garis finis paling pertama!",
+    "soal": "Momen paling seneng pas garis finis dilewatin duluan, rasanya mau terbang banget 🥳✨",
     "jawaban": "Kemenangan",
-    "clue": "Hasil akhir kalau jadi Juara 1",
+    "clue": "Hasil paling manis kalau berhasil jadi yang pertama",
     "kategori": "Pencapaian"
+  },
+  {
+    "id": "tk_209",
+    "soal": "Minuman oranye seger banget yang diminum habis latihan, bikin tenaga balik seketika 🥤😋",
+    "jawaban": "Susu Wortel",
+    "clue": "Minuman andalan Oguri Cap",
+    "kategori": "Makanan"
+  },
+  {
+    "id": "tk_210",
+    "soal": "Tempat luas berumput hijau tempat kita adu kecepatan dan buktiin siapa yang paling kuat 🏟️🌱",
+    "jawaban": "Lintasan",
+    "clue": "Tempat utama adu lari Uma Musume",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "tk_211",
+    "soal": "Orang sabar yang selalu ngawasin, ngasih saran, dan siapin strategi biar Oguri menang terus 🧢📝",
+    "jawaban": "Trainer",
+    "clue": "Pelatih kepercayaan kita semua",
+    "kategori": "Orang"
+  },
+  {
+    "id": "tk_212",
+    "soal": "Perasaan deg-degan campur seneng pas mau mulai lomba, jantung berdebar kencang banget 😳💓",
+    "jawaban": "Semangat",
+    "clue": "Dorongan kuat buat melakukan yang terbaik",
+    "kategori": "Perasaan"
+  },
+  {
+    "id": "tk_213",
+    "soal": "Istilah keren buat lomba tingkat tertinggi yang bikin nama kita dikenal semua orang 🏆👑",
+    "jawaban": "G1",
+    "clue": "Kasta lomba paling bergengsi",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "tk_214",
+    "soal": "Kata sapaan akrab yang orang kasih ke Oguri gara-gara warna bulu dan lari yang ngeri banget 🐺🩶",
+    "jawaban": "Monster Grey",
+    "clue": "Julukan legendaris si Abu-abu",
+    "kategori": "Gelar"
+  },
+  {
+    "id": "tk_215",
+    "soal": "Rasa capek yang hilang seketika pas denger tepuk tangan dan senyum bangga dari Trainer 🥰👏",
+    "jawaban": "Bahagia",
+    "clue": "Perasaan puas dan senang hati",
+    "kategori": "Perasaan"
   }
 ]
