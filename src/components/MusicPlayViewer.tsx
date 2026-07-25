@@ -8,13 +8,10 @@ import {
   AlertCircle,
   RefreshCw,
   Volume2,
-  Sparkles,
   Download,
   Film,
   Radio,
-  ArrowLeft,
-  Share2,
-  ExternalLink,
+  ArrowLeft
 } from 'lucide-react';
 import { ActivityService } from '../services/ActivityService';
 import { apiClient, WORKER_BASE_URL, SearchItem } from '../api/client';
@@ -48,9 +45,7 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
     <div className="bg-slate-950 border-2 border-sky-500/60 rounded-2xl p-4 sm:p-5 shadow-2xl space-y-4 my-3 text-left font-sans animate-fadeIn">
       <div className="flex items-center justify-between pb-3 border-b border-sky-500/30">
         <div className="flex items-center space-x-2">
-          <span className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/40 text-xs">
-            🌐
-          </span>
+          <span className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/40 text-xs">🌐</span>
           <div>
             <h4 className="text-xs sm:text-sm font-black text-sky-300">
               {title || 'Cloudflare Worker Gateway Log'}
@@ -67,10 +62,7 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
 
       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
         {debugList.map((item, idx) => (
-          <div
-            key={idx}
-            className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2 font-mono text-slate-200"
-          >
+          <div key={idx} className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2 font-mono text-slate-200">
             {item.stepName && (
               <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
                 <span className="text-[11px] font-bold text-sky-400">{item.stepName}</span>
@@ -79,58 +71,34 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
                 </span>
               </div>
             )}
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  Provider:
-                </span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Provider:</span>
                 <span className="text-indigo-300 font-semibold">{item.provider}</span>
               </div>
-
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  Status API:
-                </span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Status API:</span>
                 <span className="text-emerald-300 font-semibold">{item.apiKeyStatus}</span>
               </div>
-
               <div className="sm:col-span-2">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  Request URL:
-                </span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Request URL:</span>
                 <code className="text-sky-300 break-all bg-slate-950 px-2 py-1 rounded border border-slate-800 block mt-0.5 text-[11px]">
                   {item.requestUrl}
                 </code>
               </div>
-
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  HTTP Status:
-                </span>
-                <span
-                  className={`font-bold ${
-                    String(item.httpStatus).startsWith('2')
-                      ? 'text-emerald-400'
-                      : 'text-rose-400'
-                  }`}
-                >
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">HTTP Status:</span>
+                <span className={`font-bold ${String(item.httpStatus).startsWith('2') ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {item.httpStatus}
                 </span>
               </div>
-
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
-                  Pesan Error:
-                </span>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Pesan Error:</span>
                 <span className="text-rose-300 font-semibold break-words">{item.errorMessage}</span>
               </div>
             </div>
-
             <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-1">
-                Response Body:
-              </span>
+              <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-1">Response Body:</span>
               <pre className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px] text-amber-200/90 whitespace-pre-wrap break-all max-h-36 overflow-y-auto font-mono">
                 {item.responseBody}
               </pre>
@@ -145,7 +113,7 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
 export const MusicPlayViewer: React.FC = () => {
   const [activeTabMode, setActiveTabMode] = useState<'youtube' | 'tiktok' | 'spotify'>('youtube');
 
-  // YouTube Search & Media State
+  // Shared Search & Media State
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -162,25 +130,23 @@ export const MusicPlayViewer: React.FC = () => {
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
 
   // Loading & Active Media State
-  const [loadingMedia, setLoadingMedia] = useState<{
-    type: 'audio' | 'video' | 'tiktok' | 'spotify';
-    item: SearchResultItem;
-  } | null>(null);
+  const [loadingMedia, setLoadingMedia] = useState<{ type: 'audio' | 'video' | 'tiktok' | 'spotify'; item: SearchResultItem; } | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [activeMedia, setActiveMedia] = useState<MediaState | null>(null);
   const [mediaDebugList, setMediaDebugList] = useState<ApiDebugInfo[]>([]);
 
-  // Quick preset suggestions
-  const presetQueries = [
-    'Umapyoi Densetsu',
-    'GIRLS LEGEND U',
-    'Oguri Cap Theme',
-    'Kaikai Kitan',
-    'Yoasobi Idol',
-    'Blue Bird Naruto',
-  ];
+  const presetQueries = ['Umapyoi Densetsu', 'GIRLS LEGEND U', 'Oguri Cap Theme', 'Kaikai Kitan', 'Yoasobi Idol', 'Blue Bird Naruto'];
 
-  // Handle YouTube Search via API Client
+  // Fungsi utilitas untuk reset hasil pencarian saat pindah tab
+  const handleTabSwitch = (mode: 'youtube' | 'tiktok' | 'spotify') => {
+    setActiveTabMode(mode);
+    setSearchResults([]);
+    setHasSearched(false);
+    setSearchError(null);
+    setMediaError(null);
+  };
+
+  // --- YOUTUBE SEARCH & FETCH ---
   const handleSearch = async (e?: React.FormEvent, searchOverride?: string) => {
     if (e) e.preventDefault();
     const searchQuery = (searchOverride || query).trim();
@@ -193,77 +159,38 @@ export const MusicPlayViewer: React.FC = () => {
     setSearchDebugList([]);
 
     const debugAttempts: ApiDebugInfo[] = [];
-
     try {
       const response = await apiClient.searchYouTube(searchQuery);
 
       if (!response.success || !response.result || response.result.length === 0) {
-        debugAttempts.push({
-          stepName: 'Worker API Request (/search)',
-          requestUrl: `${WORKER_BASE_URL}/search?query=${encodeURIComponent(searchQuery)}`,
-          httpStatus: response.success ? '200 OK (Empty Result)' : 'API Error',
-          errorMessage: response.message || 'Pencarian tidak mengembalikan hasil.',
-          responseBody: JSON.stringify(response, null, 2),
-          provider: response.provider || 'shiroapi',
-          apiKeyStatus: 'Active',
-        });
-        setSearchDebugList(debugAttempts);
-        throw new Error(response.message || `Pencarian untuk "${searchQuery}" tidak mengembalikan hasil dari Worker.`);
+        throw new Error(response.message || `Pencarian untuk "${searchQuery}" tidak mengembalikan hasil.`);
       }
-
       setSearchResults(response.result);
     } catch (err: any) {
       console.error('Search API error:', err);
-      setSearchError(err.message || 'Gagal mengambil data pencarian dari Worker API. Silakan coba lagi.');
+      setSearchError(err.message || 'Gagal mengambil data pencarian dari Worker API.');
     } finally {
       setIsSearching(false);
     }
   };
 
-  // Handle Fetch YouTube Media via API Client
   const handleFetchMedia = async (item: SearchResultItem, type: 'audio' | 'video') => {
     setLoadingMedia({ type, item });
     setMediaError(null);
     setActiveMedia(null);
-    setMediaDebugList([]);
 
-    const debugAttempts: ApiDebugInfo[] = [];
     const youtubeUrl = item.url || `https://www.youtube.com/watch?v=${item.videoId}`;
-
     try {
-      let response;
-      if (type === 'audio') {
-        response = await apiClient.getAudioDownload(youtubeUrl);
-      } else {
-        response = await apiClient.getVideoDownload(youtubeUrl, '720');
-      }
+      const response = type === 'audio' ? await apiClient.getAudioDownload(youtubeUrl) : await apiClient.getVideoDownload(youtubeUrl, '720');
 
       if (!response.success || !response.result) {
-        debugAttempts.push({
-          stepName: `Worker API Request (/${type})`,
-          requestUrl: `${WORKER_BASE_URL}/${type}?url=${encodeURIComponent(youtubeUrl)}`,
-          httpStatus: 'API Error',
-          errorMessage: response.message || `Gagal mengambil data download ${type}.`,
-          responseBody: JSON.stringify(response, null, 2),
-          provider: response.provider || 'shiroapi',
-          apiKeyStatus: 'Active',
-        });
-        setMediaDebugList(debugAttempts);
-        throw new Error(response.message || `API Worker tidak memberikan data download untuk media ${type}.`);
+        throw new Error(response.message || `API Worker gagal memuat data ${type}.`);
       }
 
       const resObj = response.result;
-      const downloadUrl =
-        resObj.download ||
-        resObj.url ||
-        resObj.link ||
-        (typeof resObj === 'string' ? resObj : '') ||
-        item.url ||
-        youtubeUrl;
+      const downloadUrl = resObj.download || resObj.url || resObj.link || (typeof resObj === 'string' ? resObj : '') || youtubeUrl;
 
-      if (!downloadUrl) {
-        throw new Error(`API Worker tidak mengembalikan link download ${type} yang valid.`);
-      }
+      if (!downloadUrl) throw new Error(`API Worker tidak mengembalikan link download ${type} yang valid.`);
 
       setActiveMedia({
         type,
@@ -275,20 +202,15 @@ export const MusicPlayViewer: React.FC = () => {
         quality: resObj.quality || (type === 'video' ? '720p' : '320kbps MP3'),
       });
 
-      ActivityService.logActivity(
-        'music_play',
-        'Memutar Lagu / Video',
-        `Memutar ${type === 'audio' ? 'Audio MP3' : 'Video 720p'}: "${resObj.title || item.title}"`
-      );
+      ActivityService.logActivity('music_play', 'Memutar Lagu / Video', `Memutar ${type}: "${resObj.title || item.title}"`);
     } catch (err: any) {
-      console.error('Media download error:', err);
-      setMediaError(err.message || `Gagal memuat media ${type} dari Worker API.`);
+      setMediaError(err.message || `Gagal memuat media ${type}.`);
     } finally {
       setLoadingMedia(null);
     }
   };
 
-  // Handle TikTok Download via API Client
+  // --- TIKTOK DOWNLOAD ---
   const handleTikTokDownload = async (e: React.FormEvent) => {
     e.preventDefault();
     const input = tiktokUrlInput.trim();
@@ -298,54 +220,25 @@ export const MusicPlayViewer: React.FC = () => {
     setMediaError(null);
     setActiveMedia(null);
 
-    const dummyItem: SearchResultItem = {
-      videoId: 'tiktok_video',
-      url: input,
-      title: 'TikTok Downloader (No Watermark)',
-      channel: 'TikTok Creator',
-      thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
-    };
-
+    const dummyItem: SearchResultItem = { videoId: 'tiktok_video', url: input, title: 'TikTok Downloader', channel: 'TikTok Creator', thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1' };
     setLoadingMedia({ type: 'tiktok', item: dummyItem });
 
     try {
       const response = await apiClient.getTikTokDownload(input);
-
-      if (!response.success || !response.result) {
-        throw new Error(response.message || 'Gagal mengunduh video TikTok dari Worker API.');
-      }
-
+      if (!response.success || !response.result) throw new Error(response.message || 'Gagal mengunduh video TikTok.');
       const resObj = response.result;
-      const downloadUrl =
-        resObj.download ||
-        resObj.nowatermark ||
-        resObj.url ||
-        resObj.link ||
-        (typeof resObj === 'string' ? resObj : '');
+      const downloadUrl = resObj.download || resObj.nowatermark || resObj.url || resObj.link || (typeof resObj === 'string' ? resObj : '');
 
-      if (!downloadUrl) {
-        throw new Error('API Worker tidak mengembalikan link download TikTok yang valid.');
-      }
+      if (!downloadUrl) throw new Error('Link download TikTok tidak valid.');
 
       setActiveMedia({
         type: 'tiktok',
-        item: {
-          ...dummyItem,
-          title: resObj.title || 'TikTok Video (No Watermark)',
-          channel: resObj.author || resObj.nickname || 'TikTok User',
-          thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
-        },
+        item: { ...dummyItem, title: resObj.title || 'TikTok Video', channel: resObj.author || resObj.nickname || 'TikTok User', thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail },
         downloadUrl,
         title: resObj.title || 'TikTok Video (No Watermark)',
         thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
         quality: 'HD No Watermark',
       });
-
-      ActivityService.logActivity(
-        'music_play',
-        'Download TikTok',
-        `TikTok Downloader: "${resObj.title || input}"`
-      );
     } catch (err: any) {
       setMediaError(err.message || 'Gagal mengunduh video TikTok.');
     } finally {
@@ -354,294 +247,106 @@ export const MusicPlayViewer: React.FC = () => {
     }
   };
 
-  /**
-   * Normalizes Spotify references into a playable track URL.
-   * Supports:
-   * - https://open.spotify.com/track/<id>
-   * - spotify:track:<id>
-   * - spotify://track/<id>
-   * - plain track IDs
-   */
-  const normalizeSpotifyTrackUrl = (value: string): string => {
-    const trimmed = value.trim();
-    if (!trimmed) return '';
-
-    if (trimmed.includes('open.spotify.com/track')) {
-      try {
-        const url = new URL(trimmed);
-        const match = url.pathname.match(/\/track\/([A-Za-z0-9]+)/);
-        if (match?.[1]) {
-          return `https://open.spotify.com/track/${match[1]}`;
-        }
-      } catch {
-        const match = trimmed.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/);
-        if (match?.[1]) {
-          return `https://open.spotify.com/track/${match[1]}`;
-        }
-      }
-      return trimmed;
-    }
-
-    const uriMatch = trimmed.match(/^spotify:(?:track|album|playlist):([A-Za-z0-9]+)$/i);
-    if (uriMatch?.[1]) {
-      return `https://open.spotify.com/track/${uriMatch[1]}`;
-    }
-
-    const slashUriMatch = trimmed.match(/^spotify:\/\/(?:track|album|playlist)\/([A-Za-z0-9]+)$/i);
-    if (slashUriMatch?.[1]) {
-      return `https://open.spotify.com/track/${slashUriMatch[1]}`;
-    }
-
-    const bareIdMatch = trimmed.match(/^([A-Za-z0-9]{22})$/);
-    if (bareIdMatch?.[1]) {
-      return `https://open.spotify.com/track/${bareIdMatch[1]}`;
-    }
-
-    return '';
-  };
-
-  /**
-   * Recursively extract the first Spotify track URL from a search result.
-   * The Worker/API can return various shapes: array, { tracks: [] }, { data: [] }, etc.
-   * This helper is designed to be robust against any nesting depth.
-   */
+  // --- SPOTIFY HELPER ---
   const extractSpotifyTrackUrl = (obj: any, depth = 6): string => {
     if (!obj || depth <= 0) return '';
-
-    // Plain string that looks like a Spotify track reference
-    if (typeof obj === 'string') {
-      return normalizeSpotifyTrackUrl(obj);
-    }
-
-    if (Array.isArray(obj)) {
-      if (obj.length === 0) return '';
-      // Recurse into the first element only (we want the top result)
-      return extractSpotifyTrackUrl(obj[0], depth - 1);
-    }
-
+    if (typeof obj === 'string') return obj.includes('open.spotify.com/track') || obj.startsWith('spotify:') ? obj : '';
+    if (Array.isArray(obj)) return obj.length > 0 ? extractSpotifyTrackUrl(obj[0], depth - 1) : '';
     if (typeof obj === 'object') {
-      // Direct URL / URI fields on the object itself
-      const candidateUrlFields = ['url', 'uri', 'href', 'link', 'spotify', 'track_url', 'external_url'];
-      for (const field of candidateUrlFields) {
-        const val = obj[field];
-        if (typeof val === 'string') {
-          const normalized = normalizeSpotifyTrackUrl(val);
-          if (normalized) return normalized;
-        }
-      }
-
-      // Spotify API-style nested external_urls
-      if (typeof obj.external_urls?.spotify === 'string') {
-        const normalized = normalizeSpotifyTrackUrl(obj.external_urls.spotify);
-        if (normalized) return normalized;
-      }
-
-      // Reconstruct from track ID if present
-      if (typeof obj.id === 'string') {
-        const normalized = normalizeSpotifyTrackUrl(obj.id);
-        if (normalized) return normalized;
-      }
-
-      // Recurse into common container keys (search results are usually nested)
-      const containers = ['tracks', 'items', 'results', 'data', 'songs', 'list', 'content'];
-      for (const key of containers) {
-        if (obj[key]) {
-          const found = extractSpotifyTrackUrl(obj[key], depth - 1);
-          if (found) return found;
-        }
-      }
-
-      // Last-resort recursive scan of all object values
-      for (const key of Object.keys(obj)) {
-        const value = obj[key];
-        if (typeof value === 'string') {
-          const normalized = normalizeSpotifyTrackUrl(value);
-          if (normalized) return normalized;
-        }
-        if (value && typeof value === 'object') {
-          const found = extractSpotifyTrackUrl(value, depth - 1);
-          if (found) return found;
-        }
-      }
+      const urls = ['url', 'uri', 'external_url'];
+      for (const field of urls) if (typeof obj[field] === 'string' && obj[field].includes('spotify')) return obj[field];
+      if (obj.external_urls?.spotify) return obj.external_urls.spotify;
+      if (typeof obj.id === 'string' && obj.id.length === 22) return `https://open.spotify.com/track/${obj.id}`;
     }
-
     return '';
   };
 
-  /**
-   * Recursively extract a direct download/media URL from any response shape.
-   * This is a fallback for workers that already return playable media in the search response.
-   */
-  const extractSpotifyDownloadUrl = (payload: any, depth = 6): string => {
-    if (!payload || depth <= 0) return '';
-
-    if (typeof payload === 'string') {
-      return payload.startsWith('http://') || payload.startsWith('https://') ? payload : '';
-    }
-
-    if (Array.isArray(payload)) {
-      for (const item of payload) {
-        const found = extractSpotifyDownloadUrl(item, depth - 1);
-        if (found) return found;
-      }
-      return '';
-    }
-
-    if (typeof payload === 'object') {
-      const directKeys = ['download', 'nowatermark', 'audio', 'video', 'mp3', 'mp4', 'url', 'link', 'dl', 'media', 'src', 'stream', 'play', 'file'];
-      for (const key of directKeys) {
-        const value = payload[key];
-        if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
-          return value;
-        }
-      }
-
-      const nestedKeys = ['result', 'data', 'info', 'response', 'item', 'item_list', 'formats', 'format'];
-      for (const key of nestedKeys) {
-        if (payload[key]) {
-          const found = extractSpotifyDownloadUrl(payload[key], depth - 1);
-          if (found) return found;
-        }
-      }
-
-      for (const key of Object.keys(payload)) {
-        const value = payload[key];
-        if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
-          return value;
-        }
-        if (value && typeof value === 'object') {
-          const found = extractSpotifyDownloadUrl(value, depth - 1);
-          if (found) return found;
-        }
-      }
-    }
-
-    return '';
-  };
-
-  // Handle Spotify Download via API Client
-  const handleSpotifyDownload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const input = spotifyInput.trim();
-    if (!input) return;
-
+  // --- SPOTIFY SEARCH & DOWNLOAD ---
+  const playSpotifyFromUrl = async (trackUrl: string, titleFallback: string, thumbnailFallback?: string) => {
     setIsSpotifyLoading(true);
     setMediaError(null);
     setActiveMedia(null);
 
-    const isUrl = input.startsWith('http://') || input.startsWith('https://');
-
-    const dummyItem: SearchResultItem = {
-      videoId: 'spotify_track',
-      url: input,
-      title: isUrl ? 'Spotify Downloader' : input,
-      channel: 'Spotify Artist',
-      thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
-    };
-
+    const dummyItem: SearchResultItem = { videoId: 'spotify_track', url: trackUrl, title: titleFallback, channel: 'Spotify Stream', thumbnail: thumbnailFallback || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1' };
     setLoadingMedia({ type: 'spotify', item: dummyItem });
 
     try {
-      let response: any;
-
-      if (isUrl) {
-        // ─── PATH A: Input adalah URL Spotify langsung ───────────────────────
-        response = await apiClient.getSpotifyDownload(input);
-      } else {
-        // ─── PATH B: Input adalah text query (judul lagu / nama artis) ───────
-        // Step 1: Cari lagu di Spotify melalui Worker
-        const searchResponse = await apiClient.searchSpotify(input);
-
-        if (!searchResponse.success || !searchResponse.result) {
-          throw new Error(
-            searchResponse.message ||
-            'Pencarian Spotify gagal. Pastikan kata kunci benar dan coba lagi.'
-          );
-        }
-
-        const searchPayload = searchResponse.result;
-
-        // Jika Worker sudah mengembalikan link media langsung, pakai saja.
-        const directDownloadFromSearch = extractSpotifyDownloadUrl(searchPayload);
-        if (directDownloadFromSearch) {
-          response = {
-            success: true,
-            provider: searchResponse.provider,
-            cached: searchResponse.cached,
-            result: {
-              ...(typeof searchPayload === 'object' && searchPayload !== null ? searchPayload : {}),
-              download: directDownloadFromSearch,
-              url: directDownloadFromSearch,
-              link: directDownloadFromSearch,
-            },
-          };
-        } else {
-          // Step 2: Ekstrak URL track Spotify dari hasil pencarian
-          const trackUrl = extractSpotifyTrackUrl(searchPayload);
-
-          if (!trackUrl) {
-            throw new Error(
-              `Lagu "${input}" tidak ditemukan. ` +
-              `Coba kata kunci yang lebih spesifik atau paste URL Spotify langsung ` +
-              `(contoh: https://open.spotify.com/track/...)`
-            );
-          }
-
-          // Step 3: Download track yang ditemukan menggunakan URL-nya
-          response = await apiClient.getSpotifyDownload(trackUrl);
-        }
-      }
-
-      if (!response.success || !response.result) {
-        throw new Error(response.message || 'Gagal memproses lagu Spotify dari Worker API.');
-      }
+      const response = await apiClient.getSpotifyDownload(trackUrl);
+      if (!response.success || !response.result) throw new Error(response.message || 'Gagal memproses lagu Spotify.');
 
       const resObj = response.result;
+      const downloadUrl = resObj.download || resObj.link || resObj.url || resObj.audio || resObj.mp3 || resObj.stream || (typeof resObj === 'string' ? resObj : '');
 
-      // getSpotifyDownload() sudah menjalankan extractDownloadUrl() di client.ts,
-      // sehingga resObj.download pasti terisi jika ada URL apapun di response.
-      const downloadUrl =
-        resObj.download ||
-        resObj.link ||
-        resObj.url ||
-        resObj.audio ||
-        resObj.mp3 ||
-        resObj.stream ||
-        (typeof resObj === 'string' ? resObj : '');
-
-      if (!downloadUrl) {
-        throw new Error(
-          'Link download MP3 Spotify tidak dapat ditemukan dari response API. ' +
-          'Coba paste URL Spotify langsung (contoh: https://open.spotify.com/track/...)'
-        );
-      }
+      if (!downloadUrl) throw new Error('Link download MP3 Spotify tidak ditemukan.');
 
       setActiveMedia({
         type: 'spotify',
-        item: {
-          ...dummyItem,
-          title: resObj.title || resObj.name || input,
-          channel: resObj.artist || resObj.artists || 'Spotify Track',
-          thumbnail: resObj.thumbnail || resObj.cover || resObj.image || dummyItem.thumbnail,
-        },
+        item: { ...dummyItem, title: resObj.title || resObj.name || titleFallback, channel: resObj.artist || resObj.artists || dummyItem.channel, thumbnail: resObj.thumbnail || resObj.cover || resObj.image || dummyItem.thumbnail },
         downloadUrl,
-        title:     resObj.title || resObj.name || input,
+        title: resObj.title || resObj.name || titleFallback,
         thumbnail: resObj.thumbnail || resObj.cover || resObj.image || dummyItem.thumbnail,
-        quality:   'Spotify 320kbps MP3',
+        quality: 'Spotify 320kbps MP3',
       });
-
-      ActivityService.logActivity(
-        'music_play',
-        'Spotify Downloader',
-        `Memproses Spotify: "${resObj.title || input}"`
-      );
+      ActivityService.logActivity('music_play', 'Spotify Downloader', `Memutar Spotify: "${resObj.title || titleFallback}"`);
     } catch (err: any) {
-      setMediaError(err.message || 'Gagal memproses Spotify.');
+      setMediaError(err.message || 'Gagal memproses lagu Spotify.');
     } finally {
       setIsSpotifyLoading(false);
       setLoadingMedia(null);
     }
   };
+
+  const handleSpotifySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const input = spotifyInput.trim();
+    if (!input) return;
+
+    // Jika input URL -> Langsung Eksekusi Download
+    if (input.startsWith('http://') || input.startsWith('https://') || input.startsWith('spotify:')) {
+      return playSpotifyFromUrl(input, 'Spotify Downloader');
+    }
+
+    // Jika input Teks -> Mode Pencarian List Spotify (Memperbaiki isu 20 hasil)
+    setIsSpotifyLoading(true);
+    setSearchError(null);
+    setHasSearched(true);
+    setSearchResults([]);
+
+    try {
+      const searchResponse = await apiClient.searchSpotify(input);
+      if (!searchResponse.success || !searchResponse.result) throw new Error(searchResponse.message || 'Pencarian Spotify gagal.');
+      
+      const payload = searchResponse.result;
+      let rawItems: any[] = [];
+      
+      if (Array.isArray(payload)) rawItems = payload;
+      else if (payload.data && Array.isArray(payload.data)) rawItems = payload.data;
+      else if (payload.tracks && Array.isArray(payload.tracks)) rawItems = payload.tracks;
+      else if (payload.items && Array.isArray(payload.items)) rawItems = payload.items;
+      else rawItems = [payload];
+
+      // Mapping hasil JSON dari Worker API agar formatnya seragam menjadi array SearchResultItem limit 20
+      const mappedResults: SearchResultItem[] = rawItems.slice(0, 20).map((item: any, idx: number) => {
+        const trackUrl = extractSpotifyTrackUrl(item) || item.url || item.external_urls?.spotify || `https://open.spotify.com/track/${item.id}`;
+        return {
+          videoId: item.id || `spotify-${idx}`,
+          url: trackUrl,
+          title: item.title || item.name || 'Unknown Track',
+          channel: item.artist || item.artists?.[0]?.name || item.author || 'Spotify Artist',
+          thumbnail: item.thumbnail || item.cover || item.image || item.album?.images?.[0]?.url || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+          duration: item.duration || (item.duration_ms ? `${Math.floor(item.duration_ms/60000)}:${((item.duration_ms%60000)/1000).toFixed(0).padStart(2,'0')}` : '')
+        };
+      });
+
+      if (mappedResults.length === 0) throw new Error("Tidak ada lagu yang ditemukan.");
+      setSearchResults(mappedResults);
+    } catch (err: any) {
+      setSearchError(err.message || 'Gagal mencari di Spotify API.');
+    } finally {
+      setIsSpotifyLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -671,207 +376,96 @@ export const MusicPlayViewer: React.FC = () => {
           {/* Service Selector Tabs */}
           <div className="flex items-center space-x-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 text-xs">
             <button
-              onClick={() => setActiveTabMode('youtube')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                activeTabMode === 'youtube'
-                  ? 'bg-sky-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
+              onClick={() => handleTabSwitch('youtube')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'youtube' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
             >
-              <Music className="w-3.5 h-3.5" />
-              <span>YouTube</span>
+              <Music className="w-3.5 h-3.5" /><span>YouTube</span>
             </button>
             <button
-              onClick={() => setActiveTabMode('tiktok')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                activeTabMode === 'tiktok'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
+              onClick={() => handleTabSwitch('tiktok')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'tiktok' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
             >
-              <Film className="w-3.5 h-3.5" />
-              <span>TikTok</span>
+              <Film className="w-3.5 h-3.5" /><span>TikTok</span>
             </button>
             <button
-              onClick={() => setActiveTabMode('spotify')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
-                activeTabMode === 'spotify'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
+              onClick={() => handleTabSwitch('spotify')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'spotify' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
             >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>Spotify</span>
+              <Volume2 className="w-3.5 h-3.5" /><span>Spotify</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Active Player Card View (If media is ready or loading) */}
+      {/* Loading Overlay Preview */}
       {loadingMedia && (
         <div className="bg-slate-900/90 border border-sky-500/50 rounded-2xl p-8 shadow-2xl backdrop-blur-md text-center space-y-4 animate-fade-in relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 via-indigo-500/5 to-purple-500/5 animate-pulse"></div>
           <div className="relative z-10 max-w-md mx-auto space-y-4">
             <div className="relative w-20 h-20 mx-auto">
               <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 p-1 animate-spin">
                 <div className="w-full h-full bg-slate-950 rounded-full"></div>
               </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl animate-bounce">🐴</span>
-              </div>
+              <div className="absolute inset-0 flex items-center justify-center text-2xl animate-bounce">🐴</div>
             </div>
-
             <div>
-              <h3 className="text-lg font-extrabold text-sky-300">
-                🐴 Oguri Cap sedang mengunduh via Worker API...
-              </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Menghubungi Cloudflare Worker Gateway (<code className="text-emerald-300">{WORKER_BASE_URL}</code>)...
-              </p>
-            </div>
-
-            {/* Target Media Preview */}
-            <div className="flex items-center space-x-3 bg-slate-950/80 p-3 rounded-xl border border-slate-800 text-left">
-              {loadingMedia.item.thumbnail && (
-                <img
-                  src={loadingMedia.item.thumbnail}
-                  alt={loadingMedia.item.title}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                />
-              )}
-              <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate">{loadingMedia.item.title}</p>
-                <p className="text-[11px] text-slate-400 truncate">{loadingMedia.item.channel}</p>
-              </div>
-            </div>
-
-            {/* Equalizer animation preview */}
-            <div className="flex justify-center items-end space-x-1 h-6 pt-2">
-              <span className="w-1 bg-sky-400 h-2 animate-bounce rounded-full"></span>
-              <span className="w-1 bg-indigo-400 h-5 animate-bounce delay-100 rounded-full"></span>
-              <span className="w-1 bg-purple-400 h-3 animate-bounce delay-200 rounded-full"></span>
-              <span className="w-1 bg-sky-400 h-6 animate-bounce delay-300 rounded-full"></span>
-              <span className="w-1 bg-amber-400 h-4 animate-bounce delay-150 rounded-full"></span>
+              <h3 className="text-lg font-extrabold text-sky-300">🐴 Oguri Cap sedang mengunduh via Worker...</h3>
             </div>
           </div>
         </div>
       )}
 
-      {/* Media Download/Fetch Error Box */}
+      {/* Media Download Error Box */}
       {mediaError && !loadingMedia && (
-        <div className="space-y-4">
-          <div className="bg-red-950/40 border border-red-500/50 rounded-2xl p-6 shadow-xl text-center space-y-3">
-            <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-            <h3 className="text-sm font-bold text-red-300">Gagal Memproses Media</h3>
-            <p className="text-xs text-red-200/80 max-w-lg mx-auto">{mediaError}</p>
-            <div className="flex justify-center gap-3 pt-2">
-              <button
-                onClick={() => setMediaError(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-
-          <DebugCard debugList={mediaDebugList} title="🌐 Log Error Worker API" />
+        <div className="bg-red-950/40 border border-red-500/50 rounded-2xl p-6 shadow-xl text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+          <h3 className="text-sm font-bold text-red-300">Gagal Memproses Media</h3>
+          <p className="text-xs text-red-200/80">{mediaError}</p>
+          <button onClick={() => setMediaError(null)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">Tutup</button>
         </div>
       )}
 
-      {/* Active Audio / Video Player Box */}
+      {/* Active Audio / Video Player Box (Diperbarui dengan Error Handler HTML5) */}
       {activeMedia && !loadingMedia && (
-        <div className="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden transition-all transform scale-100 hover:border-sky-500/60">
+        <div className="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 shadow-2xl relative transition-all">
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
             <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setActiveMedia(null)}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all flex items-center gap-1 text-xs"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Kembali</span>
+              <button onClick={() => setActiveMedia(null)} className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white flex items-center gap-1 text-xs">
+                <ArrowLeft className="w-3.5 h-3.5" /><span>Tutup Player</span>
               </button>
               <span className="text-xs font-bold text-sky-400 flex items-center gap-1">
-                {activeMedia.type === 'audio' ? <Volume2 className="w-4 h-4" /> : <Film className="w-4 h-4" />}
-                {activeMedia.type.toUpperCase()} Player Ready (via Worker Gateway)
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-                Siap Diputar
+                {activeMedia.type === 'audio' || activeMedia.type === 'spotify' ? <Volume2 className="w-4 h-4" /> : <Film className="w-4 h-4" />}
+                PLAYER READY
               </span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {/* Thumbnail & Info */}
+            {/* Thumbnail */}
             <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 md:col-span-1">
-              {activeMedia.thumbnail || activeMedia.item.thumbnail ? (
-                <img
-                  src={activeMedia.thumbnail || activeMedia.item.thumbnail}
-                  alt={activeMedia.title || activeMedia.item.title}
-                  className="w-28 h-28 rounded-xl object-cover shadow-lg border border-slate-700 flex-shrink-0"
-                />
-              ) : (
-                <div className="w-28 h-28 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 flex-shrink-0">
-                  <Music className="w-8 h-8" />
-                </div>
-              )}
+              <img src={activeMedia.thumbnail || activeMedia.item.thumbnail} alt={activeMedia.title} className="w-28 h-28 rounded-xl object-cover shadow-lg border border-slate-700 flex-shrink-0" />
               <div className="space-y-1 text-center sm:text-left overflow-hidden">
-                <h3 className="text-sm font-bold text-white line-clamp-2 leading-snug">
-                  {activeMedia.title || activeMedia.item.title}
-                </h3>
-                <p className="text-xs text-sky-300 font-medium truncate">
-                  {activeMedia.item.channel}
-                </p>
-                {activeMedia.duration && (
-                  <p className="text-[11px] text-slate-400">⏱️ Durasi: {activeMedia.duration}</p>
-                )}
-                {activeMedia.quality && (
-                  <p className="text-[10px] text-emerald-400 font-semibold">
-                    Kualitas: {activeMedia.quality}
-                  </p>
-                )}
+                <h3 className="text-sm font-bold text-white line-clamp-2 leading-snug">{activeMedia.title || activeMedia.item.title}</h3>
+                <p className="text-xs text-sky-300 font-medium truncate">{activeMedia.item.channel}</p>
               </div>
             </div>
 
             {/* Media Player Column */}
             <div className="md:col-span-2 space-y-3">
               {activeMedia.type === 'audio' || activeMedia.type === 'spotify' ? (
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
-                  <div className="flex items-center justify-between px-2">
-                    <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
-                      HTML5 Audio Source (via Worker)
-                    </span>
-                    <div className="flex items-end space-x-1 h-4">
-                      <span className="w-1 bg-sky-400 h-2 animate-pulse rounded-full"></span>
-                      <span className="w-1 bg-indigo-400 h-4 animate-pulse delay-75 rounded-full"></span>
-                      <span className="w-1 bg-purple-400 h-3 animate-pulse delay-150 rounded-full"></span>
-                      <span className="w-1 bg-sky-400 h-4 animate-pulse delay-100 rounded-full"></span>
-                      <span className="w-1 bg-amber-400 h-2 animate-pulse delay-200 rounded-full"></span>
-                    </div>
-                  </div>
-
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                  {/* HTML5 Audio TAG - Error ditangani di sini */}
                   <audio
                     controls
                     autoPlay
                     src={activeMedia.downloadUrl}
-                    className="w-full accent-sky-500"
+                    className="w-full accent-sky-500 mb-2"
+                    onError={() => setMediaError("Browser memblokir pemutaran otomatis (CORS/URL Kedaluwarsa). Silakan gunakan tombol 'Unduh Berkas' di bawah untuk menikmati lagu.")}
                   >
                     Browser Anda tidak mendukung elemen audio.
                   </audio>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span className="text-emerald-400">✓ MP3 Audio Stream</span>
-                    <a
-                      href={activeMedia.downloadUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1 cursor-pointer"
-                    >
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <span className="text-emerald-400">✓ MP3 Stream URL Berhasil Digenerate</span>
+                    <a href={activeMedia.downloadUrl} download target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1">
                       <Download className="w-3 h-3" /> Unduh Berkas MP3
                     </a>
                   </div>
@@ -879,30 +473,11 @@ export const MusicPlayViewer: React.FC = () => {
               ) : (
                 <div className="space-y-3">
                   <div className="rounded-xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
-                    <video
-                      controls
-                      autoPlay
-                      src={activeMedia.downloadUrl}
-                      className="w-full max-h-80 object-contain"
-                    >
-                      Browser Anda tidak mendukung elemen video.
-                    </video>
+                    <video controls autoPlay src={activeMedia.downloadUrl} className="w-full max-h-80 object-contain" onError={() => setMediaError("Gagal memutar video secara langsung. Gunakan tombol download.")} />
                   </div>
-
-                  <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                      <Film className="w-3.5 h-3.5 text-purple-400" />
-                      {activeMedia.quality || 'Video Stream'}
-                    </span>
-                    <a
-                      href={activeMedia.downloadUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md flex items-center space-x-1.5 transition-all"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download Video</span>
+                  <div className="flex justify-end">
+                    <a href={activeMedia.downloadUrl} download target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5">
+                      <Download className="w-3.5 h-3.5" /><span>Download Video</span>
                     </a>
                   </div>
                 </div>
@@ -912,248 +487,122 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Mode 1: YouTube Search Section */}
+      {/* Mode 1: YouTube Search Form */}
       {activeTabMode === 'youtube' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ketik judul lagu, OST anime, atau penyanyi YouTube..."
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
-              />
+              <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Ketik judul lagu YouTube..." className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100" />
             </div>
-            <button
-              type="submit"
-              disabled={isSearching || !query.trim()}
-              className="px-6 py-2.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg shadow-sky-600/20 flex items-center justify-center space-x-2 transition-all flex-shrink-0"
-            >
-              {isSearching ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Mencari...</span>
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4" />
-                  <span>Cari Lagu</span>
-                </>
-              )}
+            <button type="submit" disabled={isSearching || !query.trim()} className="px-6 py-2.5 bg-gradient-to-r from-sky-600 to-indigo-600 text-white text-sm font-semibold rounded-xl flex gap-2 justify-center items-center">
+              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} {isSearching ? 'Mencari...' : 'Cari Lagu'}
             </button>
           </form>
-
-          {/* Quick Presets */}
           <div className="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
-            <span className="text-slate-500 font-medium flex-shrink-0">Rekomendasi:</span>
-            {presetQueries.map((preset) => (
-              <button
-                key={preset}
-                onClick={() => {
-                  setQuery(preset);
-                  handleSearch(undefined, preset);
-                }}
-                className="px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 whitespace-nowrap transition-all flex-shrink-0 text-[11px]"
-              >
-                🎵 {preset}
-              </button>
+            {presetQueries.map(preset => (
+              <button key={preset} onClick={() => { setQuery(preset); handleSearch(undefined, preset); }} className="px-3 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 whitespace-nowrap">🎵 {preset}</button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Mode 2: TikTok Downloader Section */}
+      {/* Mode 2: TikTok Form */}
       {activeTabMode === 'tiktok' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center space-x-2 pb-1 border-b border-slate-800">
-            <Film className="w-4 h-4 text-purple-400" />
-            <h3 className="text-sm font-bold text-white">TikTok Downloader (No Watermark)</h3>
-          </div>
+          <div className="flex items-center space-x-2 pb-1 border-b border-slate-800"><Film className="w-4 h-4 text-purple-400" /><h3 className="text-sm font-bold text-white">TikTok Downloader</h3></div>
           <form onSubmit={handleTikTokDownload} className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={tiktokUrlInput}
-                onChange={(e) => setTiktokUrlInput(e.target.value)}
-                placeholder="Paste URL video TikTok (misal: https://www.tiktok.com/@user/video/...)"
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isTiktokLoading || !tiktokUrlInput.trim()}
-              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg flex items-center justify-center space-x-2 transition-all flex-shrink-0"
-            >
-              {isTiktokLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses TikTok...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  <span>Download TikTok</span>
-                </>
-              )}
+            <input type="text" value={tiktokUrlInput} onChange={(e) => setTiktokUrlInput(e.target.value)} placeholder="Paste URL video TikTok..." className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100" />
+            <button type="submit" disabled={isTiktokLoading || !tiktokUrlInput.trim()} className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-semibold rounded-xl flex justify-center items-center gap-2">
+              {isTiktokLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Download
             </button>
           </form>
         </div>
       )}
 
-      {/* Mode 3: Spotify Downloader Section */}
+      {/* Mode 3: Spotify Form */}
       {activeTabMode === 'spotify' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-          <div className="flex items-center space-x-2 pb-1 border-b border-slate-800">
-            <Volume2 className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-bold text-white">Spotify Downloader & Search</h3>
-          </div>
-          <form onSubmit={handleSpotifyDownload} className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={spotifyInput}
-                onChange={(e) => setSpotifyInput(e.target.value)}
-                placeholder="Ketik judul lagu / paste URL Spotify (misal: https://open.spotify.com/track/...)"
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isSpotifyLoading || !spotifyInput.trim()}
-              className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg flex items-center justify-center space-x-2 transition-all flex-shrink-0"
-            >
-              {isSpotifyLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses Spotify...</span>
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  <span>Proses Spotify</span>
-                </>
-              )}
+          <div className="flex items-center space-x-2 pb-1 border-b border-slate-800"><Volume2 className="w-4 h-4 text-emerald-400" /><h3 className="text-sm font-bold text-white">Spotify Search & Downloader</h3></div>
+          <form onSubmit={handleSpotifySubmit} className="flex flex-col sm:flex-row gap-2">
+            <input type="text" value={spotifyInput} onChange={(e) => setSpotifyInput(e.target.value)} placeholder="Ketik judul lagu Spotify atau Paste URL..." className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:border-emerald-500" />
+            <button type="submit" disabled={isSpotifyLoading || !spotifyInput.trim()} className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold rounded-xl flex justify-center items-center gap-2">
+              {isSpotifyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Cari / Download
             </button>
           </form>
         </div>
       )}
 
-      {/* YouTube Search Results Grid */}
-      {activeTabMode === 'youtube' && (
+      {/* GRID HASIL PENCARIAN (Menyatu untuk Youtube & Spotify) */}
+      {(activeTabMode === 'youtube' || activeTabMode === 'spotify') && (
         <div>
+          {/* Header Grid */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
-              <Music className="w-4 h-4 text-sky-400" />
-              <span>Hasil Pencarian YouTube</span>
-              {searchResults.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs font-normal">
-                  {searchResults.length} Hasil
-                </span>
-              )}
+              {activeTabMode === 'youtube' ? <Music className="w-4 h-4 text-sky-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+              <span>Hasil Pencarian {activeTabMode === 'youtube' ? 'YouTube' : 'Spotify'}</span>
+              {searchResults.length > 0 && <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs">{searchResults.length} Hasil</span>}
             </h3>
           </div>
 
-          {/* Error message for search */}
           {searchError && (
-            <div className="space-y-4 mb-4">
-              <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2">
-                <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
-                <p className="text-xs text-red-300">{searchError}</p>
-                <button
-                  onClick={() => handleSearch()}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-1"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Coba Lagi</span>
-                </button>
-              </div>
-
-              <DebugCard debugList={searchDebugList} title="🌐 Log Error Worker API Search" />
-            </div>
+             <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2 mb-4">
+               <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
+               <p className="text-xs text-red-300">{searchError}</p>
+             </div>
           )}
 
-          {/* Skeleton Loading state */}
-          {isSearching && (
+          {/* Skeleton Loaders */}
+          {(isSearching || isSpotifyLoading) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Array.from({ length: 6 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 flex space-x-3 animate-pulse"
-                >
+                <div key={idx} className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 flex space-x-3 animate-pulse">
                   <div className="w-24 h-24 bg-slate-800 rounded-lg flex-shrink-0"></div>
                   <div className="flex-1 space-y-2 py-1">
                     <div className="h-4 bg-slate-800 rounded w-3/4"></div>
                     <div className="h-3 bg-slate-800/60 rounded w-1/2"></div>
-                    <div className="h-3 bg-slate-800/40 rounded w-1/3"></div>
-                    <div className="flex space-x-2 pt-2">
-                      <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
-                      <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
-                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Search Results Display */}
-          {!isSearching && searchResults.length > 0 && (
+          {/* Map Results Data */}
+          {!(isSearching || isSpotifyLoading) && searchResults.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[640px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
               {searchResults.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 transition-all hover:shadow-lg flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group"
-                >
-                  {/* Thumbnail */}
+                <div key={idx} className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 transition-all hover:shadow-lg flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group">
                   <div className="relative w-full sm:w-28 h-32 sm:h-28 rounded-xl overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
                     {item.thumbnail ? (
-                      <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                      <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-600">
-                        <Music className="w-8 h-8" />
-                      </div>
+                      <div className="w-full h-full flex items-center justify-center text-slate-600"><Music className="w-8 h-8" /></div>
                     )}
-                    {item.duration && (
-                      <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-semibold text-slate-300 backdrop-blur-sm">
-                        {item.duration}
-                      </span>
-                    )}
+                    {item.duration && <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-semibold text-slate-300">{item.duration}</span>}
                   </div>
 
-                  {/* Info & Action Buttons */}
                   <div className="flex-1 flex flex-col justify-between overflow-hidden">
                     <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug group-hover:text-sky-300 transition-colors">
-                        {item.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 truncate flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full"></span>
-                        {item.channel}
-                      </p>
+                      <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug">{item.title}</h4>
+                      <p className="text-[11px] text-slate-400 truncate">{item.channel}</p>
                     </div>
 
-                    {/* Modern Action Buttons */}
                     <div className="flex items-center space-x-2 pt-2">
-                      <button
-                        onClick={() => handleFetchMedia(item, 'audio')}
-                        className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 hover:border-sky-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
-                      >
-                        <Music className="w-3.5 h-3.5" />
-                        <span>🎧 Audio MP3</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleFetchMedia(item, 'video')}
-                        className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
-                      >
-                        <Video className="w-3.5 h-3.5" />
-                        <span>🎥 Video 720p</span>
-                      </button>
+                      {/* TAMPILAN BUTTON BERBEDA ANTARA YOUTUBE DAN SPOTIFY */}
+                      {activeTabMode === 'youtube' ? (
+                        <>
+                          <button onClick={() => handleFetchMedia(item, 'audio')} className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 hover:border-sky-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                            <Music className="w-3.5 h-3.5" /><span>🎧 Audio</span>
+                          </button>
+                          <button onClick={() => handleFetchMedia(item, 'video')} className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                            <Video className="w-3.5 h-3.5" /><span>🎥 Video</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => playSpotifyFromUrl(item.url || '', item.title, item.thumbnail)} className="flex-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 hover:border-emerald-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
+                          <Volume2 className="w-3.5 h-3.5" /><span>Unduh & Putar</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1161,25 +610,11 @@ export const MusicPlayViewer: React.FC = () => {
             </div>
           )}
 
-          {/* Initial Empty state before search */}
-          {!isSearching && hasSearched && searchResults.length === 0 && !searchError && (
-            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-500 space-y-2">
-              <Music className="w-10 h-10 mx-auto text-slate-600" />
-              <p className="text-xs">Tidak ada hasil ditemukan. Coba ketik kata kunci lain di atas.</p>
-            </div>
-          )}
-
-          {!hasSearched && !isSearching && (
-            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-sky-400">
-                <Play className="w-6 h-6 ml-0.5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-200">Siap Mencari Musik</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Ketik nama lagu favoritmu di kolom pencarian atau pilih tombol rekomendasi di atas.
-                </p>
-              </div>
+          {/* Empty State */}
+          {!(isSearching || isSpotifyLoading) && hasSearched && searchResults.length === 0 && !searchError && (
+            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-500">
+              <Music className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+              <p className="text-xs">Tidak ada hasil ditemukan.</p>
             </div>
           )}
         </div>
@@ -1187,4 +622,3 @@ export const MusicPlayViewer: React.FC = () => {
     </div>
   );
 };
-
