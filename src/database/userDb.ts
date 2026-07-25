@@ -7,6 +7,27 @@ const STORAGE_KEY_USERS_ALL = 'oguri_all_registered_users';
 const STORAGE_KEY_FRIENDS = 'oguri_friends_list';
 
 export class UserDatabaseService {
+  private static syncProfileSnapshot(user: any) {
+    try {
+      if (typeof localStorage === 'undefined') return;
+
+      const profileSnapshot = {
+        id: user.id,
+        username: user.username || user.name || 'Shiro Anna',
+        role: user.role === 'Developer' ? 'Developer' : 'Trainer',
+        avatar: user.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+        createdAt: user.createdAt || new Date().toISOString(),
+        coins: Number(user.carrotCoins ?? user.coin ?? 0),
+        totalGame: Number(user.gamesPlayed ?? user.totalGame ?? 0),
+        win: Number(user.gamesWon ?? user.win ?? 0),
+        lose: Number(user.lose ?? 0),
+      };
+
+      localStorage.setItem('oguri_profile', JSON.stringify(profileSnapshot));
+    } catch {
+      // ignore storage sync failures
+    }
+  }
   /**
    * Synchronous getUser to maintain existing game handler & UI compatibility
    */
@@ -40,6 +61,7 @@ export class UserDatabaseService {
       } as any;
       all.push(found as any);
       StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
+      this.syncProfileSnapshot(found);
 
       // Async sync to D1
       D1DatabaseService.registerOrLoginUser({
@@ -154,6 +176,7 @@ export class UserDatabaseService {
       all.push(user);
     }
     StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
+    this.syncProfileSnapshot(user);
 
     // Sync to D1 Database
     const coinsToSync = user.carrotCoins !== undefined ? user.carrotCoins : (user.coin || 1000);
