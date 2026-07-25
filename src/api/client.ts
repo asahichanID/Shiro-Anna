@@ -554,7 +554,7 @@ class ApiClient {
       };
     }
 
-    return this.request('/spotify', { query: trimmed });
+    return this.request('/spotify', { query: trimmed, q: trimmed, search: trimmed });
   }
 
   /**
@@ -572,7 +572,7 @@ class ApiClient {
       };
     }
 
-    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed });
+    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed, link: trimmed });
 
     // If request itself failed, return as-is
     if (!response.success) {
