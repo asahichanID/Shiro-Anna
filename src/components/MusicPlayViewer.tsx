@@ -355,17 +355,62 @@ export const MusicPlayViewer: React.FC = () => {
   };
 
   /**
+   * Normalizes Spotify references into a playable track URL.
+   * Supports:
+   * - https://open.spotify.com/track/<id>
+   * - spotify:track:<id>
+   * - spotify://track/<id>
+   * - plain track IDs
+   */
+  const normalizeSpotifyTrackUrl = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    if (trimmed.includes('open.spotify.com/track')) {
+      try {
+        const url = new URL(trimmed);
+        const match = url.pathname.match(/\/track\/([A-Za-z0-9]+)/);
+        if (match?.[1]) {
+          return `https://open.spotify.com/track/${match[1]}`;
+        }
+      } catch {
+        const match = trimmed.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/);
+        if (match?.[1]) {
+          return `https://open.spotify.com/track/${match[1]}`;
+        }
+      }
+      return trimmed;
+    }
+
+    const uriMatch = trimmed.match(/^spotify:(?:track|album|playlist):([A-Za-z0-9]+)$/i);
+    if (uriMatch?.[1]) {
+      return `https://open.spotify.com/track/${uriMatch[1]}`;
+    }
+
+    const slashUriMatch = trimmed.match(/^spotify:\/\/(?:track|album|playlist)\/([A-Za-z0-9]+)$/i);
+    if (slashUriMatch?.[1]) {
+      return `https://open.spotify.com/track/${slashUriMatch[1]}`;
+    }
+
+    const bareIdMatch = trimmed.match(/^([A-Za-z0-9]{22})$/);
+    if (bareIdMatch?.[1]) {
+      return `https://open.spotify.com/track/${bareIdMatch[1]}`;
+    }
+
+    return '';
+  };
+
+  /**
    * Recursively extract the first Spotify track URL from a search result.
-   * The Naze API can return various shapes: array, { tracks: [] }, { data: [] }, etc.
+   * The Worker/API can return various shapes: array, { tracks: [] }, { data: [] }, etc.
    * This helper is designed to be robust against any nesting depth.
    */
   const extractSpotifyTrackUrl = (obj: any, depth = 6): string => {
     if (!obj || depth <= 0) return '';
 
-    // Plain string that looks like a Spotify track URL
+    // Plain string that looks like a Spotify track reference
     if (typeof obj === 'string') {
-      if (obj.includes('open.spotify.com/track')) return obj;
-      return '';
+      return normalizeSpotifyTrackUrl(obj);
     }
 
     if (Array.isArray(obj)) {
@@ -375,19 +420,26 @@ export const MusicPlayViewer: React.FC = () => {
     }
 
     if (typeof obj === 'object') {
-      // Direct URL fields on the object itself
+      // Direct URL / URI fields on the object itself
       const candidateUrlFields = ['url', 'uri', 'href', 'link', 'spotify', 'track_url', 'external_url'];
       for (const field of candidateUrlFields) {
         const val = obj[field];
-        if (typeof val === 'string' && val.includes('open.spotify.com/track')) return val;
+        if (typeof val === 'string') {
+          const normalized = normalizeSpotifyTrackUrl(val);
+          if (normalized) return normalized;
+        }
       }
 
       // Spotify API-style nested external_urls
-      if (obj.external_urls?.spotify) return obj.external_urls.spotify;
+      if (typeof obj.external_urls?.spotify === 'string') {
+        const normalized = normalizeSpotifyTrackUrl(obj.external_urls.spotify);
+        if (normalized) return normalized;
+      }
 
       // Reconstruct from track ID if present
-      if (obj.id && typeof obj.id === 'string' && /^[A-Za-z0-9]{15,25}$/.test(obj.id)) {
-        return `https://open.spotify.com/track/${obj.id}`;
+      if (typeof obj.id === 'string') {
+        const normalized = normalizeSpotifyTrackUrl(obj.id);
+        if (normalized) return normalized;
       }
 
       // Recurse into common container keys (search results are usually nested)
@@ -395,6 +447,70 @@ export const MusicPlayViewer: React.FC = () => {
       for (const key of containers) {
         if (obj[key]) {
           const found = extractSpotifyTrackUrl(obj[key], depth - 1);
+          if (found) return found;
+        }
+      }
+
+      // Last-resort recursive scan of all object values
+      for (const key of Object.keys(obj)) {
+        const value = obj[key];
+        if (typeof value === 'string') {
+          const normalized = normalizeSpotifyTrackUrl(value);
+          if (normalized) return normalized;
+        }
+        if (value && typeof value === 'object') {
+          const found = extractSpotifyTrackUrl(value, depth - 1);
+          if (found) return found;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  /**
+   * Recursively extract a direct download/media URL from any response shape.
+   * This is a fallback for workers that already return playable media in the search response.
+   */
+  const extractSpotifyDownloadUrl = (payload: any, depth = 6): string => {
+    if (!payload || depth <= 0) return '';
+
+    if (typeof payload === 'string') {
+      return payload.startsWith('http://') || payload.startsWith('https://') ? payload : '';
+    }
+
+    if (Array.isArray(payload)) {
+      for (const item of payload) {
+        const found = extractSpotifyDownloadUrl(item, depth - 1);
+        if (found) return found;
+      }
+      return '';
+    }
+
+    if (typeof payload === 'object') {
+      const directKeys = ['download', 'nowatermark', 'audio', 'video', 'mp3', 'mp4', 'url', 'link', 'dl', 'media', 'src', 'stream', 'play', 'file'];
+      for (const key of directKeys) {
+        const value = payload[key];
+        if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
+          return value;
+        }
+      }
+
+      const nestedKeys = ['result', 'data', 'info', 'response', 'item', 'item_list', 'formats', 'format'];
+      for (const key of nestedKeys) {
+        if (payload[key]) {
+          const found = extractSpotifyDownloadUrl(payload[key], depth - 1);
+          if (found) return found;
+        }
+      }
+
+      for (const key of Object.keys(payload)) {
+        const value = payload[key];
+        if (typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))) {
+          return value;
+        }
+        if (value && typeof value === 'object') {
+          const found = extractSpotifyDownloadUrl(value, depth - 1);
           if (found) return found;
         }
       }
@@ -426,13 +542,11 @@ export const MusicPlayViewer: React.FC = () => {
     setLoadingMedia({ type: 'spotify', item: dummyItem });
 
     try {
-      let response;
+      let response: any;
 
       if (isUrl) {
         // ─── PATH A: Input adalah URL Spotify langsung ───────────────────────
-        // Langsung download tanpa perlu search
         response = await apiClient.getSpotifyDownload(input);
-
       } else {
         // ─── PATH B: Input adalah text query (judul lagu / nama artis) ───────
         // Step 1: Cari lagu di Spotify melalui Worker
@@ -445,20 +559,37 @@ export const MusicPlayViewer: React.FC = () => {
           );
         }
 
-        // Step 2: Ekstrak URL track Spotify dari hasil pencarian
-        // searchResponse.result bisa berupa array, { tracks: [] }, { data: [] }, dll.
-        const trackUrl = extractSpotifyTrackUrl(searchResponse.result);
+        const searchPayload = searchResponse.result;
 
-        if (!trackUrl) {
-          throw new Error(
-            `Lagu "${input}" tidak ditemukan. ` +
-            `Coba kata kunci yang lebih spesifik atau paste URL Spotify langsung ` +
-            `(contoh: https://open.spotify.com/track/...)`
-          );
+        // Jika Worker sudah mengembalikan link media langsung, pakai saja.
+        const directDownloadFromSearch = extractSpotifyDownloadUrl(searchPayload);
+        if (directDownloadFromSearch) {
+          response = {
+            success: true,
+            provider: searchResponse.provider,
+            cached: searchResponse.cached,
+            result: {
+              ...(typeof searchPayload === 'object' && searchPayload !== null ? searchPayload : {}),
+              download: directDownloadFromSearch,
+              url: directDownloadFromSearch,
+              link: directDownloadFromSearch,
+            },
+          };
+        } else {
+          // Step 2: Ekstrak URL track Spotify dari hasil pencarian
+          const trackUrl = extractSpotifyTrackUrl(searchPayload);
+
+          if (!trackUrl) {
+            throw new Error(
+              `Lagu "${input}" tidak ditemukan. ` +
+              `Coba kata kunci yang lebih spesifik atau paste URL Spotify langsung ` +
+              `(contoh: https://open.spotify.com/track/...)`
+            );
+          }
+
+          // Step 3: Download track yang ditemukan menggunakan URL-nya
+          response = await apiClient.getSpotifyDownload(trackUrl);
         }
-
-        // Step 3: Download track yang ditemukan menggunakan URL-nya
-        response = await apiClient.getSpotifyDownload(trackUrl);
       }
 
       if (!response.success || !response.result) {
@@ -511,7 +642,6 @@ export const MusicPlayViewer: React.FC = () => {
       setLoadingMedia(null);
     }
   };
-
   return (
     <div className="space-y-6">
       {/* Header Banner */}
