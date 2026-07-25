@@ -354,6 +354,55 @@ export const MusicPlayViewer: React.FC = () => {
     }
   };
 
+  /**
+   * Recursively extract the first Spotify track URL from a search result.
+   * The Naze API can return various shapes: array, { tracks: [] }, { data: [] }, etc.
+   * This helper is designed to be robust against any nesting depth.
+   */
+  const extractSpotifyTrackUrl = (obj: any, depth = 6): string => {
+    if (!obj || depth <= 0) return '';
+
+    // Plain string that looks like a Spotify track URL
+    if (typeof obj === 'string') {
+      if (obj.includes('open.spotify.com/track')) return obj;
+      return '';
+    }
+
+    if (Array.isArray(obj)) {
+      if (obj.length === 0) return '';
+      // Recurse into the first element only (we want the top result)
+      return extractSpotifyTrackUrl(obj[0], depth - 1);
+    }
+
+    if (typeof obj === 'object') {
+      // Direct URL fields on the object itself
+      const candidateUrlFields = ['url', 'uri', 'href', 'link', 'spotify', 'track_url', 'external_url'];
+      for (const field of candidateUrlFields) {
+        const val = obj[field];
+        if (typeof val === 'string' && val.includes('open.spotify.com/track')) return val;
+      }
+
+      // Spotify API-style nested external_urls
+      if (obj.external_urls?.spotify) return obj.external_urls.spotify;
+
+      // Reconstruct from track ID if present
+      if (obj.id && typeof obj.id === 'string' && /^[A-Za-z0-9]{15,25}$/.test(obj.id)) {
+        return `https://open.spotify.com/track/${obj.id}`;
+      }
+
+      // Recurse into common container keys (search results are usually nested)
+      const containers = ['tracks', 'items', 'results', 'data', 'songs', 'list', 'content'];
+      for (const key of containers) {
+        if (obj[key]) {
+          const found = extractSpotifyTrackUrl(obj[key], depth - 1);
+          if (found) return found;
+        }
+      }
+    }
+
+    return '';
+  };
+
   // Handle Spotify Download via API Client
   const handleSpotifyDownload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -378,10 +427,38 @@ export const MusicPlayViewer: React.FC = () => {
 
     try {
       let response;
+
       if (isUrl) {
+        // ─── PATH A: Input adalah URL Spotify langsung ───────────────────────
+        // Langsung download tanpa perlu search
         response = await apiClient.getSpotifyDownload(input);
+
       } else {
-        response = await apiClient.searchSpotify(input);
+        // ─── PATH B: Input adalah text query (judul lagu / nama artis) ───────
+        // Step 1: Cari lagu di Spotify melalui Worker
+        const searchResponse = await apiClient.searchSpotify(input);
+
+        if (!searchResponse.success || !searchResponse.result) {
+          throw new Error(
+            searchResponse.message ||
+            'Pencarian Spotify gagal. Pastikan kata kunci benar dan coba lagi.'
+          );
+        }
+
+        // Step 2: Ekstrak URL track Spotify dari hasil pencarian
+        // searchResponse.result bisa berupa array, { tracks: [] }, { data: [] }, dll.
+        const trackUrl = extractSpotifyTrackUrl(searchResponse.result);
+
+        if (!trackUrl) {
+          throw new Error(
+            `Lagu "${input}" tidak ditemukan. ` +
+            `Coba kata kunci yang lebih spesifik atau paste URL Spotify langsung ` +
+            `(contoh: https://open.spotify.com/track/...)`
+          );
+        }
+
+        // Step 3: Download track yang ditemukan menggunakan URL-nya
+        response = await apiClient.getSpotifyDownload(trackUrl);
       }
 
       if (!response.success || !response.result) {
@@ -389,15 +466,23 @@ export const MusicPlayViewer: React.FC = () => {
       }
 
       const resObj = response.result;
+
+      // getSpotifyDownload() sudah menjalankan extractDownloadUrl() di client.ts,
+      // sehingga resObj.download pasti terisi jika ada URL apapun di response.
       const downloadUrl =
         resObj.download ||
         resObj.link ||
         resObj.url ||
         resObj.audio ||
+        resObj.mp3 ||
+        resObj.stream ||
         (typeof resObj === 'string' ? resObj : '');
 
-      if (!downloadUrl && !Array.isArray(resObj)) {
-        throw new Error('Link download MP3 Spotify tidak ditemukan.');
+      if (!downloadUrl) {
+        throw new Error(
+          'Link download MP3 Spotify tidak dapat ditemukan dari response API. ' +
+          'Coba paste URL Spotify langsung (contoh: https://open.spotify.com/track/...)'
+        );
       }
 
       setActiveMedia({
@@ -406,12 +491,12 @@ export const MusicPlayViewer: React.FC = () => {
           ...dummyItem,
           title: resObj.title || resObj.name || input,
           channel: resObj.artist || resObj.artists || 'Spotify Track',
-          thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+          thumbnail: resObj.thumbnail || resObj.cover || resObj.image || dummyItem.thumbnail,
         },
-        downloadUrl: downloadUrl || '',
-        title: resObj.title || resObj.name || input,
-        thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
-        quality: 'Spotify 320kbps MP3',
+        downloadUrl,
+        title:     resObj.title || resObj.name || input,
+        thumbnail: resObj.thumbnail || resObj.cover || resObj.image || dummyItem.thumbnail,
+        quality:   'Spotify 320kbps MP3',
       });
 
       ActivityService.logActivity(
