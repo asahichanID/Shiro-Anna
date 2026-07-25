@@ -106,6 +106,7 @@ export interface DeveloperSettings {
   globalChatEnabled: boolean;
   liveDuelEnabled: boolean;
   autoDuelEnabled: boolean;
+  shopEnabled: boolean;
   minStreakBanner: number;
   minStreakMarquee: number;
   maxPollingMs: number;
@@ -149,6 +150,71 @@ export interface BotMessage {
   replyToId?: string;
   theme?: string;
 }
+
+export type ShopOrderStatus = 'Pending' | 'Processing' | 'Success' | 'Rejected';
+
+export interface ShopProduct {
+  id: string;
+  name: string;
+  description: string;
+  duration: string;
+  coins: number;
+  stock: number;
+  is_active: number;
+  sort_order: number;
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface ShopOrder {
+  id: string;
+  user_id: string;
+  user_name: string;
+  wibuku_name: string;
+  wibuku_id: string;
+  product_id: string;
+  product_name: string;
+  duration: string;
+  coins: number;
+  status: ShopOrderStatus;
+  rejection_reason?: string;
+  refunded: number;
+  timestamp: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface ShopSettings {
+  shop_enabled: string;
+  shop_global_max_daily: string;
+  shop_user_max_daily: string;
+  shop_daily_limit_msg: string;
+  shop_out_of_stock_msg: string;
+}
+
+export interface ShopStats {
+  totalToday: number;
+  totalMonth: number;
+  totalPending: number;
+  totalProcessing: number;
+  totalSuccess: number;
+  totalReject: number;
+  totalCoinsUsed: number;
+}
+
+export interface CoinHistoryItem {
+  id: string;
+  user_id: string;
+  user_name: string;
+  type: 'penukaran' | 'refund' | 'reward_tebak' | 'reward_duel' | 'event' | 'admin';
+  title: string;
+  amount: number;
+  balance_after: number;
+  detail: string;
+  timestamp: number;
+  created_at: number;
+}
+
 
 export interface QueueState {
   totalQuestions: number;

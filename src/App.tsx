@@ -89,19 +89,17 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
     }
   }, [profile]);
 
-  // Sync state periodically
+  // Sync state on demand or periodic interval
   const refreshState = () => {
+    const activeUserId = profile?.id || CURRENT_USER_ID;
     const currentName = profile?.username || 'Trainer Sensei';
-    const user = userDb.getUser(CURRENT_USER_ID, currentName);
-    setUserCoins(user.carrotCoins);
-    setUserName(user.name);
-    setUserWinStreak(user.winStreak || 0);
+    const user = userDb.getUser(activeUserId, currentName);
 
-    // Sync stats back to profile context
-    const total = user.gamesPlayed || 0;
-    const wins = user.gamesWon || 0;
-    const losses = Math.max(0, total - wins);
-    updateStats(user.carrotCoins, total, wins, losses);
+    // Prefer coins from profile if logged in, otherwise from userDb
+    const currentCoins = profile ? profile.coins : user.carrotCoins;
+    setUserCoins(currentCoins);
+    setUserName(currentName);
+    setUserWinStreak(user.winStreak || 0);
 
     const session = gameDb.getSession(DEFAULT_CHAT_ID);
     setActiveSession(session);
@@ -109,7 +107,8 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
   };
 
   useEffect(() => {
-    const interval = setInterval(refreshState, 500);
+    refreshState();
+    const interval = setInterval(refreshState, 2000);
     return () => clearInterval(interval);
   }, [profile]);
 

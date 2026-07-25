@@ -29,12 +29,12 @@ export class ActivityService {
     const cached = this.getHistorySync(limit);
     try {
       const d1Logs = await D1DatabaseService.getActivityLogs(limit);
-      if (d1Logs && Array.isArray(d1Logs) && d1Logs.length > 0) {
+      if (d1Logs && Array.isArray(d1Logs)) {
         StorageService.setItem(STORAGE_KEY_ACTIVITIES, d1Logs);
         return d1Logs;
       }
     } catch (e) {
-      console.warn('Error fetching activity history from D1:', e);
+      console.error('[D1 SELECT ACTIVITY LOGS ERROR] Failed to fetch activity history from D1:', e);
     }
     return cached;
   }
@@ -70,10 +70,15 @@ export class ActivityService {
     const updated = [newLog, ...current].slice(0, 100);
     StorageService.setItem(STORAGE_KEY_ACTIVITIES, updated);
 
+    // Notify listeners
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('activity_log_updated'));
+    }
+
     try {
       await D1DatabaseService.logActivity(newLog);
     } catch (e) {
-      console.warn('Failed to send activity log to D1:', e);
+      console.error('[D1 INSERT ACTIVITY LOG ERROR] Failed to send activity log to D1:', e);
     }
 
     return newLog;
@@ -81,6 +86,9 @@ export class ActivityService {
 
   public static async clearHistory(): Promise<void> {
     StorageService.removeItem(STORAGE_KEY_ACTIVITIES);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('activity_log_updated'));
+    }
   }
 
   // Alias for backward compatibility

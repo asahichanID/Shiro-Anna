@@ -40,6 +40,14 @@ export class ChatService {
     try {
       const messages = await D1DatabaseService.getChatMessages(roomId);
       if (messages && messages.length > 0) {
+        const rooms = StorageService.getItem<ChatRoom[]>(STORAGE_KEY_CHAT_ROOMS, []);
+        let room = rooms.find((r) => r.roomId === roomId);
+        if (room) {
+          room.messages = messages;
+          room.lastMessage = messages[messages.length - 1].text;
+          room.lastMessageTime = messages[messages.length - 1].timestamp;
+          StorageService.setItem(STORAGE_KEY_CHAT_ROOMS, rooms);
+        }
         return messages;
       }
     } catch (e) {

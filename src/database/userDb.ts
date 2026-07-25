@@ -4,7 +4,7 @@ import { D1DatabaseService } from '../services/D1DatabaseService';
 
 const STORAGE_KEY_USER = 'oguri_user_profile';
 const STORAGE_KEY_USERS_ALL = 'oguri_all_registered_users';
-const STORAGE_KEY_FRIENDS = 'friends';
+const STORAGE_KEY_FRIENDS = 'oguri_friends_list';
 
 export class UserDatabaseService {
   /**
@@ -43,10 +43,17 @@ export class UserDatabaseService {
 
       // Async sync to D1
       D1DatabaseService.registerOrLoginUser({
+        id: found!.id,
         username: found!.username,
         role: found!.role,
         avatar: found!.avatar,
-      }).catch(() => {});
+        coins: found!.carrotCoins,
+        totalGame: found!.gamesPlayed,
+        win: found!.gamesWon,
+        lose: found!.lose,
+      }).catch((e) => {
+        console.error('[D1 USER INSERT FAIL]:', e);
+      });
     }
 
     // Ensure all compatibility fields exist
@@ -94,7 +101,46 @@ export class UserDatabaseService {
       cached.push(defaultUser);
       StorageService.setItem(STORAGE_KEY_USERS_ALL, cached);
     }
+
     return cached;
+  }
+
+  public static async refreshUsersFromD1(): Promise<(AppUser & UserProfile)[]> {
+    try {
+      const d1Users = await D1DatabaseService.getUsers();
+      if (d1Users && Array.isArray(d1Users) && d1Users.length > 0) {
+        const cached = StorageService.getItem<any[]>(STORAGE_KEY_USERS_ALL, []);
+        const mergedMap = new Map<string, any>();
+
+        // Put cached local users first
+        cached.forEach((u) => mergedMap.set(u.id, u));
+
+        // Merge D1 users intelligently
+        d1Users.forEach((du) => {
+          const local = mergedMap.get(du.id);
+          if (local) {
+            mergedMap.set(du.id, {
+              ...local,
+              ...du,
+              // Keep local carrotCoins if local has earned coins higher than default
+              carrotCoins: Math.max(local.carrotCoins || 0, du.carrotCoins || du.coin || 0),
+              coin: Math.max(local.coin || 0, du.coin || du.carrotCoins || 0),
+              gamesPlayed: Math.max(local.gamesPlayed || 0, du.totalGame || 0),
+              gamesWon: Math.max(local.gamesWon || 0, du.win || 0),
+            });
+          } else {
+            mergedMap.set(du.id, du);
+          }
+        });
+
+        const mergedList = Array.from(mergedMap.values());
+        StorageService.setItem(STORAGE_KEY_USERS_ALL, mergedList);
+        return mergedList;
+      }
+    } catch (err) {
+      console.error('[D1 SELECT USERS ERROR]:', err);
+    }
+    return this.getAllUsers();
   }
 
   public static saveUser(user: any): AppUser {
@@ -110,11 +156,23 @@ export class UserDatabaseService {
     StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
 
     // Sync to D1 Database
-    D1DatabaseService.registerOrLoginUser({
+    const coinsToSync = user.carrotCoins !== undefined ? user.carrotCoins : (user.coin || 1000);
+    const totalGameToSync = user.gamesPlayed !== undefined ? user.gamesPlayed : (user.totalGame || 0);
+    const winToSync = user.gamesWon !== undefined ? user.gamesWon : (user.win || 0);
+
+    D1DatabaseService.updateUserStats({
+      id: user.id || '#1',
       username: user.username || user.name,
       role: user.role,
       avatar: user.avatar,
-    }).catch(() => {});
+      coins: coinsToSync,
+      totalGame: totalGameToSync,
+      win: winToSync,
+      lose: user.lose || 0,
+      status: user.status || 'Online',
+    }).catch((e) => {
+      console.error('[D1 USER REGISTRATION/UPDATE ERROR]:', e);
+    });
 
     return user;
   }
@@ -171,7 +229,9 @@ export class UserDatabaseService {
       if (d1Friends && d1Friends.length > 0) {
         StorageService.setItem(STORAGE_KEY_FRIENDS, d1Friends);
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[D1 SELECT FRIENDS ERROR]:', err);
+    });
 
     return cached;
   }
@@ -181,7 +241,9 @@ export class UserDatabaseService {
     if (!friends.some((f) => f.id === friend.id)) {
       friends.push(friend);
       StorageService.setItem(STORAGE_KEY_FRIENDS, friends);
-      D1DatabaseService.addFriend(userId, friend).catch(() => {});
+      D1DatabaseService.addFriend(userId, friend).catch((err) => {
+        console.error('[D1 INSERT FRIEND ERROR]:', err);
+      });
     }
     return friends;
   }

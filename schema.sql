@@ -159,6 +159,53 @@ CREATE TABLE IF NOT EXISTS presence (
   last_active INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
+-- 13. Shop Products Table
+CREATE TABLE IF NOT EXISTS shop_products (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  duration TEXT DEFAULT '1 Hari',
+  coins INTEGER NOT NULL,
+  stock INTEGER DEFAULT 100,
+  is_active INTEGER DEFAULT 1,
+  sort_order INTEGER DEFAULT 1,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 14. Shop Orders Table
+CREATE TABLE IF NOT EXISTS shop_orders (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  wibuku_name TEXT NOT NULL,
+  wibuku_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  coins INTEGER NOT NULL,
+  status TEXT DEFAULT 'Pending',
+  rejection_reason TEXT DEFAULT '',
+  refunded INTEGER DEFAULT 0,
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 15. Coin History Table
+CREATE TABLE IF NOT EXISTS coin_history (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  detail TEXT DEFAULT '',
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
 -- Initial Seeds for Developer & Default Bot
 INSERT OR IGNORE INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen)
 VALUES ('#1', 'Shiro Anna', 'Developer', 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1', 100000, 0, 0, 0, 'Online', (strftime('%s', 'now') * 1000));
@@ -178,4 +225,17 @@ INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES
 INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_6', 'max_polling_ms', '3000');
 INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_7', 'duel_reward_coins', '5000');
 INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_8', 'duel_cooldown_sec', '10');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_9', 'shop_enabled', 'true');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_10', 'shop_global_max_daily', '100');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_11', 'shop_user_max_daily', '1');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_12', 'shop_daily_limit_msg', 'Batas penarikan harian telah tercapai. Silakan coba lagi besok.');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_13', 'shop_out_of_stock_msg', 'Stok produk ini sedang habis. Silakan tunggu refill stok.');
+
+-- Initial Seeds for Shop Products
+INSERT OR IGNORE INTO shop_products (id, name, description, duration, coins, stock, is_active, sort_order)
+VALUES 
+('prod_1', 'Premium Wibuku 1 Hari', 'Akses Fitur Premium Wibuku selama 1 Hari', '1 Hari', 50000, 100, 1, 1),
+('prod_2', 'Premium Wibuku 3 Hari', 'Akses Fitur Premium Wibuku selama 3 Hari', '3 Hari', 175000, 100, 1, 2),
+('prod_3', 'Premium Wibuku 7 Hari', 'Akses Fitur Premium Wibuku selama 7 Hari', '7 Hari', 525000, 100, 1, 3);
+
 

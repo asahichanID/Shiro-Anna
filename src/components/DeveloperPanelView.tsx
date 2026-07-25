@@ -29,6 +29,7 @@ import {
   Image as ImageIcon,
   Edit3,
   Save,
+  ShoppingBag,
 } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext';
 import { ActivityService, ActivityLog } from '../services/ActivityService';
@@ -39,6 +40,8 @@ import { SettingsService } from '../services/SettingsService';
 import { DeveloperSettings } from '../types';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 import { BotAvatar } from './BotAvatar';
+import { DeveloperShopManager } from './DeveloperShopManager';
+
 
 interface ResetModalConfig {
   isOpen: boolean;
@@ -57,7 +60,8 @@ export const DeveloperPanelView: React.FC = () => {
     profile?.role === 'Developer';
 
   // Sub-tab navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'logs' | 'bot' | 'storage' | 'system'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'logs' | 'shop' | 'bot' | 'storage' | 'system'>('dashboard');
+
 
   // Logs state
   const [logs, setLogs] = useState<ActivityLog[]>(() => ActivityService.getLogsSync());
@@ -493,6 +497,19 @@ export const DeveloperPanelView: React.FC = () => {
           <Clock className="w-3.5 h-3.5" />
           <span>Global History Log ({logs.length})</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('shop')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'shop'
+              ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-extrabold shadow-md'
+              : 'text-amber-400 hover:text-amber-300 hover:bg-slate-800'
+          }`}
+        >
+          <ShoppingBag className="w-3.5 h-3.5" />
+          <span>Penarikan Premium & Shop</span>
+        </button>
+
 
         <button
           onClick={() => setActiveTab('bot')}
@@ -1169,6 +1186,24 @@ export const DeveloperPanelView: React.FC = () => {
                   }`}
                 >
                   {devSettings.autoDuelEnabled ? 'ON' : 'OFF'}
+                </button>
+              </div>
+
+              {/* Shop & Commerce Toggle */}
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-white">Shop & Toko Carrot</h4>
+                  <p className="text-[10px] text-slate-400">Aktifkan pembelian item & perk toko</p>
+                </div>
+                <button
+                  onClick={() => handleUpdateDevSetting('shopEnabled', !devSettings.shopEnabled)}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                    devSettings.shopEnabled
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                  }`}
+                >
+                  {devSettings.shopEnabled ? 'ON' : 'OFF'}
                 </button>
               </div>
 

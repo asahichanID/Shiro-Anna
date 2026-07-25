@@ -8,6 +8,7 @@ export const DEFAULT_DEVELOPER_SETTINGS: DeveloperSettings = {
   globalChatEnabled: true,
   liveDuelEnabled: true,
   autoDuelEnabled: true,
+  shopEnabled: true,
   minStreakBanner: 5,
   minStreakMarquee: 5,
   maxPollingMs: 3000,

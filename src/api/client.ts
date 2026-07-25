@@ -188,7 +188,7 @@ class ApiClient {
 
     if (!response.success) {
       // Try secondary endpoint if /search failed
-      response = await this.request('/spotify/search', { query: trimmed, q: trimmed });
+      response = await this.request('/spotify', { query: trimmed });
     }
 
     const payload = response.result !== undefined ? response.result : response;
@@ -539,35 +539,109 @@ class ApiClient {
   }
 
   /**
-   * Search Spotify songs/tracks via Worker (/spotify/search?query=)
+   * Search Spotify songs/tracks via Worker (/spotify?query=)
    */
   public async searchSpotify(query: string): Promise<ApiResponse<any>> {
-    const trimmed = query.trim();
+    const trimmed = query ? query.trim() : '';
     if (!trimmed) {
       return {
         success: false,
-        message: 'Kata kunci pencarian Spotify tidak boleh kosong.',
+        message: 'Parameter query pencarian Spotify tidak boleh kosong.',
         code: 'MISSING_PARAM',
       };
     }
 
-    return this.request('/spotify/search', { query: trimmed });
+    const response = await this.request<any>('/spotify', { query: trimmed });
+    if (!response.success) {
+      return response;
+    }
+
+    const payload = response.result !== undefined ? response.result : response;
+
+    // Helper to extract tracks/items array
+    const extractList = (obj: any, depth = 3): any[] => {
+      if (!obj || depth <= 0) return [];
+      if (typeof obj === 'string') {
+        try {
+          return extractList(JSON.parse(obj), depth - 1);
+        } catch {
+          return [];
+        }
+      }
+      if (Array.isArray(obj)) {
+        return obj;
+      }
+      if (typeof obj === 'object') {
+        const keys = ['items', 'results', 'result', 'tracks', 'data', 'content', 'list', 'search', 'response', 'songs'];
+        for (const k of keys) {
+          if (obj[k]) {
+            const res = extractList(obj[k], depth - 1);
+            if (res.length > 0) return res;
+          }
+        }
+      }
+      return [];
+    };
+
+    const items = extractList(payload);
+
+    // Search Spotify returns max 20 results (or provider count if fewer)
+    if (items.length > 0) {
+      const limitedItems = items.slice(0, 20).map(normalizeSpotifyItem);
+      return {
+        success: true,
+        provider: response.provider || 'shiroapi',
+        cached: response.cached,
+        result: limitedItems,
+      };
+    }
+
+    const normalizedPayload = normalizeSpotifyItem(payload);
+    return {
+      success: true,
+      provider: response.provider || 'shiroapi',
+      cached: response.cached,
+      result: normalizedPayload,
+    };
   }
 
   /**
    * Download Spotify track/playlist info via Worker (/spotify?url=)
    */
   public async getSpotifyDownload(spotifyUrl: string): Promise<ApiResponse<MediaDownloadResult>> {
-    const trimmed = spotifyUrl.trim();
+    const trimmed = spotifyUrl ? spotifyUrl.trim() : '';
     if (!trimmed) {
       return {
         success: false,
-        message: 'URL Spotify tidak boleh kosong.',
+        message: 'Parameter URL Spotify tidak boleh kosong.',
         code: 'MISSING_PARAM',
       };
     }
 
-    return this.request<MediaDownloadResult>('/spotify', { url: trimmed });
+    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed });
+    if (!response.success) {
+      return response;
+    }
+
+    const payload = response.result !== undefined ? response.result : response;
+    let extractedUrl = this.extractDownloadUrl(payload);
+
+    if (!extractedUrl) {
+      extractedUrl = trimmed;
+    }
+
+    const resultObj: MediaDownloadResult =
+      typeof payload === 'object' && payload !== null ? normalizeSpotifyItem(payload) : {};
+
+    resultObj.download = extractedUrl || resultObj.download || resultObj.url || resultObj.link || resultObj.audio || resultObj.mp3 || '';
+    resultObj.url = extractedUrl || resultObj.url || '';
+
+    return {
+      success: true,
+      provider: response.provider || 'shiroapi',
+      cached: response.cached,
+      result: resultObj,
+    };
   }
 
   /**
@@ -576,6 +650,59 @@ class ApiClient {
   public clearCache() {
     this.cache.clear();
   }
+}
+
+function stringifyText(val: any, fallback = ''): string {
+  if (!val) return fallback;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return String(val);
+  if (Array.isArray(val)) {
+    const list = val.map((v) => stringifyText(v, '')).filter(Boolean);
+    return list.length > 0 ? list.join(', ') : fallback;
+  }
+  if (typeof val === 'object') {
+    if (typeof val.name === 'string') return val.name;
+    if (typeof val.title === 'string') return val.title;
+    if (typeof val.text === 'string') return val.text;
+    if (typeof val.artist === 'string') return val.artist;
+    if (val.name) return stringifyText(val.name, fallback);
+    if (val.title) return stringifyText(val.title, fallback);
+  }
+  return fallback;
+}
+
+function normalizeSpotifyItem(item: any): any {
+  if (!item || typeof item !== 'object') return item;
+
+  const title = stringifyText(item.title || item.name || item.track, 'Spotify Track');
+  const artist = stringifyText(item.artist || item.artists || item.channel || item.owner, 'Spotify Artist');
+
+  let thumbnail = '';
+  if (typeof item.thumbnail === 'string') thumbnail = item.thumbnail;
+  else if (typeof item.cover === 'string') thumbnail = item.cover;
+  else if (typeof item.image === 'string') thumbnail = item.image;
+  else if (item.album?.images && Array.isArray(item.album.images) && item.album.images.length > 0) {
+    thumbnail = item.album.images[0].url || '';
+  } else if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+    thumbnail = item.images[0].url || '';
+  }
+
+  const url = typeof item.url === 'string' ? item.url : (item.link || item.download || item.external_urls?.spotify || '');
+  const download = typeof item.download === 'string' ? item.download : (item.audio || item.mp3 || item.url || item.link || '');
+
+  return {
+    ...item,
+    title,
+    name: title,
+    artist,
+    artists: artist,
+    channel: artist,
+    thumbnail,
+    cover: thumbnail,
+    image: thumbnail,
+    url,
+    download,
+  };
 }
 
 export const apiClient = new ApiClient();

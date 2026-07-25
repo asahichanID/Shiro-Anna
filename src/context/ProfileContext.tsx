@@ -146,9 +146,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       saveRegisteredAccountsMap(map);
 
       D1DatabaseService.registerOrLoginUser({
+        id: newProfile.id,
         username: newProfile.username,
         role: newProfile.role,
         avatar: newProfile.avatar,
+        coins: newProfile.coins,
+        totalGame: newProfile.totalGame,
+        win: newProfile.win,
+        lose: newProfile.lose,
       });
     } catch (e) {
       console.error('Failed to save profile:', e);

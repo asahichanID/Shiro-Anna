@@ -389,35 +389,72 @@ export const MusicPlayViewer: React.FC = () => {
       }
 
       const resObj = response.result;
+      let targetItem = resObj;
+      if (Array.isArray(resObj)) {
+        if (resObj.length === 0) {
+          throw new Error('Hasil pencarian Spotify tidak ditemukan.');
+        }
+        targetItem = resObj[0];
+      }
+
       const downloadUrl =
-        resObj.download ||
-        resObj.link ||
-        resObj.url ||
-        resObj.audio ||
-        (typeof resObj === 'string' ? resObj : '');
+        targetItem.download ||
+        targetItem.link ||
+        targetItem.url ||
+        targetItem.audio ||
+        targetItem.mp3 ||
+        (typeof targetItem === 'string' ? targetItem : '');
 
       if (!downloadUrl && !Array.isArray(resObj)) {
         throw new Error('Link download MP3 Spotify tidak ditemukan.');
       }
 
+      const formatString = (val: any, fallback: string): string => {
+        if (!val) return fallback;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number') return String(val);
+        if (Array.isArray(val)) {
+          const list = val.map((v) => formatString(v, '')).filter(Boolean);
+          return list.length > 0 ? list.join(', ') : fallback;
+        }
+        if (typeof val === 'object') {
+          if (typeof val.name === 'string') return val.name;
+          if (typeof val.title === 'string') return val.title;
+          if (typeof val.text === 'string') return val.text;
+          if (typeof val.artist === 'string') return val.artist;
+          if (val.name) return formatString(val.name, fallback);
+          if (val.title) return formatString(val.title, fallback);
+        }
+        return fallback;
+      };
+
+      const title = formatString(targetItem.title || targetItem.name || targetItem.track || input, 'Spotify Track');
+      const channel = formatString(targetItem.artist || targetItem.artists || targetItem.channel, 'Spotify Artist');
+      const thumbnail =
+        (typeof targetItem.thumbnail === 'string' && targetItem.thumbnail) ||
+        (typeof targetItem.cover === 'string' && targetItem.cover) ||
+        (typeof targetItem.image === 'string' && targetItem.image) ||
+        (targetItem.album?.images?.[0]?.url) ||
+        dummyItem.thumbnail;
+
       setActiveMedia({
         type: 'spotify',
         item: {
           ...dummyItem,
-          title: resObj.title || resObj.name || input,
-          channel: resObj.artist || resObj.artists || 'Spotify Track',
-          thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+          title,
+          channel,
+          thumbnail,
         },
         downloadUrl: downloadUrl || '',
-        title: resObj.title || resObj.name || input,
-        thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
+        title,
+        thumbnail,
         quality: 'Spotify 320kbps MP3',
       });
 
       ActivityService.logActivity(
         'music_play',
         'Spotify Downloader',
-        `Memproses Spotify: "${resObj.title || input}"`
+        `Memproses Spotify: "${title}"`
       );
     } catch (err: any) {
       setMediaError(err.message || 'Gagal memproses Spotify.');
