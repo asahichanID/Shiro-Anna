@@ -95,11 +95,28 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
     const currentName = profile?.username || 'Trainer Sensei';
     const user = userDb.getUser(activeUserId, currentName);
 
-    // Prefer coins from profile if logged in, otherwise from userDb
-    const currentCoins = profile ? profile.coins : user.carrotCoins;
+    // Sync the visible state from the game/user database (source of truth)
+    const currentCoins = user.carrotCoins ?? user.coin ?? profile?.coins ?? 0;
+    const currentTotalGame = user.gamesPlayed ?? user.totalGame ?? profile?.totalGame ?? 0;
+    const currentWins = user.gamesWon ?? user.win ?? profile?.win ?? 0;
+    const currentLosses = user.lose ?? profile?.lose ?? 0;
+
     setUserCoins(currentCoins);
     setUserName(currentName);
     setUserWinStreak(user.winStreak || 0);
+
+    // Keep profile context aligned so the header/profile page update immediately.
+    if (
+      profile &&
+      (
+        profile.coins !== currentCoins ||
+        profile.totalGame !== currentTotalGame ||
+        profile.win !== currentWins ||
+        profile.lose !== currentLosses
+      )
+    ) {
+      updateStats(currentCoins, currentTotalGame, currentWins, currentLosses);
+    }
 
     const session = gameDb.getSession(DEFAULT_CHAT_ID);
     setActiveSession(session);
