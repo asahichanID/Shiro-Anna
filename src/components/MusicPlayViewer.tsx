@@ -72,36 +72,15 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Provider:</span>
-                <span className="text-indigo-300 font-semibold">{item.provider}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Status API:</span>
-                <span className="text-emerald-300 font-semibold">{item.apiKeyStatus}</span>
-              </div>
-              <div className="sm:col-span-2">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Request URL:</span>
-                <code className="text-sky-300 break-all bg-slate-950 px-2 py-1 rounded border border-slate-800 block mt-0.5 text-[11px]">
-                  {item.requestUrl}
-                </code>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">HTTP Status:</span>
-                <span className={`font-bold ${String(item.httpStatus).startsWith('2') ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {item.httpStatus}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Pesan Error:</span>
-                <span className="text-rose-300 font-semibold break-words">{item.errorMessage}</span>
-              </div>
+              <div><span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Provider:</span><span className="text-indigo-300 font-semibold">{item.provider}</span></div>
+              <div><span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Status API:</span><span className="text-emerald-300 font-semibold">{item.apiKeyStatus}</span></div>
+              <div className="sm:col-span-2"><span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Request URL:</span><code className="text-sky-300 break-all bg-slate-950 px-2 py-1 rounded border border-slate-800 block mt-0.5 text-[11px]">{item.requestUrl}</code></div>
+              <div><span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">HTTP Status:</span><span className={`font-bold ${String(item.httpStatus).startsWith('2') ? 'text-emerald-400' : 'text-rose-400'}`}>{item.httpStatus}</span></div>
+              <div><span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Pesan Error:</span><span className="text-rose-300 font-semibold break-words">{item.errorMessage}</span></div>
             </div>
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider mb-1">Response Body:</span>
-              <pre className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px] text-amber-200/90 whitespace-pre-wrap break-all max-h-36 overflow-y-auto font-mono">
-                {item.responseBody}
-              </pre>
+              <pre className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px] text-amber-200/90 whitespace-pre-wrap break-all max-h-36 overflow-y-auto font-mono">{item.responseBody}</pre>
             </div>
           </div>
         ))}
@@ -133,17 +112,18 @@ export const MusicPlayViewer: React.FC = () => {
   const [loadingMedia, setLoadingMedia] = useState<{ type: 'audio' | 'video' | 'tiktok' | 'spotify'; item: SearchResultItem; } | null>(null);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [activeMedia, setActiveMedia] = useState<MediaState | null>(null);
+  const [streamFailed, setStreamFailed] = useState(false);
   const [mediaDebugList, setMediaDebugList] = useState<ApiDebugInfo[]>([]);
 
-  const presetQueries = ['Umapyoi Densetsu', 'GIRLS LEGEND U', 'Oguri Cap Theme', 'Kaikai Kitan', 'Yoasobi Idol', 'Blue Bird Naruto'];
+  const presetQueries = ['Umapyoi Densetsu', 'GIRLS LEGEND U', 'akhir tak bahagia', 'Mahalini Sial'];
 
-  // Fungsi utilitas untuk reset hasil pencarian saat pindah tab
   const handleTabSwitch = (mode: 'youtube' | 'tiktok' | 'spotify') => {
     setActiveTabMode(mode);
     setSearchResults([]);
     setHasSearched(false);
     setSearchError(null);
     setMediaError(null);
+    setActiveMedia(null);
   };
 
   // --- YOUTUBE SEARCH & FETCH ---
@@ -158,16 +138,13 @@ export const MusicPlayViewer: React.FC = () => {
     setSearchResults([]);
     setSearchDebugList([]);
 
-    const debugAttempts: ApiDebugInfo[] = [];
     try {
       const response = await apiClient.searchYouTube(searchQuery);
-
       if (!response.success || !response.result || response.result.length === 0) {
         throw new Error(response.message || `Pencarian untuk "${searchQuery}" tidak mengembalikan hasil.`);
       }
       setSearchResults(response.result);
     } catch (err: any) {
-      console.error('Search API error:', err);
       setSearchError(err.message || 'Gagal mengambil data pencarian dari Worker API.');
     } finally {
       setIsSearching(false);
@@ -178,24 +155,20 @@ export const MusicPlayViewer: React.FC = () => {
     setLoadingMedia({ type, item });
     setMediaError(null);
     setActiveMedia(null);
+    setStreamFailed(false);
 
     const youtubeUrl = item.url || `https://www.youtube.com/watch?v=${item.videoId}`;
     try {
       const response = type === 'audio' ? await apiClient.getAudioDownload(youtubeUrl) : await apiClient.getVideoDownload(youtubeUrl, '720');
 
-      if (!response.success || !response.result) {
-        throw new Error(response.message || `API Worker gagal memuat data ${type}.`);
-      }
-
+      if (!response.success || !response.result) throw new Error(response.message || `API Worker gagal memuat data ${type}.`);
       const resObj = response.result;
       const downloadUrl = resObj.download || resObj.url || resObj.link || (typeof resObj === 'string' ? resObj : '') || youtubeUrl;
 
       if (!downloadUrl) throw new Error(`API Worker tidak mengembalikan link download ${type} yang valid.`);
 
       setActiveMedia({
-        type,
-        item,
-        downloadUrl,
+        type, item, downloadUrl,
         title: resObj.title || item.title,
         thumbnail: resObj.thumbnail || item.thumbnail,
         duration: resObj.duration || item.duration || '',
@@ -219,6 +192,7 @@ export const MusicPlayViewer: React.FC = () => {
     setIsTiktokLoading(true);
     setMediaError(null);
     setActiveMedia(null);
+    setStreamFailed(false);
 
     const dummyItem: SearchResultItem = { videoId: 'tiktok_video', url: input, title: 'TikTok Downloader', channel: 'TikTok Creator', thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1' };
     setLoadingMedia({ type: 'tiktok', item: dummyItem });
@@ -234,10 +208,8 @@ export const MusicPlayViewer: React.FC = () => {
       setActiveMedia({
         type: 'tiktok',
         item: { ...dummyItem, title: resObj.title || 'TikTok Video', channel: resObj.author || resObj.nickname || 'TikTok User', thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail },
-        downloadUrl,
-        title: resObj.title || 'TikTok Video (No Watermark)',
-        thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail,
-        quality: 'HD No Watermark',
+        downloadUrl, title: resObj.title || 'TikTok Video (No Watermark)',
+        thumbnail: resObj.thumbnail || resObj.cover || dummyItem.thumbnail, quality: 'HD No Watermark',
       });
     } catch (err: any) {
       setMediaError(err.message || 'Gagal mengunduh video TikTok.');
@@ -247,25 +219,12 @@ export const MusicPlayViewer: React.FC = () => {
     }
   };
 
-  // --- SPOTIFY HELPER ---
-  const extractSpotifyTrackUrl = (obj: any, depth = 6): string => {
-    if (!obj || depth <= 0) return '';
-    if (typeof obj === 'string') return obj.includes('open.spotify.com/track') || obj.startsWith('spotify:') ? obj : '';
-    if (Array.isArray(obj)) return obj.length > 0 ? extractSpotifyTrackUrl(obj[0], depth - 1) : '';
-    if (typeof obj === 'object') {
-      const urls = ['url', 'uri', 'external_url'];
-      for (const field of urls) if (typeof obj[field] === 'string' && obj[field].includes('spotify')) return obj[field];
-      if (obj.external_urls?.spotify) return obj.external_urls.spotify;
-      if (typeof obj.id === 'string' && obj.id.length === 22) return `https://open.spotify.com/track/${obj.id}`;
-    }
-    return '';
-  };
-
   // --- SPOTIFY SEARCH & DOWNLOAD ---
   const playSpotifyFromUrl = async (trackUrl: string, titleFallback: string, thumbnailFallback?: string) => {
     setIsSpotifyLoading(true);
     setMediaError(null);
     setActiveMedia(null);
+    setStreamFailed(false); // Reset error stream status
 
     const dummyItem: SearchResultItem = { videoId: 'spotify_track', url: trackUrl, title: titleFallback, channel: 'Spotify Stream', thumbnail: thumbnailFallback || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1' };
     setLoadingMedia({ type: 'spotify', item: dummyItem });
@@ -287,7 +246,7 @@ export const MusicPlayViewer: React.FC = () => {
         thumbnail: resObj.thumbnail || resObj.cover || resObj.image || dummyItem.thumbnail,
         quality: 'Spotify 320kbps MP3',
       });
-      ActivityService.logActivity('music_play', 'Spotify Downloader', `Memutar Spotify: "${resObj.title || titleFallback}"`);
+      ActivityService.logActivity('music_play', 'Spotify Downloader', `Memproses Spotify: "${resObj.title || titleFallback}"`);
     } catch (err: any) {
       setMediaError(err.message || 'Gagal memproses lagu Spotify.');
     } finally {
@@ -301,12 +260,10 @@ export const MusicPlayViewer: React.FC = () => {
     const input = spotifyInput.trim();
     if (!input) return;
 
-    // Jika input URL -> Langsung Eksekusi Download
     if (input.startsWith('http://') || input.startsWith('https://') || input.startsWith('spotify:')) {
       return playSpotifyFromUrl(input, 'Spotify Downloader');
     }
 
-    // Jika input Teks -> Mode Pencarian List Spotify (Memperbaiki isu 20 hasil)
     setIsSpotifyLoading(true);
     setSearchError(null);
     setHasSearched(true);
@@ -319,26 +276,47 @@ export const MusicPlayViewer: React.FC = () => {
       const payload = searchResponse.result;
       let rawItems: any[] = [];
       
-      if (Array.isArray(payload)) rawItems = payload;
+      // PERBAIKAN: Menangkap field "top_results" dari Naze API
+      if (payload.top_results && Array.isArray(payload.top_results)) rawItems = payload.top_results;
       else if (payload.data && Array.isArray(payload.data)) rawItems = payload.data;
       else if (payload.tracks && Array.isArray(payload.tracks)) rawItems = payload.tracks;
       else if (payload.items && Array.isArray(payload.items)) rawItems = payload.items;
+      else if (Array.isArray(payload)) rawItems = payload;
       else rawItems = [payload];
 
-      // Mapping hasil JSON dari Worker API agar formatnya seragam menjadi array SearchResultItem limit 20
-      const mappedResults: SearchResultItem[] = rawItems.slice(0, 20).map((item: any, idx: number) => {
-        const trackUrl = extractSpotifyTrackUrl(item) || item.url || item.external_urls?.spotify || `https://open.spotify.com/track/${item.id}`;
+      // PERBAIKAN: Hanya loloskan item bertipe Track atau Episode (Cegah tipe "Artist" masuk)
+      const playableItems = rawItems.filter(item => 
+        item.type === 'Track' || item.type === 'Episode' || (!item.type && (item.url || item.id))
+      );
+
+      const mappedResults: SearchResultItem[] = playableItems.slice(0, 20).map((item: any, idx: number) => {
+        // Handle Thumbnail images dari JSON array yg kosong
+        let thumb = 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1';
+        if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+            thumb = item.images.length > 1 ? item.images[1].url : item.images[0].url;
+        } else if (item.thumbnail || item.cover || item.image || item.album?.images?.[0]?.url) {
+            thumb = item.thumbnail || item.cover || item.image || item.album?.images?.[0]?.url;
+        }
+
+        // Handle Nama Artis
+        let artistName = item.artist || item.author || 'Spotify Stream';
+        if (item.artists && Array.isArray(item.artists)) {
+            artistName = item.artists.map((a: any) => a.name).join(', ');
+        } else if (item.type) {
+            artistName = `Spotify ${item.type}`;
+        }
+
         return {
           videoId: item.id || `spotify-${idx}`,
-          url: trackUrl,
-          title: item.title || item.name || 'Unknown Track',
-          channel: item.artist || item.artists?.[0]?.name || item.author || 'Spotify Artist',
-          thumbnail: item.thumbnail || item.cover || item.image || item.album?.images?.[0]?.url || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+          url: item.url || item.external_urls?.spotify || `https://open.spotify.com/track/${item.id}`,
+          title: item.name || item.title || 'Unknown Track',
+          channel: artistName,
+          thumbnail: thumb,
           duration: item.duration || (item.duration_ms ? `${Math.floor(item.duration_ms/60000)}:${((item.duration_ms%60000)/1000).toFixed(0).padStart(2,'0')}` : '')
         };
       });
 
-      if (mappedResults.length === 0) throw new Error("Tidak ada lagu yang ditemukan.");
+      if (mappedResults.length === 0) throw new Error("Tidak ada lagu yang bisa diputar (hanya menemukan Profil Artis/Kosong).");
       setSearchResults(mappedResults);
     } catch (err: any) {
       setSearchError(err.message || 'Gagal mencari di Spotify API.');
@@ -359,62 +337,36 @@ export const MusicPlayViewer: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-black bg-gradient-to-r from-sky-300 via-indigo-200 to-white bg-clip-text text-transparent">
-                  🎵 Oguri Cap Jukebox & Player
-                </h2>
+                <h2 className="text-xl font-black bg-gradient-to-r from-sky-300 via-indigo-200 to-white bg-clip-text text-transparent">🎵 Oguri Cap Jukebox & Player</h2>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                   Worker Gateway Active
                 </span>
               </div>
-              <p className="text-xs text-slate-300 mt-1">
-                Base Worker URL: <code className="text-sky-300 font-mono font-bold">{WORKER_BASE_URL}</code> 🐎
-              </p>
+              <p className="text-xs text-slate-300 mt-1">Base Worker URL: <code className="text-sky-300 font-mono font-bold">{WORKER_BASE_URL}</code> 🐎</p>
             </div>
           </div>
 
-          {/* Service Selector Tabs */}
           <div className="flex items-center space-x-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 text-xs">
-            <button
-              onClick={() => handleTabSwitch('youtube')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'youtube' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-            >
-              <Music className="w-3.5 h-3.5" /><span>YouTube</span>
-            </button>
-            <button
-              onClick={() => handleTabSwitch('tiktok')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'tiktok' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-            >
-              <Film className="w-3.5 h-3.5" /><span>TikTok</span>
-            </button>
-            <button
-              onClick={() => handleTabSwitch('spotify')}
-              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'spotify' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
-            >
-              <Volume2 className="w-3.5 h-3.5" /><span>Spotify</span>
-            </button>
+            <button onClick={() => handleTabSwitch('youtube')} className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'youtube' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Music className="w-3.5 h-3.5" /><span>YouTube</span></button>
+            <button onClick={() => handleTabSwitch('tiktok')} className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'tiktok' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Film className="w-3.5 h-3.5" /><span>TikTok</span></button>
+            <button onClick={() => handleTabSwitch('spotify')} className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${activeTabMode === 'spotify' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Volume2 className="w-3.5 h-3.5" /><span>Spotify</span></button>
           </div>
         </div>
       </div>
 
-      {/* Loading Overlay Preview */}
       {loadingMedia && (
         <div className="bg-slate-900/90 border border-sky-500/50 rounded-2xl p-8 shadow-2xl backdrop-blur-md text-center space-y-4 animate-fade-in relative overflow-hidden">
           <div className="relative z-10 max-w-md mx-auto space-y-4">
             <div className="relative w-20 h-20 mx-auto">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 p-1 animate-spin">
-                <div className="w-full h-full bg-slate-950 rounded-full"></div>
-              </div>
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-sky-500 via-indigo-500 to-purple-600 p-1 animate-spin"><div className="w-full h-full bg-slate-950 rounded-full"></div></div>
               <div className="absolute inset-0 flex items-center justify-center text-2xl animate-bounce">🐴</div>
             </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-sky-300">🐴 Oguri Cap sedang mengunduh via Worker...</h3>
-            </div>
+            <div><h3 className="text-lg font-extrabold text-sky-300">🐴 Oguri Cap sedang memproses media via Worker...</h3></div>
           </div>
         </div>
       )}
 
-      {/* Media Download Error Box */}
       {mediaError && !loadingMedia && (
         <div className="bg-red-950/40 border border-red-500/50 rounded-2xl p-6 shadow-xl text-center space-y-3">
           <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
@@ -424,8 +376,8 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Active Audio / Video Player Box (Diperbarui dengan Error Handler HTML5) */}
-      {activeMedia && !loadingMedia && (
+      {/* ACTIVE MEDIA PLAYER DENGAN CORS DETECTOR */}
+      {activeMedia && !loadingMedia && !mediaError && (
         <div className="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 shadow-2xl relative transition-all">
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
             <div className="flex items-center space-x-2">
@@ -440,7 +392,6 @@ export const MusicPlayViewer: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {/* Thumbnail */}
             <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 md:col-span-1">
               <img src={activeMedia.thumbnail || activeMedia.item.thumbnail} alt={activeMedia.title} className="w-28 h-28 rounded-xl object-cover shadow-lg border border-slate-700 flex-shrink-0" />
               <div className="space-y-1 text-center sm:text-left overflow-hidden">
@@ -449,35 +400,43 @@ export const MusicPlayViewer: React.FC = () => {
               </div>
             </div>
 
-            {/* Media Player Column */}
             <div className="md:col-span-2 space-y-3">
               {activeMedia.type === 'audio' || activeMedia.type === 'spotify' ? (
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
-                  {/* HTML5 Audio TAG - Error ditangani di sini */}
-                  <audio
-                    controls
-                    autoPlay
-                    src={activeMedia.downloadUrl}
-                    className="w-full accent-sky-500 mb-2"
-                    onError={() => setMediaError("Browser memblokir pemutaran otomatis (CORS/URL Kedaluwarsa). Silakan gunakan tombol 'Unduh Berkas' di bawah untuk menikmati lagu.")}
-                  >
-                    Browser Anda tidak mendukung elemen audio.
-                  </audio>
+                  
+                  {/* LOGIKA FALLBACK JIKA AUDIO DIBLOKIR BROWSER */}
+                  {!streamFailed ? (
+                    <audio
+                      controls
+                      autoPlay
+                      src={activeMedia.downloadUrl}
+                      className="w-full accent-sky-500 mb-3"
+                      onError={() => setStreamFailed(true)}
+                    >
+                      Browser Anda tidak mendukung elemen audio.
+                    </audio>
+                  ) : (
+                    <div className="bg-amber-950/40 border border-amber-500/50 rounded-lg p-3 text-center mb-3">
+                      <p className="text-xs text-amber-200 font-semibold mb-1">⚠️ Streaming Diblokir (Proteksi CORS Server)</p>
+                      <p className="text-[10px] text-amber-200/70">Audio berhasil digenerate namun server melarang pemutaran langsung di web. Silakan unduh secara manual.</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between text-[11px] text-slate-400">
-                    <span className="text-emerald-400">✓ MP3 Stream URL Berhasil Digenerate</span>
-                    <a href={activeMedia.downloadUrl} download target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1">
-                      <Download className="w-3 h-3" /> Unduh Berkas MP3
+                    <span className="text-emerald-400">✓ MP3 URL Generates</span>
+                    <a href={activeMedia.downloadUrl} download target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-semibold flex items-center gap-1.5 shadow-lg transition">
+                      <Download className="w-4 h-4" /> Unduh Berkas MP3
                     </a>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="rounded-xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
-                    <video controls autoPlay src={activeMedia.downloadUrl} className="w-full max-h-80 object-contain" onError={() => setMediaError("Gagal memutar video secara langsung. Gunakan tombol download.")} />
+                    <video controls autoPlay src={activeMedia.downloadUrl} className="w-full max-h-80 object-contain" />
                   </div>
                   <div className="flex justify-end">
-                    <a href={activeMedia.downloadUrl} download target="_blank" rel="noopener noreferrer" className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5">
-                      <Download className="w-3.5 h-3.5" /><span>Download Video</span>
+                    <a href={activeMedia.downloadUrl} download target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-lg transition">
+                      <Download className="w-4 h-4" /><span>Download Video</span>
                     </a>
                   </div>
                 </div>
@@ -487,7 +446,6 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Mode 1: YouTube Search Form */}
       {activeTabMode === 'youtube' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
@@ -507,7 +465,6 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Mode 2: TikTok Form */}
       {activeTabMode === 'tiktok' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex items-center space-x-2 pb-1 border-b border-slate-800"><Film className="w-4 h-4 text-purple-400" /><h3 className="text-sm font-bold text-white">TikTok Downloader</h3></div>
@@ -520,7 +477,6 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Mode 3: Spotify Form */}
       {activeTabMode === 'spotify' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex items-center space-x-2 pb-1 border-b border-slate-800"><Volume2 className="w-4 h-4 text-emerald-400" /><h3 className="text-sm font-bold text-white">Spotify Search & Downloader</h3></div>
@@ -533,10 +489,9 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* GRID HASIL PENCARIAN (Menyatu untuk Youtube & Spotify) */}
+      {/* GRID HASIL PENCARIAN */}
       {(activeTabMode === 'youtube' || activeTabMode === 'spotify') && (
         <div>
-          {/* Header Grid */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
               {activeTabMode === 'youtube' ? <Music className="w-4 h-4 text-sky-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
@@ -552,7 +507,6 @@ export const MusicPlayViewer: React.FC = () => {
              </div>
           )}
 
-          {/* Skeleton Loaders */}
           {(isSearching || isSpotifyLoading) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Array.from({ length: 6 }).map((_, idx) => (
@@ -567,7 +521,6 @@ export const MusicPlayViewer: React.FC = () => {
             </div>
           )}
 
-          {/* Map Results Data */}
           {!(isSearching || isSpotifyLoading) && searchResults.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[640px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
               {searchResults.map((item, idx) => (
@@ -588,7 +541,6 @@ export const MusicPlayViewer: React.FC = () => {
                     </div>
 
                     <div className="flex items-center space-x-2 pt-2">
-                      {/* TAMPILAN BUTTON BERBEDA ANTARA YOUTUBE DAN SPOTIFY */}
                       {activeTabMode === 'youtube' ? (
                         <>
                           <button onClick={() => handleFetchMedia(item, 'audio')} className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 hover:border-sky-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
@@ -600,7 +552,7 @@ export const MusicPlayViewer: React.FC = () => {
                         </>
                       ) : (
                         <button onClick={() => playSpotifyFromUrl(item.url || '', item.title, item.thumbnail)} className="flex-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 hover:border-emerald-500 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5">
-                          <Volume2 className="w-3.5 h-3.5" /><span>Unduh & Putar</span>
+                          <Volume2 className="w-3.5 h-3.5" /><span>Proses & Unduh</span>
                         </button>
                       )}
                     </div>
@@ -610,7 +562,6 @@ export const MusicPlayViewer: React.FC = () => {
             </div>
           )}
 
-          {/* Empty State */}
           {!(isSearching || isSpotifyLoading) && hasSearched && searchResults.length === 0 && !searchError && (
             <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-500">
               <Music className="w-10 h-10 mx-auto text-slate-600 mb-2" />
@@ -622,3 +573,5 @@ export const MusicPlayViewer: React.FC = () => {
     </div>
   );
 };
+
+export default MusicPlayViewer;
