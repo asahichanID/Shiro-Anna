@@ -11,6 +11,8 @@ import { PresenceService } from '../services/PresenceService';
 import { ChatService } from '../services/ChatService';
 import { BotAvatar } from './BotAvatar';
 import { LiveDuelPanel } from './LiveDuelPanel';
+import { useProfile } from '../context/ProfileContext';
+import { BadgePill } from './BadgePill';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
@@ -30,6 +32,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   userWinStreak = 0,
 }) => {
   const currentUserId = 'trainer_01';
+  const { profile } = useProfile();
 
   // Navigation state
   const [chatMode, setChatMode] = useState<'global' | 'friends' | 'bot'>('global');
@@ -371,6 +374,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                 <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
                   <div className="flex items-center space-x-2 px-1">
                     <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                      {isMe && profile?.equippedBadgeId ? <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} className="mr-1" /> : null}
                       {msg.senderName}
                       {isDev && (
                         <span className="text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-1.5 py-0.2 rounded font-black">
@@ -554,6 +558,11 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                                 : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800'
                             }`}
                           >
+                            {isMe && profile?.equippedBadgeId && (
+                              <div className="mb-1">
+                                <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} />
+                              </div>
+                            )}
                             {dm.text}
                           </div>
                         </div>
@@ -588,6 +597,9 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
               return (
                 <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
                   <div className="flex items-center space-x-2 px-1">
+                    {isUser && profile?.equippedBadgeId && (
+                      <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} />
+                    )}
                     <span className="text-[10px] text-slate-400">{isUser ? msg.senderName : botProfile.name}</span>
                   </div>
                   <div

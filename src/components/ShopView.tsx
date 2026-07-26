@@ -1,631 +1,342 @@
-import React, { useState, useEffect } from 'react';
-import { ShoppingBag, History, Coins, Clock, CheckCircle2, XCircle, AlertCircle, Sparkles, RefreshCw, ChevronRight, User, Hash, Layers } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { BadgeCheck, BadgeDollarSign, Crown, Sparkles, ShoppingBag, Clock3, Coins, Flame, Star, CircleDollarSign, Shield, ChevronRight, Check, Edit3, BadgePlus } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext';
-import { D1DatabaseService } from '../services/D1DatabaseService';
-import { ShopProduct, ShopOrder, CoinHistoryItem } from '../types';
+import { BADGE_CATALOG, PREMIUM_PLANS, BadgeId, PremiumPlanId, getBadgeDefinition, getOwnedBadge, premiumUntilToText } from '../config/userBadges';
+import { BadgePill } from './BadgePill';
+
+const formatCoins = (value: number) => value.toLocaleString('id-ID');
 
 export const ShopView: React.FC = () => {
-  const { profile, updateCoins } = useProfile();
-  const [activeTab, setActiveTab] = useState<'tarik' | 'riwayat'>('tarik');
-  const [historySubTab, setHistorySubTab] = useState<'orders' | 'coins'>('orders');
+  const { profile, purchaseBadge, equipBadge, renameBadge, purchasePremium, isPremiumActive } = useProfile();
+  const [activeSection, setActiveSection] = useState<'welcome' | 'badge' | 'premium'>('welcome');
+  const [selectedBadge, setSelectedBadge] = useState<BadgeId | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const [products, setProducts] = useState<ShopProduct[]>([]);
-  const [orders, setOrders] = useState<ShopOrder[]>([]);
-  const [coinHistory, setCoinHistory] = useState<CoinHistoryItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const coins = profile?.coins || 0;
+  const ownedBadges = profile?.badgeInventory || [];
+  const equippedBadge = getOwnedBadge(ownedBadges, profile?.equippedBadgeId || null);
+  const activeBadgeDef = getBadgeDefinition(equippedBadge?.id || profile?.equippedBadgeId || null);
 
-  // Dialog State
-  const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
-  const [wibukuName, setWibukuName] = useState<string>('');
-  const [wibukuId, setWibukuId] = useState<string>('');
-  const [dialogMode, setDialogMode] = useState<'none' | 'insufficient' | 'confirm' | 'alert'>( 'none');
-  const [alertMessage, setAlertMessage] = useState<string>('');
-  const [submitting, setSubmitting] = useState<boolean>(false);
+  const rareBadges = useMemo(() => BADGE_CATALOG.filter((b) => b.tier === 'Rare'), []);
+  const epicBadges = useMemo(() => BADGE_CATALOG.filter((b) => b.tier === 'Epic'), []);
+  const legendBadges = useMemo(() => BADGE_CATALOG.filter((b) => b.tier === 'Legend'), []);
 
-  // Poll shop data from D1 Database
-  const loadShopData = async () => {
-    try {
-      const [prods, ords, cHist] = await Promise.all([
-        D1DatabaseService.getShopProducts(),
-        D1DatabaseService.getShopOrders(profile?.id),
-        D1DatabaseService.getCoinHistory(profile?.id),
-      ]);
-
-      if (prods && prods.length > 0) {
-        setProducts(prods.filter((p) => p.is_active === 1).sort((a, b) => a.sort_order - b.sort_order));
-      } else {
-        // Fallback default products if D1 returns empty initially
-        setProducts([
-          { id: 'prod_1', name: 'Premium Wibuku 1 Hari', description: 'Akses Fitur Premium Wibuku selama 1 Hari', duration: '1 Hari', coins: 50000, stock: 100, is_active: 1, sort_order: 1 },
-          { id: 'prod_2', name: 'Premium Wibuku 3 Hari', description: 'Akses Fitur Premium Wibuku selama 3 Hari', duration: '3 Hari', coins: 175000, stock: 100, is_active: 1, sort_order: 2 },
-          { id: 'prod_3', name: 'Premium Wibuku 7 Hari', description: 'Akses Fitur Premium Wibuku selama 7 Hari', duration: '7 Hari', coins: 525000, stock: 100, is_active: 1, sort_order: 3 },
-        ]);
-      }
-
-      setOrders(ords || []);
-      setCoinHistory(cHist || []);
-    } catch (err) {
-      console.error('[SHOP DATA LOAD ERROR]:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const handleBuyBadge = (badgeId: BadgeId) => {
+    const result = purchaseBadge(badgeId);
+    setNotice(result.success ? 'Badge berhasil dibeli ✨' : result.error || 'Gagal membeli badge.');
+    if (result.success) {
+      setActiveSection('badge');
+      setSelectedBadge(badgeId);
+      setRenameValue(getBadgeDefinition(badgeId)?.displayName || '');
     }
   };
 
-  useEffect(() => {
-    loadShopData();
-    const interval = setInterval(loadShopData, 3000); // Polling realtime
-    return () => clearInterval(interval);
-  }, [profile?.id]);
-
-  const handleManualRefresh = () => {
-    setRefreshing(true);
-    loadShopData();
+  const handleBuyPremium = (planId: PremiumPlanId) => {
+    const result = purchasePremium(planId);
+    setNotice(result.success ? 'Premium aktif dengan manis ✨' : result.error || 'Gagal membeli premium.');
+    if (result.success) setActiveSection('premium');
   };
 
-  // Click on a product to trigger buy process
-  const handleSelectProduct = (product: ShopProduct) => {
-    if (product.stock <= 0) {
-      setAlertMessage('Stok produk ini sedang habis.');
-      setDialogMode('alert');
-      return;
-    }
-
-    const userCoins = profile?.coins || 0;
-    if (userCoins < product.coins) {
-      setDialogMode('insufficient');
-      return;
-    }
-
-    // Sufficient coins -> prompt confirm dialog with Wibuku inputs
-    setSelectedProduct(product);
-    setWibukuName(profile?.username || '');
-    setWibukuId(profile?.id || '');
-    setDialogMode('confirm');
+  const handleRename = (badgeId: BadgeId) => {
+    const result = renameBadge(badgeId, renameValue);
+    setNotice(result.success ? 'Nama badge diperbarui.' : result.error || 'Gagal mengganti nama badge.');
   };
 
-  // Confirm order submission
-  const handleConfirmOrder = async () => {
-    if (!selectedProduct) return;
+  const renderBadgeCard = (badgeId: BadgeId) => {
+    const badge = getBadgeDefinition(badgeId)!;
+    const owned = getOwnedBadge(ownedBadges, badgeId);
+    const affordable = coins >= badge.price;
+    const isEquipped = profile?.equippedBadgeId === badgeId;
 
-    if (!wibukuName.trim() || !wibukuId.trim()) {
-      setAlertMessage('Nama Wibuku dan ID Wibuku tidak boleh kosong.');
-      setDialogMode('alert');
-      return;
-    }
+    return (
+      <div key={badge.id} className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl shadow-slate-950/40">
+        <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${badge.bgClass.replace('bg-gradient-to-r ', '')} opacity-90`} />
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <BadgePill badgeId={badge.id} compact />
+              <span className="text-[10px] uppercase tracking-[0.28em] text-slate-400">{badge.tier}</span>
+            </div>
+            <h3 className="mt-3 text-lg font-black text-white">{badge.displayName}</h3>
+            <p className="mt-1 text-sm text-slate-400 leading-relaxed">{badge.description}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-right">
+            <div className="flex items-center gap-1 text-amber-300 font-black">
+              <CircleDollarSign className="w-4 h-4 text-amber-400" />
+              {formatCoins(badge.price)}
+            </div>
+            <p className="text-[10px] text-slate-500">Coin Carrot</p>
+          </div>
+        </div>
 
-    setSubmitting(true);
-    try {
-      const res = await D1DatabaseService.createShopOrder({
-        user_id: profile?.id || '#1',
-        user_name: profile?.username || 'Trainer Sensei',
-        wibuku_name: wibukuName.trim(),
-        wibuku_id: wibukuId.trim(),
-        product_id: selectedProduct.id,
-      });
+        <div className="mt-5 flex items-center gap-2 flex-wrap">
+          {badge.colors.map((c) => (
+            <span key={c} className="h-3.5 w-3.5 rounded-full border border-white/20" style={{ background: c }} />
+          ))}
+          <span className="text-[11px] text-slate-500">Animasi: {badge.kind === 'plain' ? 'polos' : badge.kind === 'shine' ? 'shine lembut' : badge.kind === 'rainbowPulse' ? 'rainbow pulse' : 'flame cepat'}</span>
+        </div>
 
-      if (res.success) {
-        if (typeof res.newCoins === 'number') {
-          updateCoins(res.newCoins);
-        }
-        setDialogMode('none');
-        setSelectedProduct(null);
-        setActiveTab('riwayat'); // Otomatis pindah ke tab Riwayat
-        setHistorySubTab('orders');
-        loadShopData();
-      } else {
-        setAlertMessage(res.message || 'Gagal membuat pesanan penarikan.');
-        setDialogMode('alert');
-      }
-    } catch (err: any) {
-      setAlertMessage(err.message || 'Terjadi kesalahan saat memproses pesanan.');
-      setDialogMode('alert');
-    } finally {
-      setSubmitting(false);
-    }
+        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-3">
+          {owned ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-emerald-300 flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Sudah dimiliki</span>
+                {isEquipped && <span className="text-[10px] font-black uppercase tracking-widest rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5">Dipakai</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  value={selectedBadge === badgeId ? renameValue : owned.customName}
+                  onFocus={() => {
+                    setSelectedBadge(badgeId);
+                    setRenameValue(owned.customName);
+                  }}
+                  onChange={(e) => {
+                    setSelectedBadge(badgeId);
+                    setRenameValue(e.target.value.slice(0, 7));
+                  }}
+                  maxLength={7}
+                  className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-semibold text-white outline-none focus:border-sky-500"
+                  placeholder="Nama badge"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRename(badgeId)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-slate-200 transition hover:bg-slate-700"
+                  title="Simpan nama"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => equipBadge(badgeId)}
+                className="w-full rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-4 py-2.5 text-sm font-black text-white transition hover:scale-[1.01]"
+              >
+                Pakai Badge
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleBuyBadge(badgeId)}
+              disabled={!affordable}
+              className={`w-full rounded-xl px-4 py-2.5 text-sm font-black transition ${
+                affordable
+                  ? 'bg-gradient-to-r from-slate-200 via-slate-100 to-white text-slate-950 hover:scale-[1.01]'
+                  : 'cursor-not-allowed bg-slate-800 text-slate-500'
+              }`}
+            >
+              {affordable ? 'Beli Sekarang' : 'Coin kurang'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  // Render Status Badge for Orders
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Processing':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block mr-1.5 flex-shrink-0"></span>
-            <span>Processing</span>
-          </span>
-        );
-      case 'Success':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20">
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-400 flex-shrink-0" />
-            <span>Success</span>
-          </span>
-        );
-      case 'Rejected':
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            <XCircle className="w-3.5 h-3.5 mr-1 text-rose-400 flex-shrink-0" />
-            <span>Rejected</span>
-          </span>
-        );
-      case 'Pending':
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse mr-1.5 flex-shrink-0"></span>
-            <span>Pending</span>
-          </span>
-        );
-    }
+  const renderPremiumCard = (plan: typeof PREMIUM_PLANS[number]) => {
+    const affordable = coins >= plan.price;
+    const active = !!profile?.premiumUntil && profile.premiumUntil > Date.now();
+
+    return (
+      <div key={plan.id} className="relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/90 p-5 shadow-xl shadow-slate-950/40">
+        <div className={`absolute inset-x-0 top-0 h-1 ${plan.bgClass} opacity-95`} />
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.25em] ${plan.borderClass} ${plan.textClass} ${plan.animationClass || ''}`} style={{ backgroundImage: `linear-gradient(90deg, ${plan.colors.join(', ')})`, backgroundSize: '220% 220%' }}>
+                Premium
+              </span>
+              {active && <span className="text-[10px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-black text-emerald-300">Aktif</span>}
+            </div>
+            <h3 className="mt-3 text-lg font-black text-white">{plan.name}</h3>
+            <p className="mt-1 text-sm text-slate-400 leading-relaxed">{plan.description}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-right">
+            <div className="flex items-center gap-1 text-amber-300 font-black">
+              <CircleDollarSign className="w-4 h-4 text-amber-400" />
+              {formatCoins(plan.price)}
+            </div>
+            <p className="text-[10px] text-slate-500">{plan.durationLabel}</p>
+          </div>
+        </div>
+
+        <ul className="mt-5 space-y-2">
+          {plan.benefits.map((item) => (
+            <li key={item} className="flex items-center gap-2 text-sm text-slate-300">
+              <BadgeCheck className="w-4 h-4 text-cyan-400" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          onClick={() => handleBuyPremium(plan.id)}
+          disabled={!affordable}
+          className={`mt-5 w-full rounded-xl px-4 py-2.5 text-sm font-black transition ${
+            affordable
+              ? 'bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-600 text-white hover:scale-[1.01]'
+              : 'cursor-not-allowed bg-slate-800 text-slate-500'
+          }`}
+        >
+          {affordable ? 'Aktifkan Premium' : 'Coin kurang'}
+        </button>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950 via-slate-900 to-indigo-950 border border-amber-500/30 p-6 shadow-2xl">
-        <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/30">
-              <ShoppingBag className="w-6 h-6" />
+    <div className="mx-auto max-w-6xl space-y-6 pb-10">
+      <div className="relative overflow-hidden rounded-[28px] border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6 shadow-2xl shadow-slate-950/60">
+        <div className="absolute -top-16 right-0 h-48 w-48 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute -bottom-20 left-0 h-56 w-56 rounded-full bg-fuchsia-500/10 blur-3xl" />
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-slate-300">
+              <ShoppingBag className="w-3.5 h-3.5 text-cyan-400" />
+              Selamat datang ke Shop
             </div>
+            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
+              Shop Carrot yang terasa lebih <span className="bg-gradient-to-r from-cyan-300 via-violet-300 to-amber-200 bg-clip-text text-transparent">premium</span>
+            </h2>
+            <p className="max-w-xl text-sm leading-relaxed text-slate-400">
+              Pilih badge eksklusif, atur nama pendek maksimal 7 huruf, lalu pakai langsung di profile dan chat. Semua dibuat halus, terang, dan elegan.
+            </p>
+          </div>
 
-            <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-extrabold text-white tracking-tight">Shop & Toko Carrot</h2>
-                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 uppercase tracking-wider">
-                  D1 Realtime
-                </span>
+          <div className="grid gap-3 sm:grid-cols-3 lg:w-[28rem]">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 backdrop-blur">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Coin Carrot</div>
+              <div className="mt-1 flex items-center gap-2 text-2xl font-black text-amber-200">
+                <Coins className="w-6 h-6 text-amber-400" />
+                {formatCoins(coins)}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Tukarkan Carrot Coin Anda dengan Akses Premium Wibuku secara cepat & aman!
-              </p>
             </div>
-          </div>
-
-          <div className="flex items-center space-x-3 self-end md:self-auto">
-            <div className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-900/90 border border-amber-500/30 text-amber-300 font-extrabold text-sm shadow-md">
-              <Coins className="w-4 h-4 text-amber-400 animate-bounce" />
-              <span>{(profile?.coins || 0).toLocaleString('id-ID')}</span>
-              <span className="text-[10px] text-amber-400/80 font-normal">Coins</span>
+            <div className="rounded-2xl border border-slate-700 bg-slate-950/60 p-4 backdrop-blur">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Badge aktif</div>
+              <div className="mt-2 min-h-8">{activeBadgeDef ? <BadgePill badgeId={activeBadgeDef.id} ownedBadge={equippedBadge} /> : <span className="text-sm text-slate-500">Belum ada</span>}</div>
             </div>
-
-            <button
-              onClick={handleManualRefresh}
-              disabled={refreshing}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all border border-slate-700 cursor-pointer"
-              title="Refresh Data"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-amber-400' : ''}`} />
-            </button>
+            <div className="rounded-2xl border border-slate-700 bg-slate-950/60 p-4 backdrop-blur">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Premium</div>
+              <div className="mt-1 text-sm font-bold text-white">{isPremiumActive ? 'Aktif' : 'Nonaktif'}</div>
+              <div className="text-[10px] text-slate-500">{premiumUntilToText(profile?.premiumUntil || null)}</div>
+            </div>
           </div>
         </div>
 
-        {/* Primary Shop Navigation Tabs */}
-        <div className="flex items-center space-x-2 mt-6 pt-4 border-t border-slate-800/80">
-          <button
-            onClick={() => setActiveTab('tarik')}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-              activeTab === 'tarik'
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/30 font-extrabold scale-105'
-                : 'bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Tarik Premium</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('riwayat')}
-            className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-              activeTab === 'riwayat'
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 shadow-lg shadow-amber-500/30 font-extrabold scale-105'
-                : 'bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700/60'
-            }`}
-          >
-            <History className="w-4 h-4" />
-            <span>Riwayat</span>
-            {orders.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 font-black text-[10px]">
-                {orders.length}
-              </span>
-            )}
-          </button>
-        </div>
+        {notice && (
+          <div className="relative z-10 mt-5 inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            {notice}
+          </div>
+        )}
       </div>
 
-      {/* TAB 1: TARIK PREMIUM */}
-      {activeTab === 'tarik' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              Pilihan Paket Premium Wibuku
-            </h3>
-            <span className="text-xs text-slate-500">
-              *Tukarkan koin sesuai ketersediaan stok
-            </span>
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => setActiveSection('welcome')}
+          className={`rounded-2xl border px-4 py-2.5 text-sm font-black transition ${activeSection === 'welcome' ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-200' : 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'}`}
+        >
+          Welcome
+        </button>
+        <button
+          onClick={() => setActiveSection('badge')}
+          className={`rounded-2xl border px-4 py-2.5 text-sm font-black transition ${activeSection === 'badge' ? 'border-violet-400/50 bg-violet-500/15 text-violet-200' : 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'}`}
+        >
+          Badge
+        </button>
+        <button
+          onClick={() => setActiveSection('premium')}
+          className={`rounded-2xl border px-4 py-2.5 text-sm font-black transition ${activeSection === 'premium' ? 'border-amber-400/50 bg-amber-500/15 text-amber-200' : 'border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800'}`}
+        >
+          Premium
+        </button>
+      </div>
+
+      {activeSection === 'welcome' && (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-lg shadow-slate-950/40">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-200">
+              <BadgePlus className="w-4 h-4 text-cyan-400" />
+              Badge Shop
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Ada 3 badge Rare, 3 Epic, dan 2 Legend. Rare dimulai dari 🥕 5.000, Epic 🥕 15.000, dan Legend 🥕 35.000.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {BADGE_CATALOG.slice(0, 3).map((badge) => <BadgePill key={badge.id} badgeId={badge.id} />)}
+            </div>
           </div>
-
-          {loading ? (
-            <div className="py-12 text-center text-slate-400 space-y-2">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto text-amber-400" />
-              <p className="text-xs">Memuat katalog produk D1...</p>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-lg shadow-slate-950/40">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-200">
+              <Crown className="w-4 h-4 text-amber-400" />
+              Premium Shop
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {products.map((product) => {
-                const isOutOfStock = product.stock <= 0;
-                const userCoins = profile?.coins || 0;
-                const canAfford = userCoins >= product.coins;
-
-                return (
-                  <div
-                    key={product.id}
-                    className={`relative overflow-hidden rounded-2xl border transition-all p-5 flex flex-col justify-between ${
-                      isOutOfStock
-                        ? 'bg-slate-900/40 border-slate-800/80 opacity-70'
-                        : 'bg-slate-900/90 border-slate-800 hover:border-amber-500/50 hover:shadow-xl hover:shadow-amber-500/10'
-                    }`}
-                  >
-                    {/* Top Tag */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        {product.duration || 'Premium'}
-                      </span>
-
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          isOutOfStock
-                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                            : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                        }`}
-                      >
-                        {isOutOfStock ? 'Stok Habis' : `Stok: ${product.stock}`}
-                      </span>
-                    </div>
-
-                    {/* Product Body */}
-                    <div className="space-y-2 my-2">
-                      <h4 className="text-base font-extrabold text-white tracking-tight">
-                        {product.name}
-                      </h4>
-                      <p className="text-xs text-slate-400 leading-relaxed min-h-[36px]">
-                        {product.description || 'Akses penuh seluruh fitur eksklusif Premium Wibuku.'}
-                      </p>
-                    </div>
-
-                    {/* Price & Action */}
-                    <div className="pt-4 border-t border-slate-800/80 space-y-3 mt-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-400">Harga:</span>
-                        <div className="flex items-center space-x-1 text-amber-300 font-black text-sm">
-                          <Coins className="w-4 h-4 text-amber-400" />
-                          <span>{product.coins.toLocaleString('id-ID')}</span>
-                          <span className="text-[10px] font-normal text-amber-400/80">Coins</span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleSelectProduct(product)}
-                        disabled={isOutOfStock}
-                        className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-2 cursor-pointer ${
-                          isOutOfStock
-                            ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                            : !canAfford
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
-                            : 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 hover:from-amber-400 hover:to-yellow-400 font-extrabold shadow-md shadow-amber-500/20'
-                        }`}
-                      >
-                        <span>{isOutOfStock ? 'Stok Habis' : 'Tukar Premium'}</span>
-                        {!isOutOfStock && <ChevronRight className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: RIWAYAT */}
-      {activeTab === 'riwayat' && (
-        <div className="space-y-4">
-          {/* Sub-tab Toggle */}
-          <div className="flex items-center space-x-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800 w-fit">
-            <button
-              onClick={() => setHistorySubTab('orders')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                historySubTab === 'orders'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Riwayat Penarikan
-            </button>
-            <button
-              onClick={() => setHistorySubTab('coins')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                historySubTab === 'coins'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Riwayat Coin
-            </button>
-          </div>
-
-          {/* Sub-tab 1: Orders History */}
-          {historySubTab === 'orders' && (
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-              <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <History className="w-4 h-4 text-amber-400" />
-                  Daftar Riwayat Penarikan Premium
-                </h3>
-                <span className="text-xs text-slate-400">Total: {orders.length} Pesanan</span>
-              </div>
-
-              {orders.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 space-y-2">
-                  <ShoppingBag className="w-8 h-8 mx-auto text-slate-600" />
-                  <p className="text-xs">Belum ada riwayat penarikan premium.</p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Premium dibuat lebih tenang dan eksklusif. Cocok buat yang suka tampilan lebih rapi dan lembut.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              {PREMIUM_PLANS.map((plan) => (
+                <div key={plan.id} className={`rounded-2xl border p-3 ${plan.borderClass} bg-slate-950/70`}>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{plan.durationLabel}</div>
+                  <div className="mt-2 text-sm font-bold text-white">{plan.name}</div>
+                  <div className="text-xs text-amber-200">🥕 {formatCoins(plan.price)}</div>
                 </div>
-              ) : (
-                <div className="divide-y divide-slate-800/80 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold tracking-wider">
-                      <tr>
-                        <th className="px-4 py-3">Produk</th>
-                        <th className="px-4 py-3">Nama Wibuku</th>
-                        <th className="px-4 py-3">ID Wibuku</th>
-                        <th className="px-4 py-3">Coin</th>
-                        <th className="px-4 py-3">Tanggal</th>
-                        <th className="px-4 py-3 text-right">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                      {orders.map((order) => (
-                        <tr key={order.id} className="hover:bg-slate-800/40 transition-colors">
-                          <td className="px-4 py-3.5 font-bold text-white">
-                            <div>{order.product_name}</div>
-                            <div className="text-[10px] text-amber-400/80 font-normal">{order.duration}</div>
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-300 font-semibold">{order.wibuku_name}</td>
-                          <td className="px-4 py-3.5 text-sky-400 font-mono text-[11px]">{order.wibuku_id}</td>
-                          <td className="px-4 py-3.5 text-amber-300 font-extrabold">
-                            {order.coins.toLocaleString('id-ID')} Coins
-                          </td>
-                          <td className="px-4 py-3.5 text-slate-400 text-[11px]">
-                            {new Date(order.timestamp).toLocaleString('id-ID', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </td>
-                          <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                            {renderStatusBadge(order.status)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              ))}
             </div>
-          )}
-
-          {/* Sub-tab 2: Coin History */}
-          {historySubTab === 'coins' && (
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-              <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-amber-400" />
-                  Riwayat Mutasi Carrot Coins
-                </h3>
-                <span className="text-xs text-slate-400">Log Transaksi</span>
-              </div>
-
-              {coinHistory.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 space-y-2">
-                  <Coins className="w-8 h-8 mx-auto text-slate-600" />
-                  <p className="text-xs">Belum ada riwayat transaksi coin.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-800/80 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/60 text-slate-400 uppercase text-[10px] font-extrabold tracking-wider">
-                      <tr>
-                        <th className="px-4 py-3">Transaksi</th>
-                        <th className="px-4 py-3">Kategori</th>
-                        <th className="px-4 py-3">Jumlah</th>
-                        <th className="px-4 py-3">Saldo Akhir</th>
-                        <th className="px-4 py-3 text-right">Waktu</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                      {coinHistory.map((item) => {
-                        const isPositive = item.amount >= 0;
-                        return (
-                          <tr key={item.id} className="hover:bg-slate-800/40 transition-colors">
-                            <td className="px-4 py-3 font-semibold text-white">
-                              <div>{item.title}</div>
-                              {item.detail && <div className="text-[10px] text-slate-400">{item.detail}</div>}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                                {item.type}
-                              </span>
-                            </td>
-                            <td
-                              className={`px-4 py-3 font-extrabold ${
-                                isPositive ? 'text-emerald-400' : 'text-rose-400'
-                              }`}
-                            >
-                              {isPositive ? `+${item.amount.toLocaleString('id-ID')}` : item.amount.toLocaleString('id-ID')} Coins
-                            </td>
-                            <td className="px-4 py-3 text-amber-300 font-bold">
-                              {item.balance_after.toLocaleString('id-ID')}
-                            </td>
-                            <td className="px-4 py-3 text-right text-slate-400 text-[11px] whitespace-nowrap">
-                              {new Date(item.timestamp).toLocaleString('id-ID', {
-                                day: '2-digit',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* FLOATING DIALOG 1: INSUFFICIENT COIN */}
-      {dialogMode === 'insufficient' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-amber-500/40 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center mx-auto text-amber-400">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-base font-extrabold text-white">Carrot Coin tidak mencukupi.</h3>
-              <p className="text-xs text-slate-400">
-                Selesaikan Tebak Kata atau tantangan Live Duel untuk mendapatkan lebih banyak Carrot Coins!
-              </p>
-            </div>
-
-            <button
-              onClick={() => setDialogMode('none')}
-              className="w-full py-2.5 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs hover:bg-amber-400 transition-all cursor-pointer shadow-lg shadow-amber-500/20"
-            >
-              Tutup
-            </button>
           </div>
         </div>
       )}
 
-      {/* FLOATING DIALOG 2: CONFIRMATION MODAL WITH WIBUKU INPUTS */}
-      {dialogMode === 'confirm' && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center space-x-3 pb-3 border-b border-slate-800">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-extrabold text-white">Konfirmasi Penarikan Premium</h3>
-                <p className="text-xs text-slate-400">{selectedProduct.name}</p>
-              </div>
+      {activeSection === 'badge' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-xl font-black text-white">Badge Rare</h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{rareBadges.map((b) => renderBadgeCard(b.id))}</div>
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-white">Badge Epic</h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{epicBadges.map((b) => renderBadgeCard(b.id))}</div>
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-white">Badge Legend</h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-2">{legendBadges.map((b) => renderBadgeCard(b.id))}</div>
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'premium' && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {PREMIUM_PLANS.map((plan) => renderPremiumCard(plan))}
+        </div>
+      )}
+
+      {profile?.badgeInventory && profile.badgeInventory.length > 0 && (
+        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 p-6 shadow-lg shadow-slate-950/40">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-lg font-black text-white">Inventory Badge</h3>
+              <p className="text-sm text-slate-400">Semua badge yang sudah dimiliki.</p>
             </div>
-
-            {/* Product Summary Box */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-400">
-                <span>Paket Premium:</span>
-                <span className="text-white font-bold">{selectedProduct.name}</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Durasi:</span>
-                <span className="text-amber-400 font-bold">{selectedProduct.duration}</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Biaya Coin:</span>
-                <span className="text-amber-300 font-black">{selectedProduct.coins.toLocaleString('id-ID')} Coins</span>
-              </div>
-            </div>
-
-            {/* Form Inputs */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-amber-400" />
-                  Nama Wibuku
-                </label>
-                <input
-                  type="text"
-                  value={wibukuName}
-                  onChange={(e) => setWibukuName(e.target.value)}
-                  placeholder="Masukkan Nama Wibuku Anda..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
-                  <Hash className="w-3.5 h-3.5 text-amber-400" />
-                  ID Wibuku
-                </label>
-                <input
-                  type="text"
-                  value={wibukuId}
-                  onChange={(e) => setWibukuId(e.target.value)}
-                  placeholder="Masukkan ID Wibuku Anda..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500 transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center space-x-3 pt-2">
+            <BadgePill badgeId={profile.equippedBadgeId || null} ownedBadge={equippedBadge} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {profile.badgeInventory.map((badge) => (
               <button
-                onClick={() => setDialogMode('none')}
-                disabled={submitting}
-                className="w-1/2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer border border-slate-700"
+                key={badge.id}
+                type="button"
+                onClick={() => {
+                  setSelectedBadge(badge.id);
+                  setRenameValue(badge.customName);
+                  equipBadge(badge.id);
+                }}
+                className={`rounded-2xl border px-3 py-2 text-left transition hover:scale-[1.01] ${profile.equippedBadgeId === badge.id ? 'border-emerald-400/50 bg-emerald-500/10' : 'border-slate-700 bg-slate-950/60 hover:bg-slate-800'}`}
               >
-                Batal
+                <BadgePill badgeId={badge.id} ownedBadge={badge} compact />
               </button>
-              <button
-                onClick={handleConfirmOrder}
-                disabled={submitting}
-                className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-extrabold text-xs hover:from-amber-400 hover:to-yellow-400 transition-all cursor-pointer shadow-lg shadow-amber-500/20 flex items-center justify-center space-x-2"
-              >
-                {submitting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Memproses...</span>
-                  </>
-                ) : (
-                  <span>Konfirmasi</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* FLOATING DIALOG 3: ALERT / LIMIT MESSAGE */}
-      {dialogMode === 'alert' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-rose-500/40 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center mx-auto text-rose-400">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-base font-extrabold text-white">Informasi Order</h3>
-              <p className="text-xs text-slate-300 leading-relaxed">{alertMessage}</p>
-            </div>
-
-            <button
-              onClick={() => setDialogMode('none')}
-              className="w-full py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs hover:bg-slate-700 transition-all cursor-pointer border border-slate-700"
-            >
-              Mengerti
-            </button>
+            ))}
           </div>
         </div>
       )}
