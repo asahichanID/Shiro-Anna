@@ -16,6 +16,9 @@ export interface UserProfile {
   winStreak: number;
   maxWinStreak: number;
   lastActive: number;
+  badgeInventory?: any[];
+  equippedBadgeId?: string | null;
+  premiumUntil?: number | null;
 }
 
 export type UserStatus = 'Online' | 'Offline' | 'Away' | 'Busy';
@@ -41,6 +44,9 @@ export interface AppUser {
   lose: number;
   lastOnline: string;
   lastMessage: string;
+  badgeInventory?: any[];
+  equippedBadgeId?: string | null;
+  premiumUntil?: number | null;
 }
 
 export interface Friend {
@@ -152,6 +158,8 @@ export interface BotMessage {
   isReply?: boolean;
   replyToId?: string;
   theme?: string;
+  senderBadgeId?: string | null;
+  senderBadgeLabel?: string;
 }
 
 export type ShopOrderStatus = 'Pending' | 'Processing' | 'Success' | 'Rejected';
@@ -163,6 +171,8 @@ export interface ShopProduct {
   duration: string;
   coins: number;
   stock: number;
+  badgeId?: string;
+  premiumPlanId?: string;
   is_active: number;
   sort_order: number;
   created_at?: number;
