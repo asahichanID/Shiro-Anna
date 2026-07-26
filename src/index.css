@@ -342,3 +342,47 @@
   animation: flameFlow 0.8s linear infinite;
   transition: opacity 300ms ease, filter 300ms ease, transform 300ms ease;
 }
+
+
+@keyframes devBadgeCycle {
+  0%, 46% {
+    filter: brightness(1.15) saturate(1.15);
+    background-position: 0% 50%;
+  }
+  50%, 100% {
+    filter: brightness(0.72) saturate(0.95);
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes devBadgeWipe {
+  0% {
+    opacity: 0.0;
+    transform: translate(-10%, 10%) scale(0.98);
+    clip-path: inset(72% 70% 0 0 round 9999px);
+  }
+  18% {
+    opacity: 0.55;
+    clip-path: inset(42% 32% 0 0 round 9999px);
+  }
+  36% {
+    opacity: 0.8;
+    clip-path: inset(16% 8% 0 0 round 9999px);
+  }
+  50%, 100% {
+    opacity: 0.32;
+    transform: translate(0, 0) scale(1);
+    clip-path: inset(0 0 0 0 round 9999px);
+  }
+}
+
+.animate-dev-badge-cycle {
+  animation: devBadgeCycle 6s ease-in-out infinite;
+  background-size: 180% 180%;
+  transition: filter 1s ease, background-position 1s ease;
+}
+
+.animate-dev-badge-wipe {
+  animation: devBadgeWipe 6s ease-in-out infinite;
+}
+
