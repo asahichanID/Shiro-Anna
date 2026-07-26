@@ -54,12 +54,27 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
         setProfile(parsed);
 
-        // Register/Login to D1
+        // Register/Login to D1 then refresh local profile from D1 as the source of truth
         D1DatabaseService.registerOrLoginUser({
+          id: parsed.id,
           username: parsed.username,
           role: parsed.role,
           avatar: parsed.avatar,
-        });
+        }).then((remote) => {
+          if (remote) {
+            setProfile({
+              id: remote.id,
+              username: remote.username,
+              role: remote.role || parsed.role,
+              avatar: remote.avatar || parsed.avatar,
+              createdAt: parsed.createdAt,
+              coins: Number(remote.coins ?? remote.carrotCoins ?? parsed.coins ?? 0),
+              totalGame: Number(remote.totalGame ?? parsed.totalGame ?? 0),
+              win: Number(remote.win ?? parsed.win ?? 0),
+              lose: Number(remote.lose ?? parsed.lose ?? 0),
+            });
+          }
+        }).catch(() => {});
       }
     } catch (e) {
       console.error('Failed to load profile:', e);
@@ -137,7 +152,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Save profile to active storage and accounts map & D1
-  const saveProfile = (newProfile: UserAccount) => {
+  const saveProfile = async (newProfile: UserAccount) => {
     setProfile(newProfile);
     try {
       localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(newProfile));
@@ -145,16 +160,34 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       map[newProfile.id] = newProfile;
       saveRegisteredAccountsMap(map);
 
-      D1DatabaseService.registerOrLoginUser({
+      const remote = await D1DatabaseService.registerOrLoginUser({
         id: newProfile.id,
         username: newProfile.username,
         role: newProfile.role,
         avatar: newProfile.avatar,
-        coins: newProfile.coins,
-        totalGame: newProfile.totalGame,
-        win: newProfile.win,
-        lose: newProfile.lose,
+        coins: newProfile.coins ?? 0,
+        totalGame: newProfile.totalGame ?? 0,
+        win: newProfile.win ?? 0,
+        lose: newProfile.lose ?? 0,
       });
+
+      if (remote) {
+        const normalized: UserAccount = {
+          id: remote.id || newProfile.id,
+          username: remote.username || newProfile.username,
+          role: remote.role || newProfile.role,
+          avatar: remote.avatar || newProfile.avatar,
+          createdAt: newProfile.createdAt,
+          coins: Number(remote.coins ?? remote.carrotCoins ?? newProfile.coins ?? 0),
+          totalGame: Number(remote.totalGame ?? newProfile.totalGame ?? 0),
+          win: Number(remote.win ?? newProfile.win ?? 0),
+          lose: Number(remote.lose ?? newProfile.lose ?? 0),
+        };
+        setProfile(normalized);
+        localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(normalized));
+        map[normalized.id] = normalized;
+        saveRegisteredAccountsMap(map);
+      }
     } catch (e) {
       console.error('Failed to save profile:', e);
     }
@@ -197,7 +230,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         role: 'Developer',
         avatar: BOT_DEFAULT_AVATAR,
         createdAt: formattedDate,
-        coins: 10000,
+        coins: 0,
         totalGame: 0,
         win: 0,
         lose: 0,
@@ -212,7 +245,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         role: 'Trainer',
         avatar: BOT_DEFAULT_AVATAR,
         createdAt: formattedDate,
-        coins: 1000,
+        coins: 0,
         totalGame: 0,
         win: 0,
         lose: 0,
