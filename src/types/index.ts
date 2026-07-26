@@ -27,7 +27,10 @@ export interface AppUser {
   role: 'Developer' | 'Trainer';
   status: UserStatus;
   coin: number;
+  coins?: number;
   carrotCoins?: number;
+  gamesPlayed?: number;
+  gamesWon?: number;
   winStreak?: number;
   maxWinStreak?: number;
   level: number;
