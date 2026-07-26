@@ -43,9 +43,9 @@ export class UserDatabaseService {
         role: defaultName === 'Shiro Anna' ? 'Developer' : 'Trainer',
         avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
         status: 'Online',
-        coin: 100000,
-        carrotCoins: 100000,
-        level: 100,
+        coin: 0,
+        carrotCoins: 0,
+        level: 1,
         friends: [],
         createdAt: '2026-01-01',
         totalGame: 0,
@@ -79,7 +79,7 @@ export class UserDatabaseService {
     }
 
     // Ensure all compatibility fields exist
-    (found as any).carrotCoins = found.carrotCoins !== undefined ? found.carrotCoins : (found.coin || 1000);
+    (found as any).carrotCoins = found.carrotCoins !== undefined ? found.carrotCoins : (found.coin || 0);
     (found as any).coin = (found as any).carrotCoins;
     (found as any).name = found.name || found.username;
     (found as any).gamesPlayed = found.gamesPlayed !== undefined ? found.gamesPlayed : (found.totalGame || 0);
@@ -104,9 +104,9 @@ export class UserDatabaseService {
         role: 'Developer',
         avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
         status: 'Online',
-        coin: 100000,
-        carrotCoins: 100000,
-        level: 100,
+        coin: 0,
+        carrotCoins: 0,
+        level: 1,
         friends: [],
         createdAt: '2026-01-01',
         totalGame: 0,
@@ -134,25 +134,20 @@ export class UserDatabaseService {
         const cached = StorageService.getItem<any[]>(STORAGE_KEY_USERS_ALL, []);
         const mergedMap = new Map<string, any>();
 
-        // Put cached local users first
+        // Put cached local users first as fallback only
         cached.forEach((u) => mergedMap.set(u.id, u));
 
-        // Merge D1 users intelligently
+        // Prefer D1 as source of truth, with local storage only as fallback
         d1Users.forEach((du) => {
-          const local = mergedMap.get(du.id);
-          if (local) {
-            mergedMap.set(du.id, {
-              ...local,
-              ...du,
-              // Keep local carrotCoins if local has earned coins higher than default
-              carrotCoins: Math.max(local.carrotCoins || 0, du.carrotCoins || du.coin || 0),
-              coin: Math.max(local.coin || 0, du.coin || du.carrotCoins || 0),
-              gamesPlayed: Math.max(local.gamesPlayed || 0, du.totalGame || 0),
-              gamesWon: Math.max(local.gamesWon || 0, du.win || 0),
-            });
-          } else {
-            mergedMap.set(du.id, du);
-          }
+          const local = mergedMap.get(du.id) || {};
+          mergedMap.set(du.id, {
+            ...local,
+            ...du,
+            carrotCoins: du.carrotCoins ?? du.coin ?? local.carrotCoins ?? local.coin ?? 0,
+            coin: du.coin ?? du.carrotCoins ?? local.coin ?? local.carrotCoins ?? 0,
+            gamesPlayed: du.gamesPlayed ?? du.totalGame ?? local.gamesPlayed ?? local.totalGame ?? 0,
+            gamesWon: du.gamesWon ?? du.win ?? local.gamesWon ?? local.win ?? 0,
+          });
         });
 
         const mergedList = Array.from(mergedMap.values());
@@ -179,7 +174,7 @@ export class UserDatabaseService {
     this.syncProfileSnapshot(user);
 
     // Sync to D1 Database
-    const coinsToSync = user.carrotCoins !== undefined ? user.carrotCoins : (user.coin || 1000);
+    const coinsToSync = user.carrotCoins !== undefined ? user.carrotCoins : (user.coin || 0);
     const totalGameToSync = user.gamesPlayed !== undefined ? user.gamesPlayed : (user.totalGame || 0);
     const winToSync = user.gamesWon !== undefined ? user.gamesWon : (user.win || 0);
 
@@ -229,8 +224,6 @@ export class UserDatabaseService {
       if (user.winStreak > (user.maxWinStreak || 0)) {
         user.maxWinStreak = user.winStreak;
       }
-      user.carrotCoins = (user.carrotCoins || 0) + 100;
-      user.coin = user.carrotCoins;
     } else {
       user.lose = (user.lose || 0) + 1;
       user.winStreak = 0;
