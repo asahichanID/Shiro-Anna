@@ -90,13 +90,13 @@ export const BADGE_THEMES: Record<BadgeThemeId, BadgeThemeConfig> = {
   name: 'Absolute',
   rarity: 'Absolute',
   icon: '✨',
-  bgGradient: 'bg-gradient-to-r from-pink-500 via-purple-500 via-indigo-500 via-blue-400 via-cyan-400 via-emerald-400 via-yellow-300 to-pink-500',
+  bgGradient: 'bg-gradient-to-r from-pink-500 via-purple-500 via-blue-500 to-emerald-400 to-amber-400',
   borderClass: 'border-pink-300 animate-border-shift',
-  textColorClass: 'text-white font-black animate-text-glow',
+  textColorClass: 'animate-absolute-text font-black', // ✨ KHUSUS DISINI!
   glowColor: 'rgba(236, 72, 153, 0.85)',
   shadowClass: 'shadow-xl animate-shadow-pulse',
-  rarityBadgeClass: 'text-pink-300 border-pink-400/50 bg-pink-950/70 font-extrabold uppercase tracking-wider animate-badge-glow',
-  description: 'Theme Tertinggi - Pelangi Berputar Tak Berhenti.',
+  rarityBadgeClass: 'text-pink-300 border-pink-400/50 bg-pink-950/70 font-extrabold uppercase tracking-wider badge-glow', // ✨ INI YANG KECIL, TETAP DIAM!
+  description: 'Theme Tertinggi - Pelangi Smooth Premium.',
   animationClass: 'animate-aurora-chaos',
 },
 };
