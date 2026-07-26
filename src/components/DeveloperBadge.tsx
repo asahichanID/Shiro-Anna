@@ -38,11 +38,18 @@ export const DeveloperBadge: React.FC<DeveloperBadgeProps> = ({
     <div className={`inline-flex flex-col items-center gap-1 ${className}`}>
       {/* Main Badge Container */}
       <div
-        className={`relative group overflow-hidden rounded-full border font-bold ${theme.bgGradient} ${theme.borderClass} ${theme.textColorClass} ${theme.shadowClass} ${sizeClasses[size]} ${theme.animationClass || ''} transition-all duration-300 hover:scale-105 hover:brightness-110 cursor-pointer select-none inline-flex items-center justify-center`}
+        className={`relative group overflow-hidden rounded-full border font-bold bg-slate-950/60 ${theme.borderClass} ${theme.textColorClass} ${theme.shadowClass} ${sizeClasses[size]} ${theme.animationClass || ''} transition-all duration-300 hover:scale-105 hover:brightness-110 cursor-pointer select-none inline-flex items-center justify-center`}
         style={{
           boxShadow: `0 0 16px ${theme.glowColor}, 0 0 32px ${theme.glowColor}`,
         }}
       >
+        {/* Animated background layer — this is the part that changes color */}
+        <span
+          aria-hidden="true"
+          className={`absolute inset-0 ${theme.bgGradient} ${theme.id === 'absolute' ? 'animate-absolute-bg' : ''} pointer-events-none`}
+          style={theme.id === 'absolute' ? { backgroundSize: '220% 220%' } : undefined}
+        />
+
         {/* Glow backdrop overlay on hover */}
         <div
           className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
@@ -54,18 +61,21 @@ export const DeveloperBadge: React.FC<DeveloperBadgeProps> = ({
         {/* Shine Animation Light Bar (runs every ~2s) */}
         <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-badge-shine pointer-events-none" />
 
-        {/* Icon */}
-        <span className={`${iconSizes[size]} flex-shrink-0 group-hover:rotate-12 transition-transform duration-300`}>
-          {icon}
-        </span>
+        {/* Content stays fixed above the animated background */}
+        <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
+          {/* Icon */}
+          <span className={`${iconSizes[size]} flex-shrink-0 group-hover:rotate-12 transition-transform duration-300`}>
+            {icon}
+          </span>
 
-        {/* Badge Label */}
-        <span className="tracking-wide drop-shadow-sm flex items-center gap-1">
-          {badgeName}
-        </span>
+          {/* Badge Label */}
+          <span className="tracking-wide drop-shadow-sm flex items-center gap-1">
+            {badgeName}
+          </span>
 
-        {/* Small Sparkle */}
-        <Sparkles className="w-3 h-3 text-amber-200/90 animate-pulse flex-shrink-0" />
+          {/* Small Sparkle */}
+          <Sparkles className="w-3 h-3 text-amber-200/90 animate-pulse flex-shrink-0" />
+        </span>
       </div>
 
       {/* Rarity Tag */}
