@@ -3,6 +3,8 @@ import { ActivityService } from '../services/ActivityService';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { NotificationService } from '../services/NotificationService';
+import { userDb } from '../database/userDb';
+import { BadgeId, OwnedBadge, PremiumPlanId, BADGE_BY_ID, PREMIUM_BY_ID, clampBadgeText, createOwnedBadge, normalizeOwnedBadges } from '../config/userBadges';
 
 export interface UserAccount {
   id: string;
@@ -14,6 +16,9 @@ export interface UserAccount {
   totalGame: number;
   win: number;
   lose: number;
+  badgeInventory?: OwnedBadge[];
+  equippedBadgeId?: BadgeId | null;
+  premiumUntil?: number | null;
 }
 
 interface ProfileContextType {
@@ -23,6 +28,12 @@ interface ProfileContextType {
   updateUsername: (newUsername: string) => { success: boolean; error?: string };
   updateAvatar: (base64Image: string) => void;
   updateStats: (coins: number, totalGame: number, win: number, lose: number) => void;
+  updateCoins: (coins: number) => void;
+  purchaseBadge: (badgeId: BadgeId) => { success: boolean; error?: string };
+  equipBadge: (badgeId: BadgeId | null) => { success: boolean; error?: string };
+  renameBadge: (badgeId: BadgeId, newName: string) => { success: boolean; error?: string };
+  purchasePremium: (planId: PremiumPlanId) => { success: boolean; error?: string };
+  isPremiumActive: boolean;
   getRegisteredNames: () => string[];
   logout: () => void;
 }
@@ -33,45 +44,69 @@ const STORAGE_KEY_ID_COUNTER = 'oguri_player_id_counter';
 
 const RESERVED_NAMES = ['shiro anna'];
 
+const DEFAULT_BADGE_STATE = {
+  badgeInventory: [] as OwnedBadge[],
+  equippedBadgeId: null as BadgeId | null,
+  premiumUntil: null as number | null,
+};
+
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+
+function normalizeProfile(profile: UserAccount): UserAccount {
+  return {
+    ...profile,
+    badgeInventory: normalizeOwnedBadges(profile.badgeInventory),
+    equippedBadgeId: profile.equippedBadgeId || null,
+    premiumUntil: profile.premiumUntil ? Number(profile.premiumUntil) : null,
+  };
+}
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<UserAccount | null>(null);
 
-  // Request browser notifications permission
   useEffect(() => {
     NotificationService.requestPermission();
   }, []);
 
-  // Load profile on startup & sync with D1
   useEffect(() => {
     try {
       const savedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
       if (savedProfile) {
-        const parsed: UserAccount = JSON.parse(savedProfile);
+        const parsed: UserAccount = normalizeProfile(JSON.parse(savedProfile));
         if (!parsed.avatar || parsed.avatar === '/assets/avatar.png' || parsed.avatar.trim() === '') {
           parsed.avatar = BOT_DEFAULT_AVATAR;
         }
         setProfile(parsed);
 
-        // Register/Login to D1 then refresh local profile from D1 as the source of truth
         D1DatabaseService.registerOrLoginUser({
           id: parsed.id,
           username: parsed.username,
           role: parsed.role,
           avatar: parsed.avatar,
+          coins: parsed.coins,
+          totalGame: parsed.totalGame,
+          win: parsed.win,
+          lose: parsed.lose,
         }).then((remote) => {
           if (remote) {
-            setProfile({
-              id: remote.id,
-              username: remote.username,
-              role: remote.role || parsed.role,
-              avatar: remote.avatar || parsed.avatar,
-              createdAt: parsed.createdAt,
-              coins: Number(remote.coins ?? remote.carrotCoins ?? parsed.coins ?? 0),
-              totalGame: Number(remote.totalGame ?? parsed.totalGame ?? 0),
-              win: Number(remote.win ?? parsed.win ?? 0),
-              lose: Number(remote.lose ?? parsed.lose ?? 0),
+            setProfile((prev) => {
+              const current = prev || parsed;
+              const merged = normalizeProfile({
+                id: remote.id,
+                username: remote.username,
+                role: remote.role || current.role,
+                avatar: remote.avatar || current.avatar,
+                createdAt: current.createdAt,
+                coins: Number(remote.coins ?? remote.carrotCoins ?? current.coins ?? 0),
+                totalGame: Number(remote.totalGame ?? current.totalGame ?? 0),
+                win: Number(remote.win ?? current.win ?? 0),
+                lose: Number(remote.lose ?? current.lose ?? 0),
+                badgeInventory: current.badgeInventory,
+                equippedBadgeId: current.equippedBadgeId,
+                premiumUntil: current.premiumUntil,
+              });
+              localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(merged));
+              return merged;
             });
           }
         }).catch(() => {});
@@ -81,12 +116,10 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Real-time Presence & Sync Polling Engine (3–5 seconds)
   useEffect(() => {
     if (!profile) return;
 
     const intervalId = setInterval(() => {
-      // 1. Send Presence Heartbeat
       D1DatabaseService.updatePresence({
         userId: profile.id,
         status: 'Online',
@@ -94,7 +127,6 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         browser: navigator.userAgent,
       }).catch((e) => console.warn('Presence heartbeat skipped:', e));
 
-      // 2. Poll Sync
       D1DatabaseService.pollSync(profile.id, Date.now() - 10000)
         .then((syncData) => {
           if (!syncData) return;
@@ -111,17 +143,15 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return () => clearInterval(intervalId);
   }, [profile]);
 
-  // Helper to get all registered accounts map
   const getRegisteredAccountsMap = (): Record<string, UserAccount> => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_ACCOUNTS);
       return stored ? JSON.parse(stored) : {};
-    } catch (e) {
+    } catch {
       return {};
     }
   };
 
-  // Helper to save accounts map
   const saveRegisteredAccountsMap = (map: Record<string, UserAccount>) => {
     try {
       localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(map));
@@ -130,18 +160,16 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Get list of registered usernames
   const getRegisteredNames = (): string[] => {
     const map = getRegisteredAccountsMap();
     return Object.values(map).map((acc) => acc.username);
   };
 
-  // Get next player ID counter
   const getNextPlayerId = (): number => {
     try {
       const counter = localStorage.getItem(STORAGE_KEY_ID_COUNTER);
       return counter ? parseInt(counter, 10) : 2;
-    } catch (e) {
+    } catch {
       return 2;
     }
   };
@@ -151,49 +179,80 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEY_ID_COUNTER, next.toString());
   };
 
-  // Save profile to active storage and accounts map & D1
-  const saveProfile = async (newProfile: UserAccount) => {
-    setProfile(newProfile);
+  const syncUserDb = (newProfile: UserAccount) => {
     try {
-      localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(newProfile));
-      const map = getRegisteredAccountsMap();
-      map[newProfile.id] = newProfile;
-      saveRegisteredAccountsMap(map);
-
-      const remote = await D1DatabaseService.registerOrLoginUser({
+      userDb.saveUser({
         id: newProfile.id,
         username: newProfile.username,
+        name: newProfile.username,
         role: newProfile.role,
         avatar: newProfile.avatar,
-        coins: newProfile.coins ?? 0,
-        totalGame: newProfile.totalGame ?? 0,
-        win: newProfile.win ?? 0,
-        lose: newProfile.lose ?? 0,
+        status: 'Online',
+        coin: newProfile.coins,
+        carrotCoins: newProfile.coins,
+        coins: newProfile.coins,
+        gamesPlayed: newProfile.totalGame,
+        totalGame: newProfile.totalGame,
+        gamesWon: newProfile.win,
+        win: newProfile.win,
+        lose: newProfile.lose,
+        createdAt: newProfile.createdAt,
+        badgeInventory: newProfile.badgeInventory || [],
+        equippedBadgeId: newProfile.equippedBadgeId || null,
+        premiumUntil: newProfile.premiumUntil || null,
+      } as any);
+    } catch (e) {
+      console.warn('Legacy userDb sync skipped:', e);
+    }
+  };
+
+  const saveProfile = async (newProfile: UserAccount) => {
+    const normalized = normalizeProfile(newProfile);
+    setProfile(normalized);
+    try {
+      localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(normalized));
+      const map = getRegisteredAccountsMap();
+      map[normalized.id] = normalized;
+      saveRegisteredAccountsMap(map);
+      syncUserDb(normalized);
+
+      const remote = await D1DatabaseService.registerOrLoginUser({
+        id: normalized.id,
+        username: normalized.username,
+        role: normalized.role,
+        avatar: normalized.avatar,
+        coins: normalized.coins ?? 0,
+        totalGame: normalized.totalGame ?? 0,
+        win: normalized.win ?? 0,
+        lose: normalized.lose ?? 0,
       });
 
       if (remote) {
-        const normalized: UserAccount = {
-          id: remote.id || newProfile.id,
-          username: remote.username || newProfile.username,
-          role: remote.role || newProfile.role,
-          avatar: remote.avatar || newProfile.avatar,
-          createdAt: newProfile.createdAt,
-          coins: Number(remote.coins ?? remote.carrotCoins ?? newProfile.coins ?? 0),
-          totalGame: Number(remote.totalGame ?? newProfile.totalGame ?? 0),
-          win: Number(remote.win ?? newProfile.win ?? 0),
-          lose: Number(remote.lose ?? newProfile.lose ?? 0),
-        };
-        setProfile(normalized);
-        localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(normalized));
-        map[normalized.id] = normalized;
+        const merged: UserAccount = normalizeProfile({
+          id: remote.id || normalized.id,
+          username: remote.username || normalized.username,
+          role: remote.role || normalized.role,
+          avatar: remote.avatar || normalized.avatar,
+          createdAt: normalized.createdAt,
+          coins: Number(remote.coins ?? remote.carrotCoins ?? normalized.coins ?? 0),
+          totalGame: Number(remote.totalGame ?? normalized.totalGame ?? 0),
+          win: Number(remote.win ?? normalized.win ?? 0),
+          lose: Number(remote.lose ?? normalized.lose ?? 0),
+          badgeInventory: normalized.badgeInventory,
+          equippedBadgeId: normalized.equippedBadgeId,
+          premiumUntil: normalized.premiumUntil,
+        });
+        setProfile(merged);
+        localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(merged));
+        map[merged.id] = merged;
         saveRegisteredAccountsMap(map);
+        syncUserDb(merged);
       }
     } catch (e) {
       console.error('Failed to save profile:', e);
     }
   };
 
-  // Login / Register Account
   const login = (inputName: string): { success: boolean; error?: string } => {
     const trimmed = inputName.trim();
     if (!trimmed) {
@@ -202,14 +261,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const lower = trimmed.toLowerCase();
     const accountsMap = getRegisteredAccountsMap();
-
     const existingUser = Object.values(accountsMap).find((a) => a.username.toLowerCase() === lower);
 
     if (existingUser) {
       if (!existingUser.avatar || existingUser.avatar === '/assets/avatar.png' || existingUser.avatar.trim() === '') {
         existingUser.avatar = BOT_DEFAULT_AVATAR;
       }
-      saveProfile(existingUser);
+      saveProfile(normalizeProfile(existingUser));
       ActivityService.logActivity('login', 'Login Akun', `${existingUser.username} (${existingUser.id}) berhasil login.`);
       return { success: true };
     }
@@ -234,6 +292,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         totalGame: 0,
         win: 0,
         lose: 0,
+        ...DEFAULT_BADGE_STATE,
       };
     } else {
       const nextIdNum = getNextPlayerId();
@@ -249,6 +308,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         totalGame: 0,
         win: 0,
         lose: 0,
+        ...DEFAULT_BADGE_STATE,
       };
     }
 
@@ -321,6 +381,104 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     saveProfile(updatedProfile);
   };
 
+  const updateCoins = (coins: number) => {
+    if (!profile) return;
+    const updatedProfile: UserAccount = {
+      ...profile,
+      coins,
+    };
+    saveProfile(updatedProfile);
+  };
+
+  const purchaseBadge = (badgeId: BadgeId): { success: boolean; error?: string } => {
+    if (!profile) return { success: false, error: 'Belum login.' };
+    const badge = BADGE_BY_ID[badgeId];
+    if (!badge) return { success: false, error: 'Badge tidak ditemukan.' };
+
+    const owned = profile.badgeInventory || [];
+    if (owned.some((item) => item.id === badgeId)) {
+      return { success: false, error: 'Badge ini sudah dimiliki.' };
+    }
+
+    if ((profile.coins || 0) < badge.price) {
+      return { success: false, error: 'Coin Carrot tidak cukup.' };
+    }
+
+    const updatedProfile: UserAccount = {
+      ...profile,
+      coins: profile.coins - badge.price,
+      badgeInventory: [...owned, createOwnedBadge(badgeId, badge.displayName)],
+    };
+    saveProfile(updatedProfile);
+    ActivityService.logActivity('badge', 'Membeli Badge', `Membeli badge ${badge.name} seharga 🥕 ${badge.price.toLocaleString('id-ID')}.`);
+    return { success: true };
+  };
+
+  const equipBadge = (badgeId: BadgeId | null): { success: boolean; error?: string } => {
+    if (!profile) return { success: false, error: 'Belum login.' };
+    if (!badgeId) {
+      saveProfile({ ...profile, equippedBadgeId: null });
+      return { success: true };
+    }
+
+    const owned = profile.badgeInventory || [];
+    if (!owned.some((item) => item.id === badgeId)) {
+      return { success: false, error: 'Badge belum dimiliki.' };
+    }
+
+    const updatedProfile: UserAccount = {
+      ...profile,
+      equippedBadgeId: badgeId,
+      badgeInventory: owned.map((item) =>
+        item.id === badgeId ? { ...item, equippedAt: Date.now(), customName: clampBadgeText(item.customName, BADGE_BY_ID[badgeId].displayName) } : item
+      ),
+    };
+    saveProfile(updatedProfile);
+    ActivityService.logActivity('badge', 'Menggunakan Badge', `Badge ${BADGE_BY_ID[badgeId].name} dipakai di profile.`);
+    return { success: true };
+  };
+
+  const renameBadge = (badgeId: BadgeId, newName: string): { success: boolean; error?: string } => {
+    if (!profile) return { success: false, error: 'Belum login.' };
+    const owned = profile.badgeInventory || [];
+    const idx = owned.findIndex((item) => item.id === badgeId);
+    if (idx === -1) return { success: false, error: 'Badge belum dimiliki.' };
+
+    const cleaned = clampBadgeText(newName, BADGE_BY_ID[badgeId].displayName);
+    const updated = [...owned];
+    updated[idx] = {
+      ...updated[idx],
+      customName: cleaned,
+    };
+
+    saveProfile({ ...profile, badgeInventory: updated });
+    ActivityService.logActivity('badge', 'Ubah Nama Badge', `Nama badge ${BADGE_BY_ID[badgeId].name} diubah menjadi "${cleaned}".`);
+    return { success: true };
+  };
+
+  const purchasePremium = (planId: PremiumPlanId): { success: boolean; error?: string } => {
+    if (!profile) return { success: false, error: 'Belum login.' };
+    const plan = PREMIUM_BY_ID[planId];
+    if (!plan) return { success: false, error: 'Paket premium tidak ditemukan.' };
+
+    if ((profile.coins || 0) < plan.price) {
+      return { success: false, error: 'Coin Carrot tidak cukup.' };
+    }
+
+    const now = Date.now();
+    const currentPremiumUntil = profile.premiumUntil && profile.premiumUntil > now ? profile.premiumUntil : now;
+    const updatedProfile: UserAccount = {
+      ...profile,
+      coins: profile.coins - plan.price,
+      premiumUntil: currentPremiumUntil + plan.durationMs,
+    };
+    saveProfile(updatedProfile);
+    ActivityService.logActivity('badge', 'Membeli Premium', `Membeli ${plan.name} seharga 🥕 ${plan.price.toLocaleString('id-ID')}.`);
+    return { success: true };
+  };
+
+  const isPremiumActive = !!profile?.premiumUntil && profile.premiumUntil > Date.now();
+
   const logout = () => {
     if (profile) {
       D1DatabaseService.updatePresence({ userId: profile.id, status: 'Offline' }).catch(() => {});
@@ -338,6 +496,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateUsername,
         updateAvatar,
         updateStats,
+        updateCoins,
+        purchaseBadge,
+        equipBadge,
+        renameBadge,
+        purchasePremium,
+        isPremiumActive,
         getRegisteredNames,
         logout,
       }}
