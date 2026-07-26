@@ -75,9 +75,7 @@ if (resolvedDef.kind === 'devPulse') {
     {label}
   </span>
 </span>
-  
-  }
-
+    
   return (
     <span className={`relative inline-flex items-center ${className}`}>
       <span
