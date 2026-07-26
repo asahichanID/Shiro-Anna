@@ -400,13 +400,13 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return { success: false, error: 'Badge ini sudah dimiliki.' };
     }
 
-    if ((profile.coins || 0) < badge.price) {
-      return { success: false, error: 'Coin Carrot tidak cukup.' };
+    if (badge.isDeveloperOnly && profile.role !== 'Developer') {
+      return { success: false, error: 'Badge ini hanya bisa diambil oleh admin yang berizin.' };
     }
 
     const updatedProfile: UserAccount = {
       ...profile,
-      coins: profile.coins - badge.price,
+      coins: badge.isDeveloperOnly ? profile.coins : profile.coins - badge.price,
       badgeInventory: [...owned, createOwnedBadge(badgeId, badge.displayName)],
     };
     saveProfile(updatedProfile);
