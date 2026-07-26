@@ -131,49 +131,100 @@
   transition: color 1.5s ease-in-out;
 }
 
-/* === BACKGROUND GRADIENT DI BELAKANG BADGE 'Absolute' (GERAK FADE IN/OUT) === */
+/* === HALO LUAR BADGE 'Absolute' (LEBIH TERANG DI LUAR, FADE HALUS) === */
+@keyframes absolute-halo-fade {
+  0% {
+    opacity: 0.40;
+    transform: scale(0.98);
+    filter: blur(18px) saturate(1.04) brightness(1.02);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.03);
+    filter: blur(20px) saturate(1.12) brightness(1.10);
+  }
+  100% {
+    opacity: 0.44;
+    transform: scale(0.98);
+    filter: blur(18px) saturate(1.04) brightness(1.03);
+  }
+}
+.animate-absolute-halo {
+  animation: absolute-halo-fade 8.5s ease-in-out infinite;
+}
 
+/* === BACKGROUND GRADIENT DI BELAKANG BADGE 'Absolute' (FADE IN/OUT HALUS) === */
 @keyframes absolute-bg-fade {
-  0% { background-image: linear-gradient(to right, #a855f7, #6366f1); }
-  20% { background-image: linear-gradient(to right, #dc2626, #ef4444); }
-  40% { background-image: linear-gradient(to right, #16a34a, #22c55e); }
-  60% { background-image: linear-gradient(to right, #fbbf24, #eab308); }
-  80% { background-image: linear-gradient(to right, #2563eb, #3b82f6); }
-  100% { background-image: linear-gradient(to right, #a855f7, #6366f1); }
+  0% {
+    background-position: 0% 50%;
+    opacity: 0.92;
+    filter: saturate(1.05) brightness(1.03);
+  }
+  50% {
+    background-position: 100% 50%;
+    opacity: 1;
+    filter: saturate(1.18) brightness(1.10);
+  }
+  100% {
+    background-position: 0% 50%;
+    opacity: 0.95;
+    filter: saturate(1.08) brightness(1.05);
+  }
 }
 .animate-absolute-bg {
-  animation: absolute-bg-fade 7.5s infinite alternate;
-  background-size: 200% 100%;
-  animation-direction: alternate;
-  transition: background-image 1.5s ease-in-out;
+  animation: absolute-bg-fade 8.5s ease-in-out infinite;
+  background-size: 280% 280%;
+  transition: opacity 1.2s ease-in-out, filter 1.2s ease-in-out;
+}
+
+/* === LAYER CAHAYA LUAR DI DALAM BADGE 'Absolute' (LEMBUT & ELEGAN) === */
+@keyframes absolute-softlight-fade {
+  0% { opacity: 0.42; transform: scale(0.995); }
+  50% { opacity: 0.72; transform: scale(1.01); }
+  100% { opacity: 0.46; transform: scale(0.995); }
+}
+.animate-absolute-softlight {
+  animation: absolute-softlight-fade 8.5s ease-in-out infinite;
 }
 
 /* === BINGKAI TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
 @keyframes absolute-border-fade {
-  0% { border-color: #6366f1; } /* Biru Tua */
-  20% { border-color: #ef4444; } /* Merah */
-  40% { border-color: #22c55e; } /* Hijau */
-  60% { border-color: #eab308; } /* Kuning */
-  80% { border-color: #3b82f6; } /* Biru Muda */
-  100% { border-color: #6366f1; } /* Kembali Biru Tua */
+  0% { border-color: #f0abfc; } /* Fuchsia lembut */
+  20% { border-color: #f472b6; } /* Pink */
+  40% { border-color: #60a5fa; } /* Biru lembut */
+  60% { border-color: #34d399; } /* Hijau lembut */
+  80% { border-color: #fbbf24; } /* Kuning premium */
+  100% { border-color: #f0abfc; }
 }
 .animate-absolute-border {
-  animation: absolute-border-fade 7.5s infinite alternate;
-  transition: border-color 1.5s ease-in-out;
+  animation: absolute-border-fade 8.5s ease-in-out infinite;
+  transition: border-color 1.2s ease-in-out;
 }
 
 /* === BAYANGAN TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
 @keyframes absolute-shadow-fade {
-  0% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Biru Tua */
-  20% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.7); } /* Merah */
-  40% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.7); } /* Hijau */
-  60% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.7); } /* Kuning */
-  80% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.7); } /* Biru Muda */
-  100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Kembali Biru Tua */
+  0% {
+    box-shadow: 0 0 18px rgba(244, 114, 182, 0.55), 0 0 32px rgba(168, 85, 247, 0.30);
+  }
+  20% {
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.55), 0 0 32px rgba(168, 85, 247, 0.28);
+  }
+  40% {
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.55), 0 0 32px rgba(56, 189, 248, 0.28);
+  }
+  60% {
+    box-shadow: 0 0 18px rgba(52, 211, 153, 0.55), 0 0 32px rgba(16, 185, 129, 0.28);
+  }
+  80% {
+    box-shadow: 0 0 18px rgba(251, 191, 36, 0.55), 0 0 32px rgba(245, 158, 11, 0.28);
+  }
+  100% {
+    box-shadow: 0 0 18px rgba(244, 114, 182, 0.55), 0 0 32px rgba(168, 85, 247, 0.30);
+  }
 }
 .animate-absolute-shadow {
-  animation: absolute-shadow-fade 7.5s infinite alternate;
-  transition: box-shadow 1.5s ease-in-out;
+  animation: absolute-shadow-fade 8.5s ease-in-out infinite;
+  transition: box-shadow 1.2s ease-in-out;
 }
 
 @keyframes pulseGlow {
