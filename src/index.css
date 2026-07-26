@@ -124,78 +124,221 @@
   animation: teleportEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes absoluteRainbowPulse {
+
+/* === TEKS UTAMA 'Absolute' DI DALAM TOMBOL (TETAP DIAM, BG YANG BERGERAK) === */
+.animate-absolute-text {
+  color: #ffffff;
+  transition: color 1.5s ease-in-out;
+}
+
+/* === BACKGROUND GRADIENT DI BELAKANG BADGE 'Absolute' (GERAK FADE IN/OUT) === */
+
+@keyframes absolute-bg-fade {
+  0% { background-image: linear-gradient(to right, #a855f7, #6366f1); }
+  20% { background-image: linear-gradient(to right, #dc2626, #ef4444); }
+  40% { background-image: linear-gradient(to right, #16a34a, #22c55e); }
+  60% { background-image: linear-gradient(to right, #fbbf24, #eab308); }
+  80% { background-image: linear-gradient(to right, #2563eb, #3b82f6); }
+  100% { background-image: linear-gradient(to right, #a855f7, #6366f1); }
+}
+.animate-absolute-bg {
+  animation: absolute-bg-fade 7.5s infinite alternate;
+  background-size: 200% 100%;
+  animation-direction: alternate;
+  transition: background-image 1.5s ease-in-out;
+}
+
+/* === BINGKAI TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
+@keyframes absolute-border-fade {
+  0% { border-color: #6366f1; } /* Biru Tua */
+  20% { border-color: #ef4444; } /* Merah */
+  40% { border-color: #22c55e; } /* Hijau */
+  60% { border-color: #eab308; } /* Kuning */
+  80% { border-color: #3b82f6; } /* Biru Muda */
+  100% { border-color: #6366f1; } /* Kembali Biru Tua */
+}
+.animate-absolute-border {
+  animation: absolute-border-fade 7.5s infinite alternate;
+  transition: border-color 1.5s ease-in-out;
+}
+
+/* === BAYANGAN TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
+@keyframes absolute-shadow-fade {
+  0% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Biru Tua */
+  20% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.7); } /* Merah */
+  40% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.7); } /* Hijau */
+  60% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.7); } /* Kuning */
+  80% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.7); } /* Biru Muda */
+  100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Kembali Biru Tua */
+}
+.animate-absolute-shadow {
+  animation: absolute-shadow-fade 7.5s infinite alternate;
+  transition: box-shadow 1.5s ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: brightness(1);
+    transform: translateZ(0) scale(1);
+  }
+  50% {
+    filter: brightness(1.08);
+    transform: translateZ(0) scale(1.03);
+  }
+}
+
+@keyframes auroraShift {
+  0%, 100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: hue-rotate(12deg);
+  }
+}
+
+@keyframes auroraChaosShift {
   0% {
     background-position: 0% 50%;
-    filter: hue-rotate(0deg) saturate(1.18) brightness(1.02);
+    filter: hue-rotate(0deg) saturate(1.05);
+  }
+  50% {
+    background-position: 100% 0%;
+    filter: hue-rotate(25deg) saturate(1.25);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg) saturate(1.05);
+  }
+}
+
+@keyframes borderShift {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+  50% {
+    border-color: rgba(236, 72, 153, 0.9);
+  }
+}
+
+@keyframes shadowPulse {
+  0%, 100% {
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.42);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-aurora {
+  background-size: 200% 200%;
+  animation: auroraShift 4s ease-in-out infinite;
+}
+
+.animate-aurora-chaos {
+  background-size: 250% 250%;
+  animation: auroraChaosShift 6s ease-in-out infinite;
+}
+
+.animate-border-shift {
+  animation: borderShift 3s ease-in-out infinite;
+}
+
+.animate-shadow-pulse {
+  animation: shadowPulse 3s ease-in-out infinite;
+}
+
+/* === YANG KECIL DI BAWAH TETAP DIAM === */
+.badge-glow {
+  opacity: 1;
+  color: #ffffff;
+  background: #831843; /* Contoh warna default */
+  animation: none !important;
+  transition: none !important;
+}
+
+@keyframes badgeShineSmooth {
+  0% {
+    background-position: 0% 50%;
+    filter: brightness(0.98) saturate(1.02);
+    opacity: 0.82;
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: brightness(1.12) saturate(1.12);
+    opacity: 1;
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: brightness(0.98) saturate(1.02);
+    opacity: 0.82;
+  }
+}
+
+@keyframes rainbowPulsePremium {
+  0% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg) brightness(1.02) saturate(1.08);
+    transform: translateZ(0) scale(1);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: hue-rotate(18deg) brightness(1.15) saturate(1.25);
+    transform: translateZ(0) scale(1.02);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg) brightness(1.02) saturate(1.08);
+    transform: translateZ(0) scale(1);
+  }
+}
+
+@keyframes flameFlow {
+  0% {
+    background-position: 0% 50%;
+    filter: brightness(1) saturate(1.05);
   }
   20% {
     background-position: 25% 50%;
-    filter: hue-rotate(32deg) saturate(1.28) brightness(1.08);
+    filter: brightness(1.08) saturate(1.08);
   }
   40% {
     background-position: 50% 50%;
-    filter: hue-rotate(82deg) saturate(1.38) brightness(1.12);
+    filter: brightness(1.12) saturate(1.12);
   }
   60% {
     background-position: 75% 50%;
-    filter: hue-rotate(145deg) saturate(1.35) brightness(1.09);
+    filter: brightness(1.08) saturate(1.08);
   }
   80% {
     background-position: 100% 50%;
-    filter: hue-rotate(205deg) saturate(1.24) brightness(1.05);
+    filter: brightness(1.14) saturate(1.16);
   }
   100% {
     background-position: 0% 50%;
-    filter: hue-rotate(260deg) saturate(1.18) brightness(1.02);
+    filter: brightness(1) saturate(1.05);
   }
 }
 
-@keyframes absoluteHaloPulse {
-  0%, 100% {
-    opacity: 0.7;
-    transform: scale(0.96);
-    filter: blur(22px) saturate(1.15) hue-rotate(0deg);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-    filter: blur(30px) saturate(1.55) hue-rotate(180deg);
-  }
+.animate-badge-shine-smooth {
+  background-size: 220% 220%;
+  animation: badgeShineSmooth 3.6s ease-in-out infinite;
+  transition: opacity 400ms ease, filter 400ms ease, transform 400ms ease;
 }
 
-@keyframes absoluteSheen {
-  0% {
-    transform: translateX(-125%) skewX(-18deg);
-    opacity: 0;
-  }
-  18% {
-    opacity: 0.22;
-  }
-  38% {
-    opacity: 0.78;
-  }
-  62% {
-    opacity: 0.52;
-  }
-  100% {
-    transform: translateX(125%) skewX(-18deg);
-    opacity: 0;
-  }
+.animate-rainbow-pulse-premium {
+  background-size: 340% 340%;
+  animation: rainbowPulsePremium 7s ease-in-out infinite;
+  transition: opacity 500ms ease, filter 500ms ease, transform 500ms ease;
 }
 
-.animate-absolute-rainbow {
-  background-size: 320% 320%;
-  animation: absoluteRainbowPulse 7.8s ease-in-out infinite;
-  transition: filter 700ms ease-in-out, opacity 700ms ease-in-out, background-position 700ms ease-in-out;
-}
-
-.animate-absolute-halo {
-  animation: absoluteHaloPulse 7.8s ease-in-out infinite;
-  transition: filter 700ms ease-in-out, opacity 700ms ease-in-out, transform 700ms ease-in-out;
-}
-
-.animate-absolute-sheen {
-  animation: absoluteSheen 4.6s ease-in-out infinite;
-  transition: opacity 700ms ease-in-out;
+.animate-flame-flow {
+  background-size: 320% 100%;
+  animation: flameFlow 0.8s linear infinite;
+  transition: opacity 300ms ease, filter 300ms ease, transform 300ms ease;
 }

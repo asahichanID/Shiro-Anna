@@ -17,6 +17,7 @@ import { ArchitectureAnalysisModal } from './components/ArchitectureAnalysisModa
 import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
+import { ShopView } from './components/ShopView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
 import { ServiceView } from './components/ServiceView';
 import { RunningMarquee } from './components/RunningMarquee';
@@ -188,6 +189,8 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
         {activeTab === 'play' && <MusicPlayViewer />}
 
         {activeTab === 'service' && <ServiceView />}
+
+        {activeTab === 'shop' && <ShopView />}
 
         {activeTab === 'devpanel' && <DeveloperPanelView />}
 
