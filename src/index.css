@@ -125,62 +125,139 @@
 }
 
 
-/* === TEKS 'Developer' TETAP PUTIH === */
+/* === TEKS UTAMA 'Absolute' DI DALAM TOMBOL (TETAP DIAM, BG YANG BERGERAK) === */
 .animate-absolute-text {
-  color: #ffffff; /* Teksnya tetap putih */
-  animation: none !important; /* Jangan gerakkan warna teks */
-  transition: none !important;
+  color: #ffffff;
+  transition: color 1.5s ease-in-out;
 }
 
-/* === BACKGROUND GRADIENT DI BELAKANG TEKS 'Developer' (GERAK FADE IN/OUT) === */
+/* === BACKGROUND GRADIENT DI BELAKANG BADGE 'Absolute' (GERAK FADE IN/OUT) === */
+
 @keyframes absolute-bg-fade {
-  0% { background: linear-gradient(to right, #ec4899, #a855f7); } /* Pink -> Ungu */
-  20% { background: linear-gradient(to right, #8b5cf6, #6366f1); } /* Ungu -> Biru Tua */
-  40% { background: linear-gradient(to right, #3b82f6, #10b981); } /* Biru Muda -> Hijau */
-  60% { background: linear-gradient(to right, #10b981, #f59e0b); } /* Hijau -> Kuning */
-  80% { background: linear-gradient(to right, #f59e0b, #ef4444); } /* Kuning -> Merah */
-  100% { background: linear-gradient(to right, #ec4899, #a855f7); } /* Kembali Pink -> Ungu */
+  0% { background-image: linear-gradient(to right, #a855f7, #6366f1); }
+  20% { background-image: linear-gradient(to right, #dc2626, #ef4444); }
+  40% { background-image: linear-gradient(to right, #16a34a, #22c55e); }
+  60% { background-image: linear-gradient(to right, #fbbf24, #eab308); }
+  80% { background-image: linear-gradient(to right, #2563eb, #3b82f6); }
+  100% { background-image: linear-gradient(to right, #a855f7, #6366f1); }
 }
 .animate-absolute-bg {
-  animation: absolute-bg-fade 7.5s infinite alternate; /* Total 5 warna x 1.5s = 7.5s */
-  background-size: 200% 100%; /* Untuk gradien yang gerak */
-  animation-direction: alternate; /* Agar bolak-balik */
-  transition: background 1.5s ease-in-out;
+  animation: absolute-bg-fade 7.5s infinite alternate;
+  background-size: 200% 100%;
+  animation-direction: alternate;
+  transition: background-image 1.5s ease-in-out;
 }
 
-/* === BINGKAI TOMBOL (GERAK FADE IN/OUT) === */
+/* === BINGKAI TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
 @keyframes absolute-border-fade {
-  0% { border-color: #ec4899; } /* Pink */
-  20% { border-color: #8b5cf6; } /* Ungu */
-  40% { border-color: #3b82f6; } /* Biru Muda */
-  60% { border-color: #10b981; } /* Hijau */
-  80% { border-color: #f59e0b; } /* Kuning */
-  100% { border-color: #ec4899; } /* Kembali Pink */
+  0% { border-color: #6366f1; } /* Biru Tua */
+  20% { border-color: #ef4444; } /* Merah */
+  40% { border-color: #22c55e; } /* Hijau */
+  60% { border-color: #eab308; } /* Kuning */
+  80% { border-color: #3b82f6; } /* Biru Muda */
+  100% { border-color: #6366f1; } /* Kembali Biru Tua */
 }
 .animate-absolute-border {
   animation: absolute-border-fade 7.5s infinite alternate;
   transition: border-color 1.5s ease-in-out;
 }
 
-/* === BAYANGAN TOMBOL (GERAK FADE IN/OUT) === */
+/* === BAYANGAN TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
 @keyframes absolute-shadow-fade {
-  0% { box-shadow: 0 0 20px rgba(236,72,153,0.7); } /* Pink */
-  20% { box-shadow: 0 0 20px rgba(139,92,246,0.7); } /* Ungu */
-  40% { box-shadow: 0 0 20px rgba(59,130,246,0.7); } /* Biru Muda */
-  60% { box-shadow: 0 0 20px rgba(16,185,129,0.7); } /* Hijau */
-  80% { box-shadow: 0 0 20px rgba(245,158,11,0.7); } /* Kuning */
-  100% { box-shadow: 0 0 20px rgba(236,72,153,0.7); } /* Kembali Pink */
+  0% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Biru Tua */
+  20% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.7); } /* Merah */
+  40% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.7); } /* Hijau */
+  60% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.7); } /* Kuning */
+  80% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.7); } /* Biru Muda */
+  100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Kembali Biru Tua */
 }
 .animate-absolute-shadow {
   animation: absolute-shadow-fade 7.5s infinite alternate;
   transition: box-shadow 1.5s ease-in-out;
 }
 
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: brightness(1);
+    transform: translateZ(0) scale(1);
+  }
+  50% {
+    filter: brightness(1.08);
+    transform: translateZ(0) scale(1.03);
+  }
+}
+
+@keyframes auroraShift {
+  0%, 100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    background-position: 100% 50%;
+    filter: hue-rotate(12deg);
+  }
+}
+
+@keyframes auroraChaosShift {
+  0% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg) saturate(1.05);
+  }
+  50% {
+    background-position: 100% 0%;
+    filter: hue-rotate(25deg) saturate(1.25);
+  }
+  100% {
+    background-position: 0% 50%;
+    filter: hue-rotate(0deg) saturate(1.05);
+  }
+}
+
+@keyframes borderShift {
+  0%, 100% {
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+  50% {
+    border-color: rgba(236, 72, 153, 0.9);
+  }
+}
+
+@keyframes shadowPulse {
+  0%, 100% {
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.22);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.42);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-aurora {
+  background-size: 200% 200%;
+  animation: auroraShift 4s ease-in-out infinite;
+}
+
+.animate-aurora-chaos {
+  background-size: 250% 250%;
+  animation: auroraChaosShift 6s ease-in-out infinite;
+}
+
+.animate-border-shift {
+  animation: borderShift 3s ease-in-out infinite;
+}
+
+.animate-shadow-pulse {
+  animation: shadowPulse 3s ease-in-out infinite;
+}
+
 /* === YANG KECIL DI BAWAH TETAP DIAM === */
 .badge-glow {
   opacity: 1;
   color: #ffffff;
-  background: #831843;
+  background: #831843; /* Contoh warna default */
   animation: none !important;
   transition: none !important;
 }
