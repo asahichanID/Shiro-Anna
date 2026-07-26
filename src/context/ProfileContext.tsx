@@ -52,7 +52,20 @@ const DEFAULT_BADGE_STATE = {
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
+
+function ensureDeveloperBadge(profile: UserAccount): UserAccount {
+  const isDeveloper = profile.role === 'Developer' || profile.username.trim().toLowerCase() === 'shiro anna';
+  if (!isDeveloper) return profile;
+  const inventory = normalizeOwnedBadges(profile.badgeInventory);
+  if (!inventory.some(b => b.id === 'dev_ruby')) {
+    inventory.push(createOwnedBadge('dev_ruby'));
+  }
+  return { ...profile, badgeInventory: inventory };
+}
+
+
 function normalizeProfile(profile: UserAccount): UserAccount {
+  profile = ensureDeveloperBadge(profile);
   return {
     ...profile,
     badgeInventory: normalizeOwnedBadges(profile.badgeInventory),
