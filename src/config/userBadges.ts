@@ -1,5 +1,5 @@
 export type BadgeTier = 'Rare' | 'Epic' | 'Legend';
-export type BadgeKind = 'plain' | 'shine' | 'rainbowPulse' | 'flame';
+export type BadgeKind = 'plain' | 'shine' | 'rainbowPulse' | 'flame' | 'devPulse';
 export type BadgeId =
   | 'blue_plain'
   | 'red_plain'
@@ -8,7 +8,8 @@ export type BadgeId =
   | 'red_shine'
   | 'yellow_shine'
   | 'rainbow_pulse'
-  | 'flame';
+  | 'flame'
+  | 'dev_ruby';
 
 export type PremiumPlanId = 'premium_1d' | 'premium_7d' | 'premium_30d';
 
@@ -28,6 +29,9 @@ export interface BadgeDefinition {
   description: string;
   animationClass?: string;
   outerClass?: string;
+  isDeveloperOnly?: boolean;
+  showIcon?: boolean;
+  previewNote?: string;
 }
 
 export interface OwnedBadge {
@@ -181,6 +185,26 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
     glowClass: 'shadow-[0_0_30px_rgba(249,115,22,0.34)]',
     animationClass: 'animate-flame-flow',
     description: 'Flame lima warna yang cepat dan dinamis.',
+  },
+  {
+    id: 'dev_ruby',
+    name: 'Admin Ruby',
+    displayName: 'Admin Ruby',
+    tier: 'Legend',
+    kind: 'devPulse',
+    price: 0,
+    shortLabel: 'Admin',
+    colors: ['#ff5b5b', '#8f0d18', '#220006'],
+    bgClass: 'bg-gradient-to-br from-red-500 via-rose-700 to-red-950',
+    textClass: 'text-white',
+    borderClass: 'border-red-300/40',
+    glowClass: 'shadow-[0_0_34px_rgba(239,68,68,0.36)]',
+    animationClass: 'animate-dev-badge-cycle',
+    outerClass: 'animate-dev-badge-wipe',
+    isDeveloperOnly: true,
+    showIcon: false,
+    previewNote: 'Badge admin khusus. Hanya bisa diambil saat akun berizin mengaktifkannya.',
+    description: 'Badge khusus developer/admin dengan animasi merah mencolok dan retakan halus.',
   },
 ];
 
