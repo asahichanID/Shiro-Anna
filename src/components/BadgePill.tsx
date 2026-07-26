@@ -60,9 +60,21 @@ export const BadgePill: React.FC<BadgePillProps> = ({
             <span className="absolute left-[28%] top-[76%] h-px w-[48%] rotate-[22deg] bg-white/12 blur-[0.5px]" />
             <span className="absolute left-[34%] top-[86%] h-px w-[40%] -rotate-[26deg] bg-white/10 blur-[0.5px]" />
           </span>
-          <span className="relative whitespace-nowrap">{label}</span>
-        </span>
-      </span>
+        <span
+  className={`relative inline-flex items-center overflow-hidden rounded-full font-black tracking-wide transition-all duration-500 ${sizeClass} text-white ${resolvedDef.animationClass || ""}`}
+  style={{
+    ...bgStyle,
+    border: "none",
+    boxShadow: "none"
+  }}
+>
+  <span className="absolute inset-0 dev-badge-red" />
+  <span className="absolute inset-0 dev-badge-blue" />
+
+  <span className="relative whitespace-nowrap dev-badge-text">
+    {label}
+  </span>
+</span>
     );
   }
 
