@@ -102,7 +102,7 @@ async function startServer() {
           userId = `#${nextNum}`;
         }
 
-        const initialCoins = typeof coins === 'number' ? coins : (isDev ? 100000 : 1000);
+        const initialCoins = typeof coins === 'number' ? coins : 0;
         const initialTotalGame = typeof totalGame === 'number' ? totalGame : 0;
         const initialWin = typeof win === 'number' ? win : 0;
         const initialLose = typeof lose === 'number' ? lose : 0;
@@ -222,8 +222,8 @@ async function startServer() {
           role: u.role || 'Trainer',
           avatar: u.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
           status: resolvedStatus,
-          coin: u.coins !== undefined ? u.coins : 1000,
-          carrotCoins: u.coins !== undefined ? u.coins : 1000,
+          coin: u.coins !== undefined ? u.coins : 0,
+          carrotCoins: u.coins !== undefined ? u.coins : 0,
           level: u.role === 'Developer' ? 100 : 1,
           totalGame: u.totalGame || 0,
           gamesPlayed: u.totalGame || 0,
