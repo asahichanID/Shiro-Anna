@@ -125,58 +125,51 @@
 }
 
 
-/* === TEKS UTAMA 'Absolute' DI DALAM TOMBOL (GERAK FADE IN/OUT) === */
-@keyframes absolute-text-fade {
-  0% { color: #8b5cf6; } /* Biru Tua */
-  20% { color: #ef4444; } /* Merah */
-  40% { color: #22c55e; } /* Hijau */
-  60% { color: #eab308; } /* Kuning */
-  80% { color: #3b82f6; } /* Biru Muda */
-  100% { color: #8b5cf6; } /* Kembali ke Biru Tua */
-}
+/* === TEKS 'Developer' TETAP PUTIH === */
 .animate-absolute-text {
-  animation: absolute-text-fade 7.5s infinite alternate; /* Total 5 warna x 1.5s = 7.5s */
-  transition: color 1.5s ease-in-out; /* Fade in/out setiap 1.5 detik */
+  color: #ffffff; /* Teksnya tetap putih */
+  animation: none !important; /* Jangan gerakkan warna teks */
+  transition: none !important;
 }
 
-/* === BACKGROUND GRADIENT DI BELAKANG TEKS 'Absolute' (GERAK FADE IN/OUT) === */
+/* === BACKGROUND GRADIENT DI BELAKANG TEKS 'Developer' (GERAK FADE IN/OUT) === */
 @keyframes absolute-bg-fade {
-  0% { background: linear-gradient(to right, #a855f7, #6366f1); } /* Ungu -> Biru Tua */
-  20% { background: linear-gradient(to right, #dc2626, #ef4444); } /* Merah -> Merah */
-  40% { background: linear-gradient(to right, #16a34a, #22c55e); } /* Hijau -> Hijau */
-  60% { background: linear-gradient(to right, #fbbf24, #eab308); } /* Kuning -> Kuning */
-  80% { background: linear-gradient(to right, #2563eb, #3b82f6); } /* Biru Muda -> Biru Muda */
-  100% { background: linear-gradient(to right, #a855f7, #6366f1); } /* Kembali Ungu -> Biru Tua */
+  0% { background: linear-gradient(to right, #ec4899, #a855f7); } /* Pink -> Ungu */
+  20% { background: linear-gradient(to right, #8b5cf6, #6366f1); } /* Ungu -> Biru Tua */
+  40% { background: linear-gradient(to right, #3b82f6, #10b981); } /* Biru Muda -> Hijau */
+  60% { background: linear-gradient(to right, #10b981, #f59e0b); } /* Hijau -> Kuning */
+  80% { background: linear-gradient(to right, #f59e0b, #ef4444); } /* Kuning -> Merah */
+  100% { background: linear-gradient(to right, #ec4899, #a855f7); } /* Kembali Pink -> Ungu */
 }
 .animate-absolute-bg {
-  animation: absolute-bg-fade 7.5s infinite alternate;
+  animation: absolute-bg-fade 7.5s infinite alternate; /* Total 5 warna x 1.5s = 7.5s */
   background-size: 200% 100%; /* Untuk gradien yang gerak */
   animation-direction: alternate; /* Agar bolak-balik */
   transition: background 1.5s ease-in-out;
 }
 
-/* === BINGKAI TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
+/* === BINGKAI TOMBOL (GERAK FADE IN/OUT) === */
 @keyframes absolute-border-fade {
-  0% { border-color: #6366f1; } /* Biru Tua */
-  20% { border-color: #ef4444; } /* Merah */
-  40% { border-color: #22c55e; } /* Hijau */
-  60% { border-color: #eab308; } /* Kuning */
-  80% { border-color: #3b82f6; } /* Biru Muda */
-  100% { border-color: #6366f1; } /* Kembali Biru Tua */
+  0% { border-color: #ec4899; } /* Pink */
+  20% { border-color: #8b5cf6; } /* Ungu */
+  40% { border-color: #3b82f6; } /* Biru Muda */
+  60% { border-color: #10b981; } /* Hijau */
+  80% { border-color: #f59e0b; } /* Kuning */
+  100% { border-color: #ec4899; } /* Kembali Pink */
 }
 .animate-absolute-border {
   animation: absolute-border-fade 7.5s infinite alternate;
   transition: border-color 1.5s ease-in-out;
 }
 
-/* === BAYANGAN TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
+/* === BAYANGAN TOMBOL (GERAK FADE IN/OUT) === */
 @keyframes absolute-shadow-fade {
-  0% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Biru Tua */
-  20% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.7); } /* Merah */
-  40% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.7); } /* Hijau */
-  60% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.7); } /* Kuning */
-  80% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.7); } /* Biru Muda */
-  100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); } /* Kembali Biru Tua */
+  0% { box-shadow: 0 0 20px rgba(236,72,153,0.7); } /* Pink */
+  20% { box-shadow: 0 0 20px rgba(139,92,246,0.7); } /* Ungu */
+  40% { box-shadow: 0 0 20px rgba(59,130,246,0.7); } /* Biru Muda */
+  60% { box-shadow: 0 0 20px rgba(16,185,129,0.7); } /* Hijau */
+  80% { box-shadow: 0 0 20px rgba(245,158,11,0.7); } /* Kuning */
+  100% { box-shadow: 0 0 20px rgba(236,72,153,0.7); } /* Kembali Pink */
 }
 .animate-absolute-shadow {
   animation: absolute-shadow-fade 7.5s infinite alternate;
@@ -187,7 +180,7 @@
 .badge-glow {
   opacity: 1;
   color: #ffffff;
-  background: #831843; /* Contoh warna default */
+  background: #831843;
   animation: none !important;
   transition: none !important;
 }
