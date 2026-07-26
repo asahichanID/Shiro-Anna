@@ -21,6 +21,9 @@ export class UserDatabaseService {
         totalGame: Number(user.gamesPlayed ?? user.totalGame ?? 0),
         win: Number(user.gamesWon ?? user.win ?? 0),
         lose: Number(user.lose ?? 0),
+        badgeInventory: user.badgeInventory || [],
+        equippedBadgeId: user.equippedBadgeId || null,
+        premiumUntil: user.premiumUntil || null,
       };
 
       localStorage.setItem('oguri_profile', JSON.stringify(profileSnapshot));
@@ -58,6 +61,9 @@ export class UserDatabaseService {
         lastActive: Date.now(),
         lastOnline: 'Baru saja',
         lastMessage: 'Halo!',
+        badgeInventory: [],
+        equippedBadgeId: null,
+        premiumUntil: null,
       } as any;
       all.push(found as any);
       StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
@@ -86,6 +92,9 @@ export class UserDatabaseService {
     (found as any).gamesWon = found.gamesWon !== undefined ? found.gamesWon : (found.win || 0);
     (found as any).winStreak = found.winStreak || 0;
     (found as any).maxWinStreak = found.maxWinStreak || 0;
+    (found as any).badgeInventory = Array.isArray((found as any).badgeInventory) ? (found as any).badgeInventory : [];
+    (found as any).equippedBadgeId = (found as any).equippedBadgeId || null;
+    (found as any).premiumUntil = (found as any).premiumUntil || null;
 
     return found as any;
   }
@@ -119,6 +128,9 @@ export class UserDatabaseService {
         lastActive: Date.now(),
         lastOnline: 'Baru saja',
         lastMessage: 'Halo!',
+        badgeInventory: [],
+        equippedBadgeId: null,
+        premiumUntil: null,
       };
       cached.push(defaultUser);
       StorageService.setItem(STORAGE_KEY_USERS_ALL, cached);
@@ -147,6 +159,9 @@ export class UserDatabaseService {
             coin: du.coin ?? du.carrotCoins ?? local.coin ?? local.carrotCoins ?? 0,
             gamesPlayed: du.gamesPlayed ?? du.totalGame ?? local.gamesPlayed ?? local.totalGame ?? 0,
             gamesWon: du.gamesWon ?? du.win ?? local.gamesWon ?? local.win ?? 0,
+            badgeInventory: du.badgeInventory ?? local.badgeInventory ?? [],
+            equippedBadgeId: du.equippedBadgeId ?? local.equippedBadgeId ?? null,
+            premiumUntil: du.premiumUntil ?? local.premiumUntil ?? null,
           });
         });
 
