@@ -75,7 +75,7 @@ if (resolvedDef.kind === 'devPulse') {
     {label}
   </span>
 </span>
-    );
+  
   }
 
   return (
