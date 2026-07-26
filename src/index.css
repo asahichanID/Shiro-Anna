@@ -125,7 +125,20 @@
 }
 
 
-/* === ANIMASI ABSOLUTE - PELANGI BERGERAK ACAK === */
+/* === KHUSUS TEKS UTAMA ABSOLUTE - 5 WARNA BERGANTI JELAS === */
+@keyframes absolute-text-rainbow {
+  0%    { color: #ec4899; text-shadow: 0 0 12px #ec4899, 0 0 24px #a855f7; }
+  20%   { color: #8b5cf6; text-shadow: 0 0 12px #8b5cf6, 0 0 24px #6366f1; }
+  40%   { color: #3b82f6; text-shadow: 0 0 12px #3b82f6, 0 0 24px #10b981; }
+  60%   { color: #10b981; text-shadow: 0 0 12px #10b981, 0 0 24px #f59e0b; }
+  80%   { color: #f59e0b; text-shadow: 0 0 12px #f59e0b, 0 0 24px #ec4899; }
+  100%  { color: #ec4899; text-shadow: 0 0 12px #ec4899, 0 0 24px #a855f7; }
+}
+.animate-absolute-text {
+  animation: absolute-text-rainbow 2.5s linear infinite;
+}
+
+/* === BACKGROUND GRADIENT YANG GERAK (TETAP) === */
 @keyframes aurora-chaos {
   0% { background-position: 0% 50%; }
   25% { background-position: 50% 100%; }
@@ -138,42 +151,32 @@
   animation: aurora-chaos 6s ease infinite;
 }
 
+/* === BINGKAI BERGANTI WARNA === */
 @keyframes border-shift {
-  0% { border-color: #f472b6; }
-  20% { border-color: #a78bfa; }
-  40% { border-color: #818cf8; }
-  60% { border-color: #34d399; }
-  80% { border-color: #fbbf24; }
-  100% { border-color: #f472b6; }
+  0% { border-color: #ec4899; }
+  25% { border-color: #8b5cf6; }
+  50% { border-color: #3b82f6; }
+  75% { border-color: #10b981; }
+  100% { border-color: #f59e0b; }
 }
 .animate-border-shift {
   animation: border-shift 4s linear infinite;
 }
 
-@keyframes text-glow {
-  0%, 100% { text-shadow: 0 0 8px #f472b6, 0 0 16px #a78bfa; }
-  33% { text-shadow: 0 0 8px #818cf8, 0 0 16px #34d399; }
-  66% { text-shadow: 0 0 8px #fbbf24, 0 0 16px #f472b6; }
-}
-.animate-text-glow {
-  animation: text-glow 3s ease-in-out infinite;
-}
-
+/* === BAYANGAN BERGANTI WARNA === */
 @keyframes shadow-pulse {
   0%, 100% { box-shadow: 0 0 20px rgba(236,72,153,0.5); }
   25% { box-shadow: 0 0 25px rgba(139,92,246,0.5); }
-  50% { box-shadow: 0 0 30px rgba(52,211,153,0.5); }
-  75% { box-shadow: 0 0 25px rgba(251,191,36,0.5); }
+  50% { box-shadow: 0 0 30px rgba(59,130,246,0.5); }
+  75% { box-shadow: 0 0 25px rgba(16,185,129,0.5); }
+  90% { box-shadow: 0 0 20px rgba(245,158,11,0.5); }
 }
 .animate-shadow-pulse {
-  animation: shadow-pulse 5s ease-in-out infinite;
-}
+  animation: shadow-pulse 5s ease-in-out infinite; }
 
-@keyframes badge-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+/* === YANG KECIL DIBAWAH TETAP DIAM, GAK IKUT GERAK === */
+.badge-glow {
+  opacity: 1;
+  text-shadow: none;
+  animation: none !important;
 }
-.animate-badge-glow {
-  animation: badge-glow 2s ease-in-out infinite;
-}
-
