@@ -55,6 +55,13 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const botQuickCommands = [
+    { label: '.tebakkata', command: '.tebakkata', tone: 'from-sky-600 to-blue-600' },
+    { label: '.hint', command: '.hint', tone: 'from-amber-600 to-orange-600' },
+    { label: '.nyerah', command: '.nyerah', tone: 'from-rose-600 to-red-600' },
+    { label: '.coin', command: '.coin', tone: 'from-emerald-600 to-teal-600' },
+  ];
+
   // Initialize Services & Subscriptions
   useEffect(() => {
     // Start presence tracking
@@ -101,9 +108,31 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
         setDirectMessages(msgs);
       });
 
-      return () => unsubDM();
+      const pollId = window.setInterval(() => {
+        GlobalChatService.fetchDirectMessages(roomId, currentUserId).then(setDirectMessages).catch(() => {});
+      }, 1500);
+
+      return () => {
+        clearInterval(pollId);
+        unsubDM();
+      };
     }
   }, [selectedFriend]);
+
+  // Refresh friends list so DM roster stays close to realtime
+  useEffect(() => {
+    const pollFriends = window.setInterval(() => {
+      FriendsService.getFriends(currentUserId).then(setFriendsList).catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(pollFriends);
+  }, []);
+
+  useEffect(() => {
+    if (chatMode !== 'bot' && typingStatus?.active) {
+      setTypingStatus(null);
+    }
+  }, [chatMode, typingStatus]);
 
   // Auto scroll
   useEffect(() => {
@@ -382,25 +411,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
               );
             })}
             <div ref={messagesEndRef} />
-            <div className="pt-1">
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { label: '.tebakkata', command: '.tebakkata', tone: 'from-sky-600 to-blue-600' },
-                  { label: '.hint', command: '.hint', tone: 'from-amber-600 to-orange-600' },
-                  { label: '.nyerah', command: '.nyerah', tone: 'from-rose-600 to-red-600' },
-                  { label: '.coin', command: '.coin', tone: 'from-emerald-600 to-teal-600' },
-                ].map((item) => (
-                  <button
-                    key={item.command}
-                    type="button"
-                    onClick={() => onSendMessage(item.command)}
-                    className={`px-3 py-2 rounded-xl text-[11px] font-black text-white bg-gradient-to-r ${item.tone} shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+
           </div>
         )}
 
@@ -591,11 +602,29 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                 </div>
               );
             })}
+
             <div ref={messagesEndRef} />
           </div>
         )}
 
       </div>
+      {chatMode === 'bot' && (
+        <div className="px-3 pb-2 bg-slate-900 border-t border-slate-800">
+          <div className="flex flex-wrap gap-2">
+            {botQuickCommands.map((item) => (
+              <button
+                key={item.command}
+                type="button"
+                onClick={() => onSendMessage(item.command)}
+                className={`px-3 py-2 rounded-xl text-[11px] font-black text-white bg-gradient-to-r ${item.tone} shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* INPUT FORM */}
       <form onSubmit={handleSubmit} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center space-x-2">
         <input
