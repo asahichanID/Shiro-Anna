@@ -371,10 +371,10 @@
     50%,95%{opacity:1;}
     100%{opacity:0;}
 }
-
 .dev-badge-text{
     position:relative;
     z-index:5;
+
     background:linear-gradient(
         90deg,
         #ff0040,
@@ -387,13 +387,17 @@
         #ff1493,
         #ff0040
     );
+
     background-size:500% 100%;
-    animation:rainbowText 4s linear infinite;
 
     -webkit-background-clip:text;
     background-clip:text;
-    color:transparent;
     -webkit-text-fill-color:transparent;
+    color:transparent;
+
+    animation:
+      rainbowText 4s linear infinite,
+      devTextPulse 2.8s ease-in-out infinite;
 }
 
 @keyframes rainbowText{
@@ -415,10 +419,4 @@
     transform: scale(1.04);
     opacity: .92;
   }
-}
-
-.dev-badge-text {
-  animation:
-    devRainbowText 4s linear infinite,
-    devTextPulse 2.8s ease-in-out infinite;
 }
