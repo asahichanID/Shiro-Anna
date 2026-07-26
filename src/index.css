@@ -125,106 +125,133 @@
 }
 
 
-/* === TEKS UTAMA 'Absolute' DI DALAM TOMBOL (TETAP DIAM, BG YANG BERGERAK) === */
-.animate-absolute-text {
-  color: #ffffff;
-  transition: color 1.5s ease-in-out;
-}
-
-/* === HALO LUAR BADGE 'Absolute' (LEBIH TERANG DI LUAR, FADE HALUS) === */
-@keyframes absolute-halo-fade {
-  0% {
-    opacity: 0.40;
-    transform: scale(0.98);
-    filter: blur(18px) saturate(1.04) brightness(1.02);
-  }
-  50% {
-    opacity: 0.82;
-    transform: scale(1.03);
-    filter: blur(20px) saturate(1.12) brightness(1.10);
-  }
-  100% {
-    opacity: 0.44;
-    transform: scale(0.98);
-    filter: blur(18px) saturate(1.04) brightness(1.03);
-  }
-}
-.animate-absolute-halo {
-  animation: absolute-halo-fade 8.5s ease-in-out infinite;
-}
-
-/* === BACKGROUND GRADIENT DI BELAKANG BADGE 'Absolute' (FADE IN/OUT HALUS) === */
-@keyframes absolute-bg-fade {
+/* === ABSOLUTE RAINBOW PULSE: BG DI DALAM + HALO LUAR === */
+@keyframes absolute-rainbow-core {
   0% {
     background-position: 0% 50%;
-    opacity: 0.92;
-    filter: saturate(1.05) brightness(1.03);
+    filter: saturate(1.12) brightness(1.05);
+  }
+  25% {
+    background-position: 40% 0%;
+    filter: saturate(1.22) brightness(1.12);
   }
   50% {
     background-position: 100% 50%;
-    opacity: 1;
-    filter: saturate(1.18) brightness(1.10);
+    filter: saturate(1.32) brightness(1.18);
+  }
+  75% {
+    background-position: 60% 100%;
+    filter: saturate(1.22) brightness(1.1);
   }
   100% {
     background-position: 0% 50%;
-    opacity: 0.95;
-    filter: saturate(1.08) brightness(1.05);
+    filter: saturate(1.12) brightness(1.05);
   }
 }
-.animate-absolute-bg {
-  animation: absolute-bg-fade 8.5s ease-in-out infinite;
-  background-size: 280% 280%;
-  transition: opacity 1.2s ease-in-out, filter 1.2s ease-in-out;
-}
 
-/* === LAYER CAHAYA LUAR DI DALAM BADGE 'Absolute' (LEMBUT & ELEGAN) === */
-@keyframes absolute-softlight-fade {
-  0% { opacity: 0.42; transform: scale(0.995); }
-  50% { opacity: 0.72; transform: scale(1.01); }
-  100% { opacity: 0.46; transform: scale(0.995); }
-}
-.animate-absolute-softlight {
-  animation: absolute-softlight-fade 8.5s ease-in-out infinite;
-}
-
-/* === BINGKAI TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
-@keyframes absolute-border-fade {
-  0% { border-color: #f0abfc; } /* Fuchsia lembut */
-  20% { border-color: #f472b6; } /* Pink */
-  40% { border-color: #60a5fa; } /* Biru lembut */
-  60% { border-color: #34d399; } /* Hijau lembut */
-  80% { border-color: #fbbf24; } /* Kuning premium */
-  100% { border-color: #f0abfc; }
-}
-.animate-absolute-border {
-  animation: absolute-border-fade 8.5s ease-in-out infinite;
-  transition: border-color 1.2s ease-in-out;
-}
-
-/* === BAYANGAN TOMBOL 'Absolute' (GERAK FADE IN/OUT) === */
-@keyframes absolute-shadow-fade {
+@keyframes absolute-rainbow-halo {
   0% {
-    box-shadow: 0 0 18px rgba(244, 114, 182, 0.55), 0 0 32px rgba(168, 85, 247, 0.30);
+    opacity: 0.58;
+    transform: scale(0.98);
+    filter: blur(22px) hue-rotate(0deg) saturate(1.18);
   }
-  20% {
-    box-shadow: 0 0 18px rgba(239, 68, 68, 0.55), 0 0 32px rgba(168, 85, 247, 0.28);
+  25% {
+    opacity: 0.82;
+    transform: scale(1.01);
+    filter: blur(24px) hue-rotate(75deg) saturate(1.3);
   }
-  40% {
-    box-shadow: 0 0 18px rgba(59, 130, 246, 0.55), 0 0 32px rgba(56, 189, 248, 0.28);
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+    filter: blur(28px) hue-rotate(180deg) saturate(1.55);
   }
-  60% {
-    box-shadow: 0 0 18px rgba(52, 211, 153, 0.55), 0 0 32px rgba(16, 185, 129, 0.28);
-  }
-  80% {
-    box-shadow: 0 0 18px rgba(251, 191, 36, 0.55), 0 0 32px rgba(245, 158, 11, 0.28);
+  75% {
+    opacity: 0.82;
+    transform: scale(1.01);
+    filter: blur(24px) hue-rotate(285deg) saturate(1.3);
   }
   100% {
-    box-shadow: 0 0 18px rgba(244, 114, 182, 0.55), 0 0 32px rgba(168, 85, 247, 0.30);
+    opacity: 0.58;
+    transform: scale(0.98);
+    filter: blur(22px) hue-rotate(360deg) saturate(1.18);
   }
 }
-.animate-absolute-shadow {
-  animation: absolute-shadow-fade 8.5s ease-in-out infinite;
-  transition: box-shadow 1.2s ease-in-out;
+
+@keyframes absolute-rainbow-border {
+  0% {
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+  20% {
+    border-color: rgba(236, 72, 153, 0.95);
+  }
+  40% {
+    border-color: rgba(139, 92, 246, 0.96);
+  }
+  60% {
+    border-color: rgba(56, 189, 248, 0.96);
+  }
+  80% {
+    border-color: rgba(34, 197, 94, 0.94);
+  }
+  100% {
+    border-color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+@keyframes absolute-rainbow-shadow {
+  0% {
+    box-shadow:
+      0 0 14px rgba(236, 72, 153, 0.24),
+      0 0 28px rgba(99, 102, 241, 0.16),
+      0 0 42px rgba(34, 197, 94, 0.08);
+  }
+  25% {
+    box-shadow:
+      0 0 16px rgba(250, 204, 21, 0.3),
+      0 0 30px rgba(236, 72, 153, 0.16),
+      0 0 48px rgba(56, 189, 248, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 18px rgba(56, 189, 248, 0.34),
+      0 0 34px rgba(168, 85, 247, 0.2),
+      0 0 54px rgba(34, 197, 94, 0.12);
+  }
+  75% {
+    box-shadow:
+      0 0 16px rgba(34, 197, 94, 0.3),
+      0 0 30px rgba(250, 204, 21, 0.16),
+      0 0 48px rgba(236, 72, 153, 0.1);
+  }
+  100% {
+    box-shadow:
+      0 0 14px rgba(236, 72, 153, 0.24),
+      0 0 28px rgba(99, 102, 241, 0.16),
+      0 0 42px rgba(34, 197, 94, 0.08);
+  }
+}
+
+.animate-absolute-rainbow-core {
+  animation: absolute-rainbow-core 6.5s ease-in-out infinite;
+  background-size: 420% 420%;
+  will-change: background-position, filter;
+  transition: filter 900ms ease-in-out;
+}
+
+.animate-absolute-rainbow-halo {
+  animation: absolute-rainbow-halo 6.5s ease-in-out infinite;
+  will-change: transform, opacity, filter;
+  transition: opacity 900ms ease-in-out, filter 900ms ease-in-out;
+}
+
+.animate-absolute-rainbow-border {
+  animation: absolute-rainbow-border 6.5s ease-in-out infinite;
+  transition: border-color 900ms ease-in-out;
+}
+
+.animate-absolute-rainbow-shadow {
+  animation: absolute-rainbow-shadow 6.5s ease-in-out infinite;
+  transition: box-shadow 900ms ease-in-out;
 }
 
 @keyframes pulseGlow {
