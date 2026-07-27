@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS activity_logs (
   detail TEXT NOT NULL,
   time TEXT NOT NULL,
   timestamp INTEGER NOT NULL,
-  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- 5. Bot Profile Table
@@ -106,7 +107,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   type TEXT DEFAULT 'info',
   is_read INTEGER DEFAULT 0,
   timestamp INTEGER NOT NULL,
-  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- 9. Global Messages Table
@@ -120,7 +122,8 @@ CREATE TABLE IF NOT EXISTS global_messages (
   is_duel_answer INTEGER DEFAULT 0,
   time TEXT NOT NULL,
   timestamp INTEGER NOT NULL,
-  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- 10. Live Duel Table
@@ -149,14 +152,16 @@ CREATE TABLE IF NOT EXISTS duel_history (
   loser_name TEXT NOT NULL,
   score TEXT NOT NULL,
   timestamp INTEGER NOT NULL,
-  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- 12. Presence Table
 CREATE TABLE IF NOT EXISTS presence (
   user_id TEXT PRIMARY KEY,
   status TEXT DEFAULT 'Online',
-  last_active INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  last_active INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- 13. Shop Products Table
@@ -203,7 +208,8 @@ CREATE TABLE IF NOT EXISTS coin_history (
   balance_after INTEGER NOT NULL,
   detail TEXT DEFAULT '',
   timestamp INTEGER NOT NULL,
-  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
 -- 16. User Badges Table
@@ -327,3 +333,22 @@ CREATE TABLE IF NOT EXISTS jukebox_layout_settings (
 );
 
 
+
+
+-- Delta sync indexes for 1-second polling
+CREATE INDEX IF NOT EXISTS idx_users_updated_at ON users(updated_at);
+CREATE INDEX IF NOT EXISTS idx_friends_user_updated_at ON friends(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_messages_room_updated_at ON messages(room_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver_updated_at ON messages(sender_id, receiver_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_updated_at ON activity_logs(updated_at);
+CREATE INDEX IF NOT EXISTS idx_global_messages_updated_at ON global_messages(updated_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_updated_at ON notifications(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_presence_updated_at ON presence(updated_at);
+CREATE INDEX IF NOT EXISTS idx_shop_products_updated_at ON shop_products(updated_at);
+CREATE INDEX IF NOT EXISTS idx_shop_orders_updated_at ON shop_orders(updated_at);
+CREATE INDEX IF NOT EXISTS idx_coin_history_user_updated_at ON coin_history(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_user_badges_user_updated_at ON user_badges(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_duel_updated_at ON duel(updated_at);
+CREATE INDEX IF NOT EXISTS idx_developer_settings_updated_at ON developer_settings(updated_at);
+CREATE INDEX IF NOT EXISTS idx_bot_profile_updated_at ON bot_profile(updated_at);
+CREATE INDEX IF NOT EXISTS idx_developer_badge_updated_at ON developer_badge(updated_at);

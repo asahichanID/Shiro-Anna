@@ -29,6 +29,30 @@ async function startServer() {
     next();
   });
 
+  const toRowArray = <T extends Record<string, any>>(rows: T[] | null | undefined) => (Array.isArray(rows) ? rows : []);
+  const asInt = (value: any, fallback = 0) => {
+    const n = typeof value === 'number' ? value : parseInt(String(value ?? ''), 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const maxTimestamp = (...values: any[]) =>
+    values.reduce((acc, value) => {
+      const n = asInt(value, 0);
+      return n > acc ? n : acc;
+    }, 0);
+  const mapUser = (u: any) => ({
+    id: u.id,
+    username: u.username,
+    role: u.role || 'Trainer',
+    avatar: u.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+    status: u.status || 'Online',
+    coin: u.coins !== undefined ? u.coins : u.coin ?? 0,
+    carrotCoins: u.coins !== undefined ? u.coins : u.coin ?? 0,
+    totalGame: u.totalGame || 0,
+    win: u.win || 0,
+    lose: u.lose || 0,
+    updatedAt: u.updated_at || u.lastSeen || u.created_at || Date.now(),
+  });
+
   // =========================================================================
   // WORKER API ROUTES (/api/v1/*)
   // =========================================================================
@@ -190,7 +214,7 @@ async function startServer() {
       }
 
       const now = Date.now();
-      await executeSql('INSERT OR REPLACE INTO presence (user_id, status, last_active) VALUES (?, ?, ?)', [userId, status, now]);
+      await executeSql('INSERT OR REPLACE INTO presence (user_id, status, last_active, updated_at) VALUES (?, ?, ?, ?)', [userId, status, now, now]);
       await executeSql('UPDATE users SET status = ?, lastSeen = ?, updated_at = ? WHERE id = ?', [status, now, now, userId]);
 
       return res.json({ success: true });
@@ -413,8 +437,8 @@ async function startServer() {
       const timeStr = time || new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       await executeSql(
-        `INSERT INTO global_messages (id, sender_id, sender_name, sender_role, sender_avatar, text, is_duel_answer, time, timestamp, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO global_messages (id, sender_id, sender_name, sender_role, sender_avatar, text, is_duel_answer, time, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           msgId,
           senderId,
@@ -424,6 +448,7 @@ async function startServer() {
           text,
           isDuelAnswer ? 1 : 0,
           timeStr,
+          now,
           now,
           now,
         ]
@@ -513,7 +538,8 @@ async function startServer() {
   app.post('/api/v1/chat/read', async (req, res) => {
     try {
       const { roomId, userId } = req.body;
-      await executeSql('UPDATE messages SET is_read = 1, status = "read" WHERE room_id = ? AND receiver_id = ?', [roomId, userId]);
+      const now = Date.now();
+      await executeSql('UPDATE messages SET is_read = 1, status = "read", updated_at = ? WHERE room_id = ? AND receiver_id = ?', [now, roomId, userId]);
       return res.json({ success: true });
     } catch (err) {
       console.error('[D1 CHAT UPDATE READ ERROR]:', err);
@@ -561,9 +587,9 @@ async function startServer() {
       const timeStr = time || new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       await executeSql(
-        `INSERT INTO activity_logs (id, user_id, user_name, category, type, title, detail, time, timestamp, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [logId, userId || '#1', userName || 'Shiro Anna', category, type || category, title, detail || title, timeStr, now, now]
+        `INSERT INTO activity_logs (id, user_id, user_name, category, type, title, detail, time, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [logId, userId || '#1', userName || 'Shiro Anna', category, type || category, title, detail || title, timeStr, now, now, now]
       );
 
       const inserted = {
@@ -817,7 +843,7 @@ async function startServer() {
   app.get('/api/v1/notifications', async (req, res) => {
     try {
       const userId = (req.query.userId as string) || '#1';
-      const notifications = await queryAll<any>('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 20', [userId]);
+      const notifications = await queryAll<any>('SELECT * FROM notifications WHERE user_id = ? ORDER BY updated_at DESC, created_at DESC LIMIT 20', [userId]);
       return res.json({ success: true, result: notifications });
     } catch (err) {
       console.error('[D1 NOTIFICATIONS GET ERROR]:', err);
@@ -829,13 +855,16 @@ async function startServer() {
     try {
       const { userId = '#1', title, body, type = 'system' } = req.body;
       const id = `notif_${Date.now()}`;
-      await executeSql('INSERT INTO notifications (id, user_id, title, body, type, is_read, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)', [
+      const now = Date.now();
+      await executeSql('INSERT INTO notifications (id, user_id, title, body, type, is_read, timestamp, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)', [
         id,
         userId,
         title,
         body,
         type,
-        Date.now(),
+        now,
+        now,
+        now,
       ]);
       return res.json({ success: true });
     } catch (err) {
@@ -1152,9 +1181,9 @@ async function startServer() {
 
       const histId = `ch_${now}_${Math.random().toString(36).substring(2, 6)}`;
       await executeSql(
-        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at)
-         VALUES (?, ?, ?, 'penukaran', 'Penukaran Premium Wibuku', ?, ?, ?, ?, ?)`,
-        [histId, user.id, user.username, -product.coins, newCoins, `Order: ${product.name} | Wibuku: ${wibuku_name.trim()} (${wibuku_id.trim()})`, now, now]
+        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, 'penukaran', 'Penukaran Premium Wibuku', ?, ?, ?, ?, ?, ?)`,
+        [histId, user.id, user.username, -product.coins, newCoins, `Order: ${product.name} | Wibuku: ${wibuku_name.trim()} (${wibuku_id.trim()})`, now, now, now]
       );
 
       const createdOrder = await queryOne<any>('SELECT * FROM shop_orders WHERE id = ?', [orderId]);
@@ -1189,9 +1218,9 @@ async function startServer() {
 
           const histId = `ch_${now}_${Math.random().toString(36).substring(2, 6)}`;
           await executeSql(
-            `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at)
-             VALUES (?, ?, ?, 'refund', 'Refund Penukaran Premium', ?, ?, ?, ?, ?)`,
-            [histId, user.id, user.username, order.coins, refundedCoins, `Refund Order: ${order.product_name} (Penarikan Ditolak)`, now, now]
+            `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at, updated_at)
+             VALUES (?, ?, ?, 'refund', 'Refund Penukaran Premium', ?, ?, ?, ?, ?, ?)`,
+            [histId, user.id, user.username, order.coins, refundedCoins, `Refund Order: ${order.product_name} (Penarikan Ditolak)`, now, now, now]
           );
         }
 
@@ -1285,9 +1314,9 @@ async function startServer() {
       const now = Date.now();
       const histId = `ch_${now}_${Math.random().toString(36).substring(2, 6)}`;
       await executeSql(
-        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [histId, user.id, user.username, type || 'event', title || 'Transaksi Coin', amount || 0, user.coins, detail || '', now, now]
+        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [histId, user.id, user.username, type || 'event', title || 'Transaksi Coin', amount || 0, user.coins, detail || '', now, now, now]
       );
       return res.json({ success: true });
     } catch (err) {
@@ -1300,18 +1329,213 @@ async function startServer() {
   app.get('/api/v1/sync', async (req, res) => {
     try {
       const userId = (req.query.userId as string) || '#1';
-      const since = req.query.since ? parseInt(req.query.since as string, 10) : Date.now() - 30000;
+      const since = req.query.since ? parseInt(req.query.since as string, 10) : 0;
+      const baseline = Number.isFinite(since) ? since : 0;
 
-      const activeUsers = await queryAll<any>('SELECT * FROM users WHERE status = "Online" LIMIT 20');
-      const recentLogs = await queryAll<any>('SELECT * FROM activity_logs WHERE timestamp > ? ORDER BY timestamp DESC LIMIT 10', [since]);
+      const [changedUsers, changedFriends, changedPresence, changedMessages, changedGlobalMessages, changedActivityLogs, changedNotifications, changedBotProfile, changedDevBadge, changedSettings, changedDuel, changedShopProducts, changedShopOrders, changedCoinHistory, changedUserBadges] = await Promise.all([
+        queryAll<any>('SELECT * FROM users WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 200', [baseline]),
+        queryAll<any>('SELECT * FROM friends WHERE user_id = ? AND updated_at > ? ORDER BY updated_at ASC LIMIT 200', [userId, baseline]),
+        queryAll<any>('SELECT * FROM presence WHERE updated_at > ? OR last_active > ? ORDER BY last_active ASC LIMIT 200', [baseline, baseline]),
+        queryAll<any>('SELECT * FROM messages WHERE (sender_id = ? OR receiver_id = ?) AND updated_at > ? ORDER BY updated_at ASC LIMIT 200', [userId, userId, baseline]),
+        queryAll<any>('SELECT * FROM global_messages WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 200', [baseline]),
+        queryAll<any>('SELECT * FROM activity_logs WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 200', [baseline]),
+        queryAll<any>('SELECT * FROM notifications WHERE user_id = ? AND updated_at > ? ORDER BY updated_at ASC LIMIT 100', [userId, baseline]),
+        queryAll<any>('SELECT * FROM bot_profile WHERE id = "default" ORDER BY updated_at DESC LIMIT 1'),
+        queryAll<any>('SELECT * FROM developer_badge WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 10', [baseline]),
+        queryAll<any>('SELECT * FROM developer_settings WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 100', [baseline]),
+        queryAll<any>('SELECT * FROM duel WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 20', [baseline]),
+        queryAll<any>('SELECT * FROM shop_products WHERE updated_at > ? ORDER BY updated_at ASC LIMIT 100', [baseline]),
+        queryAll<any>('SELECT * FROM shop_orders WHERE (user_id = ? OR LOWER(user_name) = LOWER(?)) AND updated_at > ? ORDER BY updated_at ASC LIMIT 100', [userId, userId, baseline]),
+        queryAll<any>('SELECT * FROM coin_history WHERE user_id = ? AND updated_at > ? ORDER BY updated_at ASC LIMIT 100', [userId, baseline]),
+        queryAll<any>('SELECT * FROM user_badges WHERE user_id = ? AND updated_at > ? ORDER BY updated_at ASC LIMIT 100', [userId, baseline]),
+      ]);
+
+      const lastTimestamp = maxTimestamp(
+        baseline,
+        ...toRowArray(changedUsers).map((r) => r.updated_at),
+        ...toRowArray(changedFriends).map((r) => r.updated_at),
+        ...toRowArray(changedPresence).map((r) => r.updated_at || r.last_active),
+        ...toRowArray(changedMessages).map((r) => r.updated_at),
+        ...toRowArray(changedGlobalMessages).map((r) => r.updated_at),
+        ...toRowArray(changedActivityLogs).map((r) => r.updated_at),
+        ...toRowArray(changedNotifications).map((r) => r.updated_at),
+        ...toRowArray(changedBotProfile).map((r) => r.updated_at),
+        ...toRowArray(changedDevBadge).map((r) => r.updated_at),
+        ...toRowArray(changedSettings).map((r) => r.updated_at),
+        ...toRowArray(changedDuel).map((r) => r.updated_at),
+        ...toRowArray(changedShopProducts).map((r) => r.updated_at),
+        ...toRowArray(changedShopOrders).map((r) => r.updated_at),
+        ...toRowArray(changedCoinHistory).map((r) => r.updated_at),
+        ...toRowArray(changedUserBadges).map((r) => r.updated_at),
+        Date.now()
+      );
+
+      const unreadNotificationsCount = changedNotifications.length;
 
       return res.json({
         success: true,
         result: {
-          lastTimestamp: Date.now(),
-          activeUsers: activeUsers.map((u) => ({ id: u.id, username: u.username, role: u.role, status: u.status })),
-          activityLogs: recentLogs.map((l) => ({ id: l.id, userId: l.user_id, userName: l.user_name, title: l.title, timestamp: l.timestamp })),
-          unreadNotificationsCount: 0,
+          lastTimestamp,
+          changed: {
+            users: changedUsers.map(mapUser),
+            friends: changedFriends.map((f) => ({
+              id: f.friend_id || f.id,
+              friendId: f.friend_id || f.id,
+              username: f.username,
+              avatar: f.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+              bio: f.bio || '',
+              status: f.status || 'Offline',
+              role: f.role || 'Trainer',
+              isOnline: f.isOnline === 1 || f.status === 'Online',
+              updatedAt: f.updated_at || f.created_at || Date.now(),
+            })),
+            presence: changedPresence.map((p) => ({
+              userId: p.user_id,
+              status: p.status || 'Offline',
+              lastActive: p.last_active || p.updated_at || Date.now(),
+              updatedAt: p.updated_at || p.last_active || Date.now(),
+            })),
+            messages: changedMessages.map((m) => ({
+              id: m.id,
+              senderId: m.sender_id,
+              receiverId: m.receiver_id,
+              roomId: m.room_id,
+              text: m.text,
+              time: m.time,
+              timestamp: m.timestamp,
+              status: m.status || 'sent',
+              isRead: m.is_read === 1,
+              updatedAt: m.updated_at || m.timestamp || Date.now(),
+            })),
+            globalMessages: changedGlobalMessages.map((m) => ({
+              id: m.id,
+              senderId: m.sender_id,
+              senderName: m.sender_name,
+              senderRole: m.sender_role || 'Trainer',
+              senderAvatar: m.sender_avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+              text: m.text,
+              isDuelAnswer: m.is_duel_answer === 1,
+              time: m.time,
+              timestamp: m.timestamp,
+              updatedAt: m.updated_at || m.timestamp || Date.now(),
+            })),
+            activityLogs: changedActivityLogs.map((l) => ({
+              id: l.id,
+              userId: l.user_id,
+              userName: l.user_name,
+              category: l.category,
+              type: l.type,
+              title: l.title,
+              detail: l.detail,
+              time: l.time,
+              timestamp: l.timestamp,
+              updatedAt: l.updated_at || l.timestamp || Date.now(),
+            })),
+            notifications: changedNotifications.map((n) => ({
+              id: n.id,
+              userId: n.user_id,
+              title: n.title,
+              body: n.body,
+              type: n.type,
+              isRead: n.is_read === 1,
+              timestamp: n.timestamp || n.updated_at || Date.now(),
+              updatedAt: n.updated_at || n.timestamp || Date.now(),
+            })),
+            botProfile: changedBotProfile[0] ? {
+              id: changedBotProfile[0].id,
+              name: changedBotProfile[0].name,
+              avatar: changedBotProfile[0].avatar,
+              bio: changedBotProfile[0].bio,
+              status: changedBotProfile[0].status,
+              updatedAt: changedBotProfile[0].updated_at || Date.now(),
+            } : undefined,
+            developerBadge: changedDevBadge[0] ? {
+              id: changedDevBadge[0].id,
+              userId: changedDevBadge[0].user_id,
+              badgeName: changedDevBadge[0].badge_name,
+              themeId: changedDevBadge[0].theme_id,
+              icon: changedDevBadge[0].icon,
+              effect: changedDevBadge[0].effect,
+              updatedAt: changedDevBadge[0].updated_at || Date.now(),
+            } : undefined,
+            settings: changedSettings.map((s) => ({
+              settingKey: s.setting_key,
+              settingValue: s.setting_value,
+              updatedAt: s.updated_at || Date.now(),
+            })),
+            duel: changedDuel.map((d) => ({
+              id: d.id,
+              status: d.status,
+              updatedAt: d.updated_at || Date.now(),
+            })),
+            shopProducts: changedShopProducts.map((p) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description,
+              duration: p.duration,
+              coins: p.coins,
+              stock: p.stock,
+              is_active: p.is_active,
+              sort_order: p.sort_order,
+              created_at: p.created_at,
+              updated_at: p.updated_at,
+            })),
+            shopOrders: changedShopOrders.map((o) => ({
+              id: o.id,
+              user_id: o.user_id,
+              user_name: o.user_name,
+              wibuku_name: o.wibuku_name,
+              wibuku_id: o.wibuku_id,
+              product_id: o.product_id,
+              product_name: o.product_name,
+              duration: o.duration,
+              coins: o.coins,
+              status: o.status,
+              rejection_reason: o.rejection_reason,
+              refunded: o.refunded,
+              timestamp: o.timestamp,
+              created_at: o.created_at,
+              updated_at: o.updated_at,
+            })),
+            coinHistory: changedCoinHistory.map((c) => ({
+              id: c.id,
+              user_id: c.user_id,
+              user_name: c.user_name,
+              type: c.type,
+              title: c.title,
+              amount: c.amount,
+              balance_after: c.balance_after,
+              detail: c.detail,
+              timestamp: c.timestamp,
+              updatedAt: c.updated_at || c.timestamp || Date.now(),
+            })),
+            userBadges: changedUserBadges.map((b) => ({
+              id: b.id,
+              user_id: b.user_id,
+              badge_id: b.badge_id,
+              custom_name: b.custom_name || '',
+              is_active: b.is_active,
+              updatedAt: b.updated_at || Date.now(),
+            })),
+          },
+          activeUsers: changedUsers.filter((u) => u.status === 'Online').map((u) => ({ id: u.id, username: u.username, role: u.role, status: u.status })),
+          unreadNotificationsCount,
+          hasChanges:
+            changedUsers.length > 0 ||
+            changedFriends.length > 0 ||
+            changedPresence.length > 0 ||
+            changedMessages.length > 0 ||
+            changedGlobalMessages.length > 0 ||
+            changedActivityLogs.length > 0 ||
+            changedNotifications.length > 0 ||
+            changedBotProfile.length > 0 ||
+            changedDevBadge.length > 0 ||
+            changedSettings.length > 0 ||
+            changedDuel.length > 0 ||
+            changedShopProducts.length > 0 ||
+            changedShopOrders.length > 0 ||
+            changedCoinHistory.length > 0 ||
+            changedUserBadges.length > 0,
         },
       });
     } catch (err) {
@@ -1433,9 +1657,9 @@ async function startServer() {
       // Record coin history
       const histId = `ch_${now}_${Math.random().toString(36).substring(2, 6)}`;
       await executeSql(
-        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at)
-         VALUES (?, ?, ?, 'pembelian_badge', 'Pembelian Badge Shop', ?, ?, ?, ?, ?)`,
-        [histId, user.id, user.username, -price, newCoins, `Membeli Badge (${badgeId})`, now, now]
+        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, 'pembelian_badge', 'Pembelian Badge Shop', ?, ?, ?, ?, ?, ?)`,
+        [histId, user.id, user.username, -price, newCoins, `Membeli Badge (${badgeId})`, now, now, now]
       );
 
       return res.json({ success: true, newCoins, badgeId });
