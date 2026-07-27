@@ -136,7 +136,7 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
 
   useEffect(() => {
     refreshState();
-    const interval = setInterval(refreshState, 2000);
+    const interval = setInterval(refreshState, 1000);
     return () => clearInterval(interval);
   }, [profile]);
 
