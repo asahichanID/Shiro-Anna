@@ -44,58 +44,73 @@ export class D1DatabaseService {
    * Helper method to perform GET requests to D1 endpoints
    */
   private static async get<T>(endpoint: string, params: Record<string, string> = {}): Promise<T | null> {
-    try {
-      const queryParts: string[] = [];
-      Object.entries(params).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && v !== '') {
-          queryParts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    const queryParts: string[] = [];
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        queryParts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+      }
+    });
+    const q = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    const url = `${this.baseUrl}${endpoint}${q}`;
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+
+        if (!res.ok) {
+          console.warn(`[D1 API GET ERROR ${res.status}] Endpoint: ${endpoint}`);
+          return null;
         }
-      });
-      const q = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
-      const url = `${this.baseUrl}${endpoint}${q}`;
-
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-
-      if (!res.ok) {
-        console.error(`[D1 API GET ERROR ${res.status}] Endpoint: ${endpoint}`);
+        const json = await res.json();
+        return json.result !== undefined ? json.result : json;
+      } catch (e) {
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 200));
+          continue;
+        }
+        console.warn(`[D1 API GET EXCEPTION] ${endpoint}:`, e);
         return null;
       }
-      const json = await res.json();
-      return json.result !== undefined ? json.result : json;
-    } catch (e) {
-      console.error(`[D1 API GET EXCEPTION] ${endpoint}:`, e);
-      return null;
     }
+    return null;
   }
 
   /**
    * Helper method to perform POST requests to D1 endpoints
    */
   private static async post<T>(endpoint: string, body: any): Promise<T | null> {
-    try {
-      const url = `${this.baseUrl}${endpoint}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
+    const url = `${this.baseUrl}${endpoint}`;
 
-      if (!res.ok) {
-        console.error(`[D1 API POST ERROR ${res.status}] Endpoint: ${endpoint}`);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          console.warn(`[D1 API POST ERROR ${res.status}] Endpoint: ${endpoint}`);
+          return null;
+        }
+        const json = await res.json();
+        return json.result !== undefined ? json.result : json;
+      } catch (e) {
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 200));
+          continue;
+        }
+        console.warn(`[D1 API POST EXCEPTION] ${endpoint}:`, e);
         return null;
       }
-      const json = await res.json();
-      return json.result !== undefined ? json.result : json;
-    } catch (e) {
-      console.error(`[D1 API POST EXCEPTION] ${endpoint}:`, e);
-      return null;
     }
+    return null;
   }
 
   // ================= USERS & PRESENCE ================= //
@@ -197,7 +212,7 @@ export class D1DatabaseService {
     if (sinceTimestamp) params.since = sinceTimestamp.toString();
     const result = await this.get<GlobalChatMessage[]>('/global-chat', params);
     if (!result) {
-      console.error('[D1 SELECT GLOBAL CHAT FAIL] Failed to fetch global chat messages');
+      console.warn('[D1 SELECT GLOBAL CHAT WARN] Could not fetch global chat messages from server');
     }
     return result || [];
   }

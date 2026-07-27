@@ -16,7 +16,14 @@ let sqlJsModule: any = null;
 
 async function getSqlJs() {
   if (!sqlJsModule) {
-    sqlJsModule = await initSqlJs();
+    try {
+      sqlJsModule = await initSqlJs({
+        locateFile: (file: string) => path.join(process.cwd(), 'node_modules/sql.js/dist', file),
+      });
+    } catch (err) {
+      console.warn('[D1 ENGINE] locateFile fallback for sql.js:', err);
+      sqlJsModule = await initSqlJs();
+    }
   }
   return sqlJsModule;
 }
