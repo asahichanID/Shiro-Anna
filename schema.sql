@@ -249,4 +249,81 @@ VALUES
 ('prod_2', 'Premium Wibuku 3 Hari', 'Akses Fitur Premium Wibuku selama 3 Hari', '3 Hari', 175000, 100, 1, 2),
 ('prod_3', 'Premium Wibuku 7 Hari', 'Akses Fitur Premium Wibuku selama 7 Hari', '7 Hari', 525000, 100, 1, 3);
 
+-- 17. Jukebox Playlist Table
+CREATE TABLE IF NOT EXISTS jukebox_playlist (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  quality TEXT DEFAULT '',
+  audio_expire_at INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  last_played_at INTEGER DEFAULT 0
+);
+
+-- 18. Jukebox Favorites Table
+CREATE TABLE IF NOT EXISTS jukebox_favorites (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  audio_expire_at INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  last_played_at INTEGER DEFAULT 0
+);
+
+-- 19. Jukebox Play History Table
+CREATE TABLE IF NOT EXISTS jukebox_history (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  played_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 20. Jukebox Last Played Song Table
+CREATE TABLE IF NOT EXISTS jukebox_last_played (
+  user_id TEXT PRIMARY KEY,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  progress INTEGER DEFAULT 0,
+  audio_expire_at INTEGER DEFAULT 0,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 21. Jukebox Layout Settings Table (Position & Resize)
+CREATE TABLE IF NOT EXISTS jukebox_layout_settings (
+  user_id TEXT PRIMARY KEY,
+  pos_x INTEGER DEFAULT 20,
+  pos_y INTEGER DEFAULT 20,
+  width INTEGER DEFAULT 480,
+  height INTEGER DEFAULT 200,
+  is_collapsed INTEGER DEFAULT 0,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
 

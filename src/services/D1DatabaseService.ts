@@ -570,5 +570,133 @@ export class D1DatabaseService {
     const result = await this.post<{ success: boolean }>('/migrate', legacyData);
     return !!(result && result.success);
   }
+
+  // ================= JUKEBOX MUSIC SYSTEM ================= //
+
+  public static async getJukeboxPlaylist(userId: string): Promise<any[]> {
+    const result = await this.get<any[]>('/jukebox/playlist', { userId });
+    return result || [];
+  }
+
+  public static async addToJukeboxPlaylist(data: {
+    userId: string;
+    trackId: string;
+    source?: string;
+    videoId?: string;
+    title: string;
+    artist: string;
+    thumbnail: string;
+    downloadUrl: string;
+    duration?: string;
+    quality?: string;
+    audioExpireAt?: number | null;
+    lastPlayedAt?: number;
+  }): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/jukebox/playlist/add', data);
+    return !!(result && result.success);
+  }
+
+  public static async removeFromJukeboxPlaylist(userId: string, trackId: string): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/jukebox/playlist/remove', { userId, trackId });
+    return !!(result && result.success);
+  }
+
+  public static async getJukeboxFavorites(userId: string): Promise<any[]> {
+    const result = await this.get<any[]>('/jukebox/favorites', { userId });
+    return result || [];
+  }
+
+  public static async toggleJukeboxFavorite(data: {
+    userId: string;
+    trackId: string;
+    source?: string;
+    videoId?: string;
+    title?: string;
+    artist?: string;
+    thumbnail?: string;
+    downloadUrl?: string;
+    duration?: string;
+    audioExpireAt?: number | null;
+    lastPlayedAt?: number;
+  }): Promise<{ success: boolean; isFavorite: boolean }> {
+    const result = await this.post<{ success: boolean; isFavorite: boolean }>('/jukebox/favorites/toggle', data);
+    return result || { success: false, isFavorite: false };
+  }
+
+  public static async updateJukeboxTrackUrl(data: {
+    userId: string;
+    trackId: string;
+    downloadUrl: string;
+    audioExpireAt?: number | null;
+    lastPlayedAt?: number;
+  }): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/jukebox/track/update-url', data);
+    return !!(result && result.success);
+  }
+
+  public static async getJukeboxHistory(userId: string): Promise<any[]> {
+    const result = await this.get<any[]>('/jukebox/history', { userId });
+    return result || [];
+  }
+
+  public static async addJukeboxHistory(data: {
+    userId: string;
+    trackId: string;
+    source?: string;
+    videoId?: string;
+    title: string;
+    artist: string;
+    thumbnail: string;
+    downloadUrl: string;
+    duration?: string;
+  }): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/jukebox/history/add', data);
+    return !!(result && result.success);
+  }
+
+  public static async getJukeboxLastPlayed(userId: string): Promise<any | null> {
+    const result = await this.get<any>('/jukebox/last-played', { userId });
+    return result || null;
+  }
+
+  public static async saveJukeboxLastPlayed(data: {
+    userId: string;
+    trackId: string;
+    source?: string;
+    videoId?: string;
+    title: string;
+    artist: string;
+    thumbnail: string;
+    downloadUrl: string;
+    duration?: string;
+    progress?: number;
+    audioExpireAt?: number | null;
+  }): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/jukebox/last-played/save', data);
+    return !!(result && result.success);
+  }
+
+  public static async getJukeboxLayoutSettings(userId: string): Promise<{
+    pos_x: number;
+    pos_y: number;
+    width: number;
+    height: number;
+    is_collapsed: number;
+  } | null> {
+    const result = await this.get<any>('/jukebox/settings', { userId });
+    return result || null;
+  }
+
+  public static async saveJukeboxLayoutSettings(data: {
+    userId: string;
+    posX: number;
+    posY: number;
+    width: number;
+    height: number;
+    isCollapsed: boolean;
+  }): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/jukebox/settings/save', data);
+    return !!(result && result.success);
+  }
 }
 

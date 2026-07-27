@@ -15,6 +15,8 @@ import { DatabaseViewer } from './components/DatabaseViewer';
 import { DataQueueViewer } from './components/DataQueueViewer';
 import { ArchitectureAnalysisModal } from './components/ArchitectureAnalysisModal';
 import { ProfileProvider, useProfile } from './context/ProfileContext';
+import { AudioPlayerProvider } from './context/AudioPlayerContext';
+import { MediaNotificationOverlay } from './components/MediaNotificationOverlay';
 import { StateSyncService } from './services/StateSyncService';
 import { RealtimeService } from './services/SupabaseService';
 import { LoginModal } from './components/LoginModal';
@@ -216,6 +218,9 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 px-4 text-center text-xs text-slate-500">
         <p>Oguri Cap • Musume Bot Simulator • Shiro Anna × Gemini × GPT-5.5</p>
       </footer>
+
+      {/* Floating Audio Player & Media Notification Overlay (Persistent across all tabs) */}
+      <MediaNotificationOverlay />
     </div>
   );
 }
@@ -223,7 +228,9 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
 export default function App() {
   return (
     <ProfileProvider>
-      <AppContent />
+      <AudioPlayerProvider>
+        <AppContent />
+      </AudioPlayerProvider>
     </ProfileProvider>
   );
 }

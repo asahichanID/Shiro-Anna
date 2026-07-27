@@ -1479,6 +1479,344 @@ async function startServer() {
     }
   });
 
+  // =========================================================================
+  // JUKEBOX MUSIC API ROUTES (/api/v1/jukebox/*)
+  // =========================================================================
+
+  // Run schema migration for Jukebox tables safely using PRAGMA table_info
+  (async () => {
+    try {
+      const cols = [
+        { table: 'jukebox_playlist', name: 'source', def: 'source TEXT DEFAULT "youtube"' },
+        { table: 'jukebox_playlist', name: 'video_id', def: 'video_id TEXT DEFAULT ""' },
+        { table: 'jukebox_playlist', name: 'audio_expire_at', def: 'audio_expire_at INTEGER DEFAULT 0' },
+        { table: 'jukebox_playlist', name: 'last_played_at', def: 'last_played_at INTEGER DEFAULT 0' },
+        { table: 'jukebox_favorites', name: 'source', def: 'source TEXT DEFAULT "youtube"' },
+        { table: 'jukebox_favorites', name: 'video_id', def: 'video_id TEXT DEFAULT ""' },
+        { table: 'jukebox_favorites', name: 'audio_expire_at', def: 'audio_expire_at INTEGER DEFAULT 0' },
+        { table: 'jukebox_favorites', name: 'last_played_at', def: 'last_played_at INTEGER DEFAULT 0' },
+        { table: 'jukebox_last_played', name: 'source', def: 'source TEXT DEFAULT "youtube"' },
+        { table: 'jukebox_last_played', name: 'video_id', def: 'video_id TEXT DEFAULT ""' },
+        { table: 'jukebox_last_played', name: 'audio_expire_at', def: 'audio_expire_at INTEGER DEFAULT 0' },
+      ];
+
+      const tableCache: Record<string, string[]> = {};
+      for (const item of cols) {
+        if (!tableCache[item.table]) {
+          const info = await queryAll<any>(`PRAGMA table_info(${item.table})`);
+          tableCache[item.table] = (info || []).map((c: any) => String(c.name).toLowerCase());
+        }
+        if (!tableCache[item.table].includes(item.name.toLowerCase())) {
+          try {
+            await executeSql(`ALTER TABLE ${item.table} ADD COLUMN ${item.def}`);
+            tableCache[item.table].push(item.name.toLowerCase());
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  })();
+
+  // 1. Get User Playlist
+  app.get('/api/v1/jukebox/playlist', async (req, res) => {
+    try {
+      const userId = (req.query.userId as string) || '#1';
+      const items = await queryAll<any>(
+        'SELECT * FROM jukebox_playlist WHERE user_id = ? ORDER BY created_at DESC',
+        [userId]
+      );
+      return res.json({ success: true, result: items || [] });
+    } catch (err) {
+      console.error('[JUKEBOX PLAYLIST GET ERROR]:', err);
+      return res.json({ success: true, result: [] });
+    }
+  });
+
+  // 2. Add to Playlist
+  app.post('/api/v1/jukebox/playlist/add', async (req, res) => {
+    try {
+      const {
+        userId = '#1',
+        trackId,
+        source = 'youtube',
+        videoId = '',
+        title,
+        artist,
+        thumbnail,
+        downloadUrl,
+        duration,
+        quality,
+        audioExpireAt = 0,
+        lastPlayedAt = 0,
+      } = req.body;
+
+      if (!trackId) {
+        return res.status(400).json({ success: false, message: 'Track ID required.' });
+      }
+
+      const now = Date.now();
+      const existing = await queryOne<any>(
+        'SELECT id FROM jukebox_playlist WHERE user_id = ? AND track_id = ?',
+        [userId, trackId]
+      );
+
+      const vId = videoId || trackId;
+
+      if (!existing) {
+        const id = `jp_${now}_${Math.random().toString(36).substring(2, 6)}`;
+        await executeSql(
+          'INSERT INTO jukebox_playlist (id, user_id, track_id, source, video_id, title, artist, thumbnail, download_url, duration, quality, audio_expire_at, created_at, last_played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            id,
+            userId,
+            trackId,
+            source || 'youtube',
+            vId,
+            title || 'Music Track',
+            artist || 'Artist',
+            thumbnail || '',
+            downloadUrl || '',
+            duration || '',
+            quality || '',
+            audioExpireAt || 0,
+            now,
+            lastPlayedAt || 0,
+          ]
+        );
+      } else {
+        await executeSql(
+          'UPDATE jukebox_playlist SET download_url = ?, audio_expire_at = ?, thumbnail = ? WHERE user_id = ? AND track_id = ?',
+          [downloadUrl || '', audioExpireAt || 0, thumbnail || '', userId, trackId]
+        );
+      }
+      return res.json({ success: true, message: 'Track added to playlist.' });
+    } catch (err) {
+      console.error('[JUKEBOX PLAYLIST ADD ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to add to playlist.' });
+    }
+  });
+
+  // 3. Remove from Playlist
+  app.post('/api/v1/jukebox/playlist/remove', async (req, res) => {
+    try {
+      const { userId = '#1', trackId } = req.body;
+      if (!trackId) {
+        return res.status(400).json({ success: false, message: 'Track ID required.' });
+      }
+      await executeSql('DELETE FROM jukebox_playlist WHERE user_id = ? AND track_id = ?', [userId, trackId]);
+      return res.json({ success: true, message: 'Track removed from playlist.' });
+    } catch (err) {
+      console.error('[JUKEBOX PLAYLIST REMOVE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to remove from playlist.' });
+    }
+  });
+
+  // 4. Get User Favorites
+  app.get('/api/v1/jukebox/favorites', async (req, res) => {
+    try {
+      const userId = (req.query.userId as string) || '#1';
+      const items = await queryAll<any>(
+        'SELECT * FROM jukebox_favorites WHERE user_id = ? ORDER BY created_at DESC',
+        [userId]
+      );
+      return res.json({ success: true, result: items || [] });
+    } catch (err) {
+      console.error('[JUKEBOX FAVORITES GET ERROR]:', err);
+      return res.json({ success: true, result: [] });
+    }
+  });
+
+  // 5. Toggle Favorite
+  app.post('/api/v1/jukebox/favorites/toggle', async (req, res) => {
+    try {
+      const {
+        userId = '#1',
+        trackId,
+        source = 'youtube',
+        videoId = '',
+        title,
+        artist,
+        thumbnail,
+        downloadUrl,
+        duration,
+        audioExpireAt = 0,
+        lastPlayedAt = 0,
+      } = req.body;
+
+      if (!trackId) {
+        return res.status(400).json({ success: false, message: 'Track ID required.' });
+      }
+
+      const now = Date.now();
+      const existing = await queryOne<any>(
+        'SELECT id FROM jukebox_favorites WHERE user_id = ? AND track_id = ?',
+        [userId, trackId]
+      );
+
+      let isFavorite = false;
+      if (existing) {
+        await executeSql('DELETE FROM jukebox_favorites WHERE id = ?', [existing.id]);
+        isFavorite = false;
+      } else {
+        const id = `jf_${now}_${Math.random().toString(36).substring(2, 6)}`;
+        const vId = videoId || trackId;
+        await executeSql(
+          'INSERT INTO jukebox_favorites (id, user_id, track_id, source, video_id, title, artist, thumbnail, download_url, duration, audio_expire_at, created_at, last_played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            id,
+            userId,
+            trackId,
+            source || 'youtube',
+            vId,
+            title || 'Music Track',
+            artist || 'Artist',
+            thumbnail || '',
+            downloadUrl || '',
+            duration || '',
+            audioExpireAt || 0,
+            now,
+            lastPlayedAt || 0,
+          ]
+        );
+        isFavorite = true;
+      }
+      return res.json({ success: true, isFavorite, message: isFavorite ? 'Added to favorites.' : 'Removed from favorites.' });
+    } catch (err) {
+      console.error('[JUKEBOX FAVORITE TOGGLE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to toggle favorite.' });
+    }
+  });
+
+  // 6. Update Expired Track URL in Database
+  app.post('/api/v1/jukebox/track/update-url', async (req, res) => {
+    try {
+      const { userId = '#1', trackId, downloadUrl, audioExpireAt = 0, lastPlayedAt = Date.now() } = req.body;
+      if (!trackId || !downloadUrl) {
+        return res.status(400).json({ success: false, message: 'Track ID and download URL required.' });
+      }
+
+      await executeSql(
+        'UPDATE jukebox_playlist SET download_url = ?, audio_expire_at = ?, last_played_at = ? WHERE user_id = ? AND track_id = ?',
+        [downloadUrl, audioExpireAt, lastPlayedAt, userId, trackId]
+      );
+
+      await executeSql(
+        'UPDATE jukebox_favorites SET download_url = ?, audio_expire_at = ?, last_played_at = ? WHERE user_id = ? AND track_id = ?',
+        [downloadUrl, audioExpireAt, lastPlayedAt, userId, trackId]
+      );
+
+      await executeSql(
+        'UPDATE jukebox_last_played SET download_url = ?, audio_expire_at = ?, updated_at = ? WHERE user_id = ? AND track_id = ?',
+        [downloadUrl, audioExpireAt, lastPlayedAt, userId, trackId]
+      );
+
+      return res.json({ success: true, message: 'Track audio URL refreshed successfully.' });
+    } catch (err) {
+      console.error('[JUKEBOX UPDATE TRACK URL ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to update track URL.' });
+    }
+  });
+
+  // 6. Get Play History
+  app.get('/api/v1/jukebox/history', async (req, res) => {
+    try {
+      const userId = (req.query.userId as string) || '#1';
+      const items = await queryAll<any>(
+        'SELECT * FROM jukebox_history WHERE user_id = ? ORDER BY played_at DESC LIMIT 30',
+        [userId]
+      );
+      return res.json({ success: true, result: items || [] });
+    } catch (err) {
+      console.error('[JUKEBOX HISTORY GET ERROR]:', err);
+      return res.json({ success: true, result: [] });
+    }
+  });
+
+  // 7. Add Play History
+  app.post('/api/v1/jukebox/history/add', async (req, res) => {
+    try {
+      const { userId = '#1', trackId, title, artist, thumbnail, downloadUrl, duration } = req.body;
+      if (!trackId || !downloadUrl) {
+        return res.status(400).json({ success: false, message: 'Track ID and download URL required.' });
+      }
+      const now = Date.now();
+      const id = `jh_${now}_${Math.random().toString(36).substring(2, 6)}`;
+      await executeSql(
+        'INSERT INTO jukebox_history (id, user_id, track_id, title, artist, thumbnail, download_url, duration, played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, userId, trackId, title || 'Music Track', artist || 'Artist', thumbnail || '', downloadUrl, duration || '', now]
+      );
+      return res.json({ success: true, message: 'Play history recorded.' });
+    } catch (err) {
+      console.error('[JUKEBOX HISTORY ADD ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to record history.' });
+    }
+  });
+
+  // 8. Get Last Played Song
+  app.get('/api/v1/jukebox/last-played', async (req, res) => {
+    try {
+      const userId = (req.query.userId as string) || '#1';
+      const item = await queryOne<any>(
+        'SELECT * FROM jukebox_last_played WHERE user_id = ?',
+        [userId]
+      );
+      return res.json({ success: true, result: item || null });
+    } catch (err) {
+      console.error('[JUKEBOX LAST PLAYED GET ERROR]:', err);
+      return res.json({ success: true, result: null });
+    }
+  });
+
+  // 9. Save Last Played Song
+  app.post('/api/v1/jukebox/last-played/save', async (req, res) => {
+    try {
+      const { userId = '#1', trackId, title, artist, thumbnail, downloadUrl, duration, progress = 0 } = req.body;
+      if (!trackId) {
+        return res.status(400).json({ success: false, message: 'Track ID required.' });
+      }
+      const now = Date.now();
+      await executeSql(
+        'INSERT OR REPLACE INTO jukebox_last_played (user_id, track_id, title, artist, thumbnail, download_url, duration, progress, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, trackId, title || 'Music Track', artist || 'Artist', thumbnail || '', downloadUrl || '', duration || '', Math.floor(progress), now]
+      );
+      return res.json({ success: true, message: 'Last played saved.' });
+    } catch (err) {
+      console.error('[JUKEBOX LAST PLAYED SAVE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to save last played.' });
+    }
+  });
+
+  // 10. Get Layout Settings (Position, Size, Collapse)
+  app.get('/api/v1/jukebox/settings', async (req, res) => {
+    try {
+      const userId = (req.query.userId as string) || '#1';
+      const row = await queryOne<any>(
+        'SELECT * FROM jukebox_layout_settings WHERE user_id = ?',
+        [userId]
+      );
+      return res.json({ success: true, result: row || null });
+    } catch (err) {
+      console.error('[JUKEBOX SETTINGS GET ERROR]:', err);
+      return res.json({ success: true, result: null });
+    }
+  });
+
+  // 11. Save Layout Settings
+  app.post('/api/v1/jukebox/settings/save', async (req, res) => {
+    try {
+      const { userId = '#1', posX = 20, posY = 20, width = 480, height = 200, isCollapsed = false } = req.body;
+      const now = Date.now();
+      await executeSql(
+        'INSERT OR REPLACE INTO jukebox_layout_settings (user_id, pos_x, pos_y, width, height, is_collapsed, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [userId, Math.round(posX), Math.round(posY), Math.round(width), Math.round(height), isCollapsed ? 1 : 0, now]
+      );
+      return res.json({ success: true, message: 'Layout settings saved.' });
+    } catch (err) {
+      console.error('[JUKEBOX SETTINGS SAVE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to save layout settings.' });
+    }
+  });
+
+
   // Vite middleware in dev mode / static files in production mode
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

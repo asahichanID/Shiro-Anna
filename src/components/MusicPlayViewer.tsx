@@ -4,20 +4,22 @@ import {
   Music,
   Video,
   Play,
+  Pause,
   Loader2,
   AlertCircle,
   RefreshCw,
   Volume2,
-  Sparkles,
   Download,
   Film,
   Radio,
   ArrowLeft,
-  Share2,
-  ExternalLink,
+  Heart,
+  ListMusic,
+  Trash2,
 } from 'lucide-react';
 import { ActivityService } from '../services/ActivityService';
-import { apiClient, WORKER_BASE_URL, SearchItem } from '../api/client';
+import { apiClient, SearchItem } from '../api/client';
+import { useAudioPlayer, JukeboxTrack } from '../context/AudioPlayerContext';
 
 export type SearchResultItem = SearchItem;
 
@@ -55,9 +57,6 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
             <h4 className="text-xs sm:text-sm font-black text-sky-300">
               {title || 'Cloudflare Worker Gateway Log'}
             </h4>
-            <p className="text-[10px] text-sky-200/70">
-              Base URL: <code className="text-emerald-300 font-bold">{WORKER_BASE_URL}</code>
-            </p>
           </div>
         </div>
         <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-500/30">
@@ -143,7 +142,18 @@ const DebugCard: React.FC<{ debugList: ApiDebugInfo[]; title?: string }> = ({ de
 };
 
 export const MusicPlayViewer: React.FC = () => {
-  const [activeTabMode, setActiveTabMode] = useState<'youtube' | 'tiktok' | 'spotify'>('youtube');
+  const [activeTabMode, setActiveTabMode] = useState<'youtube' | 'tiktok' | 'spotify' | 'playlist'>('playlist');
+
+  const {
+    currentTrack,
+    playlist,
+    favorites,
+    isPlaying,
+    playTrack,
+    togglePlayPause,
+    toggleFavorite,
+    removeFromPlaylist,
+  } = useAudioPlayer();
 
   // YouTube Search & Media State
   const [query, setQuery] = useState('');
@@ -200,7 +210,7 @@ export const MusicPlayViewer: React.FC = () => {
       if (!response.success || !response.result || response.result.length === 0) {
         debugAttempts.push({
           stepName: 'Worker API Request (/search)',
-          requestUrl: `${WORKER_BASE_URL}/search?query=${encodeURIComponent(searchQuery)}`,
+          requestUrl: `Worker Gateway Search`,
           httpStatus: response.success ? '200 OK (Empty Result)' : 'API Error',
           errorMessage: response.message || 'Pencarian tidak mengembalikan hasil.',
           responseBody: JSON.stringify(response, null, 2),
@@ -241,7 +251,7 @@ export const MusicPlayViewer: React.FC = () => {
       if (!response.success || !response.result) {
         debugAttempts.push({
           stepName: `Worker API Request (/${type})`,
-          requestUrl: `${WORKER_BASE_URL}/${type}?url=${encodeURIComponent(youtubeUrl)}`,
+          requestUrl: `Worker Gateway ${type}`,
           httpStatus: 'API Error',
           errorMessage: response.message || `Gagal mengambil data download ${type}.`,
           responseBody: JSON.stringify(response, null, 2),
@@ -265,20 +275,39 @@ export const MusicPlayViewer: React.FC = () => {
         throw new Error(`API Worker tidak mengembalikan link download ${type} yang valid.`);
       }
 
-      setActiveMedia({
-        type,
-        item,
+      const mediaTitle = resObj.title || item.title;
+      const mediaThumb = resObj.thumbnail || item.thumbnail;
+      const mediaArtist = item.channel || 'Artist';
+
+      const jukeboxTrack: JukeboxTrack = {
+        trackId: item.videoId || `yt_${Date.now()}`,
+        title: mediaTitle,
+        artist: mediaArtist,
+        thumbnail: mediaThumb,
         downloadUrl,
-        title: resObj.title || item.title,
-        thumbnail: resObj.thumbnail || item.thumbnail,
         duration: resObj.duration || item.duration || '',
         quality: resObj.quality || (type === 'video' ? '720p' : '320kbps MP3'),
-      });
+      };
+
+      if (type === 'audio') {
+        // Play globally using AudioPlayerContext
+        await playTrack(jukeboxTrack);
+      } else {
+        setActiveMedia({
+          type,
+          item,
+          downloadUrl,
+          title: mediaTitle,
+          thumbnail: mediaThumb,
+          duration: resObj.duration || item.duration || '',
+          quality: resObj.quality || '720p',
+        });
+      }
 
       ActivityService.logActivity(
         'music_play',
         'Memutar Lagu / Video',
-        `Memutar ${type === 'audio' ? 'Audio MP3' : 'Video 720p'}: "${resObj.title || item.title}"`
+        `Memutar ${type === 'audio' ? 'Audio MP3' : 'Video 720p'}: "${mediaTitle}"`
       );
     } catch (err: any) {
       console.error('Media download error:', err);
@@ -420,10 +449,6 @@ export const MusicPlayViewer: React.FC = () => {
         if (typeof val === 'object') {
           if (typeof val.name === 'string') return val.name;
           if (typeof val.title === 'string') return val.title;
-          if (typeof val.text === 'string') return val.text;
-          if (typeof val.artist === 'string') return val.artist;
-          if (val.name) return formatString(val.name, fallback);
-          if (val.title) return formatString(val.title, fallback);
         }
         return fallback;
       };
@@ -437,19 +462,16 @@ export const MusicPlayViewer: React.FC = () => {
         (targetItem.album?.images?.[0]?.url) ||
         dummyItem.thumbnail;
 
-      setActiveMedia({
-        type: 'spotify',
-        item: {
-          ...dummyItem,
-          title,
-          channel,
-          thumbnail,
-        },
-        downloadUrl: downloadUrl || '',
+      const spTrack: JukeboxTrack = {
+        trackId: `sp_${Date.now()}`,
         title,
+        artist: channel,
         thumbnail,
+        downloadUrl,
         quality: 'Spotify 320kbps MP3',
-      });
+      };
+
+      await playTrack(spTrack);
 
       ActivityService.logActivity(
         'music_play',
@@ -466,7 +488,7 @@ export const MusicPlayViewer: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
+      {/* Header Banner - Oguri Jukebox */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-900/80 via-indigo-900/80 to-purple-950/80 p-6 border border-sky-500/30 shadow-2xl backdrop-blur-md">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -477,21 +499,32 @@ export const MusicPlayViewer: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-xl font-black bg-gradient-to-r from-sky-300 via-indigo-200 to-white bg-clip-text text-transparent">
-                  🎵 Oguri Cap Jukebox & Player
+                  🎵 Oguri Jukebox
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                  Worker Gateway Active
+                  Active
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1">
-                Base Worker URL: <code className="text-sky-300 font-mono font-bold">{WORKER_BASE_URL}</code> 🐎
+                Putar musik favoritmu tanpa terputus saat menjelajahi Tracen Academy 🐎
               </p>
             </div>
           </div>
 
           {/* Service Selector Tabs */}
-          <div className="flex items-center space-x-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 text-xs">
+          <div className="flex items-center space-x-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800 text-xs overflow-x-auto">
+            <button
+              onClick={() => setActiveTabMode('playlist')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
+                activeTabMode === 'playlist'
+                  ? 'bg-sky-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              <ListMusic className="w-3.5 h-3.5" />
+              <span>Playlist ({playlist.length})</span>
+            </button>
             <button
               onClick={() => setActiveTabMode('youtube')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center space-x-1.5 ${
@@ -529,7 +562,7 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       </div>
 
-      {/* Active Player Card View (If media is ready or loading) */}
+      {/* Loading Media Box */}
       {loadingMedia && (
         <div className="bg-slate-900/90 border border-sky-500/50 rounded-2xl p-8 shadow-2xl backdrop-blur-md text-center space-y-4 animate-fade-in relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 via-indigo-500/5 to-purple-500/5 animate-pulse"></div>
@@ -545,11 +578,8 @@ export const MusicPlayViewer: React.FC = () => {
 
             <div>
               <h3 className="text-lg font-extrabold text-sky-300">
-                🐴 Oguri Cap sedang mengunduh via Worker API...
+                🐴 Oguri Cap sedang memproses media...
               </h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Menghubungi Cloudflare Worker Gateway (<code className="text-emerald-300">{WORKER_BASE_URL}</code>)...
-              </p>
             </div>
 
             {/* Target Media Preview */}
@@ -558,22 +588,14 @@ export const MusicPlayViewer: React.FC = () => {
                 <img
                   src={loadingMedia.item.thumbnail}
                   alt={loadingMedia.item.title}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                  className="w-12 h-12 rounded-lg object-cover object-center aspect-square overflow-hidden flex-shrink-0"
+                  style={{ objectFit: 'cover', objectPosition: 'center', aspectRatio: '1 / 1' }}
                 />
               )}
               <div className="overflow-hidden">
                 <p className="text-xs font-bold text-white truncate">{loadingMedia.item.title}</p>
                 <p className="text-[11px] text-slate-400 truncate">{loadingMedia.item.channel}</p>
               </div>
-            </div>
-
-            {/* Equalizer animation preview */}
-            <div className="flex justify-center items-end space-x-1 h-6 pt-2">
-              <span className="w-1 bg-sky-400 h-2 animate-bounce rounded-full"></span>
-              <span className="w-1 bg-indigo-400 h-5 animate-bounce delay-100 rounded-full"></span>
-              <span className="w-1 bg-purple-400 h-3 animate-bounce delay-200 rounded-full"></span>
-              <span className="w-1 bg-sky-400 h-6 animate-bounce delay-300 rounded-full"></span>
-              <span className="w-1 bg-amber-400 h-4 animate-bounce delay-150 rounded-full"></span>
             </div>
           </div>
         </div>
@@ -600,141 +622,175 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Active Audio / Video Player Box */}
-      {activeMedia && !loadingMedia && (
-        <div className="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden transition-all transform scale-100 hover:border-sky-500/60">
+      {/* Video Player Box (For Video Stream) */}
+      {activeMedia && activeMedia.type === 'video' && !loadingMedia && (
+        <div className="bg-slate-900 border border-sky-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden transition-all">
           <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setActiveMedia(null)}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all flex items-center gap-1 text-xs"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Kembali</span>
-              </button>
-              <span className="text-xs font-bold text-sky-400 flex items-center gap-1">
-                {activeMedia.type === 'audio' ? <Volume2 className="w-4 h-4" /> : <Film className="w-4 h-4" />}
-                {activeMedia.type.toUpperCase()} Player Ready (via Worker Gateway)
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
-                Siap Diputar
-              </span>
-            </div>
+            <button
+              onClick={() => setActiveMedia(null)}
+              className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all flex items-center gap-1 text-xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Tutup Video</span>
+            </button>
+            <span className="text-xs font-bold text-purple-400 flex items-center gap-1">
+              <Film className="w-4 h-4" /> Video Player
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {/* Thumbnail & Info */}
-            <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4 md:col-span-1">
-              {activeMedia.thumbnail || activeMedia.item.thumbnail ? (
-                <img
-                  src={activeMedia.thumbnail || activeMedia.item.thumbnail}
-                  alt={activeMedia.title || activeMedia.item.title}
-                  className="w-28 h-28 rounded-xl object-cover shadow-lg border border-slate-700 flex-shrink-0"
-                />
-              ) : (
-                <div className="w-28 h-28 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500 flex-shrink-0">
-                  <Music className="w-8 h-8" />
-                </div>
-              )}
-              <div className="space-y-1 text-center sm:text-left overflow-hidden">
-                <h3 className="text-sm font-bold text-white line-clamp-2 leading-snug">
-                  {activeMedia.title || activeMedia.item.title}
-                </h3>
-                <p className="text-xs text-sky-300 font-medium truncate">
-                  {activeMedia.item.channel}
-                </p>
-                {activeMedia.duration && (
-                  <p className="text-[11px] text-slate-400">⏱️ Durasi: {activeMedia.duration}</p>
-                )}
-                {activeMedia.quality && (
-                  <p className="text-[10px] text-emerald-400 font-semibold">
-                    Kualitas: {activeMedia.quality}
-                  </p>
-                )}
-              </div>
+          <div className="space-y-3">
+            <div className="rounded-xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
+              <video
+                controls
+                autoPlay
+                src={activeMedia.downloadUrl}
+                className="w-full max-h-96 object-contain"
+              >
+                Browser Anda tidak mendukung elemen video.
+              </video>
             </div>
 
-            {/* Media Player Column */}
-            <div className="md:col-span-2 space-y-3">
-              {activeMedia.type === 'audio' || activeMedia.type === 'spotify' ? (
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3 shadow-inner">
-                  <div className="flex items-center justify-between px-2">
-                    <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5 text-sky-400 animate-pulse" />
-                      HTML5 Audio Source (via Worker)
-                    </span>
-                    <div className="flex items-end space-x-1 h-4">
-                      <span className="w-1 bg-sky-400 h-2 animate-pulse rounded-full"></span>
-                      <span className="w-1 bg-indigo-400 h-4 animate-pulse delay-75 rounded-full"></span>
-                      <span className="w-1 bg-purple-400 h-3 animate-pulse delay-150 rounded-full"></span>
-                      <span className="w-1 bg-sky-400 h-4 animate-pulse delay-100 rounded-full"></span>
-                      <span className="w-1 bg-amber-400 h-2 animate-pulse delay-200 rounded-full"></span>
-                    </div>
-                  </div>
-
-                  <audio
-                    controls
-                    autoPlay
-                    src={activeMedia.downloadUrl}
-                    className="w-full accent-sky-500"
-                  >
-                    Browser Anda tidak mendukung elemen audio.
-                  </audio>
-
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span className="text-emerald-400">✓ MP3 Audio Stream</span>
-                    <a
-                      href={activeMedia.downloadUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Download className="w-3 h-3" /> Unduh Berkas MP3
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="rounded-xl overflow-hidden border border-slate-800 bg-black shadow-2xl">
-                    <video
-                      controls
-                      autoPlay
-                      src={activeMedia.downloadUrl}
-                      className="w-full max-h-80 object-contain"
-                    >
-                      Browser Anda tidak mendukung elemen video.
-                    </video>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
-                      <Film className="w-3.5 h-3.5 text-purple-400" />
-                      {activeMedia.quality || 'Video Stream'}
-                    </span>
-                    <a
-                      href={activeMedia.downloadUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md flex items-center space-x-1.5 transition-all"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download Video</span>
-                    </a>
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <span className="text-xs font-bold text-purple-300">
+                {activeMedia.title}
+              </span>
+              <a
+                href={activeMedia.downloadUrl}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-semibold shadow-md flex items-center space-x-1.5 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Video</span>
+              </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* Mode 1: YouTube Search Section */}
+      {/* MODE 1: PLAYLIST VIEW (OGURI JUKEBOX) */}
+      {activeTabMode === 'playlist' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center space-x-2">
+              <ListMusic className="w-5 h-5 text-sky-400" />
+              <h3 className="text-sm font-bold text-white">Daftar Putar Oguri Jukebox</h3>
+              <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs">
+                {playlist.length} Lagu
+              </span>
+            </div>
+          </div>
+
+          {playlist.length === 0 ? (
+            <div className="text-center py-12 bg-slate-950/40 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
+              <Music className="w-10 h-10 mx-auto text-slate-600" />
+              <p className="text-xs font-medium">Playlist Anda masih kosong.</p>
+              <p className="text-[11px] text-slate-500">
+                Cari lagu di tab YouTube / Spotify atau tekan tombol ❤️ Love pada lagu favoritmu.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+              {playlist.map((track) => {
+                const isCurrentlyPlaying = currentTrack?.trackId === track.trackId && isPlaying;
+                const isFav = favorites.some((f) => f.trackId === track.trackId);
+
+                return (
+                  <div
+                    key={track.trackId}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      currentTrack?.trackId === track.trackId
+                        ? 'bg-sky-950/40 border-sky-500/50 shadow-md'
+                        : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700'
+                    }`}
+                  >
+                    {/* Clickable Track Info */}
+                    <div
+                      onClick={() => playTrack(track, playlist)}
+                      className="flex items-center space-x-3 flex-1 overflow-hidden cursor-pointer group"
+                    >
+                      {/* Thumbnail */}
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-800">
+                        {track.thumbnail ? (
+                          <img
+                            src={track.thumbnail}
+                            alt={track.title}
+                            className="w-full h-full object-cover object-center aspect-square overflow-hidden group-hover:scale-105 transition-transform"
+                            style={{ objectFit: 'cover', objectPosition: 'center', aspectRatio: '1 / 1' }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-600">
+                            <Music className="w-6 h-6" />
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          {isCurrentlyPlaying ? (
+                            <Pause className="w-5 h-5 text-white fill-white" />
+                          ) : (
+                            <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="overflow-hidden">
+                        <h4
+                          className={`text-xs font-bold truncate ${
+                            currentTrack?.trackId === track.trackId
+                              ? 'text-sky-300'
+                              : 'text-white group-hover:text-sky-300'
+                          }`}
+                        >
+                          {track.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{track.artist}</p>
+                      </div>
+                    </div>
+
+                    {/* Actions: Love ❤️, Download Audio, Remove */}
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                      <button
+                        onClick={() => toggleFavorite(track)}
+                        title={isFav ? 'Disukai' : 'Sukai Lagu'}
+                        className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-red-400 transition-all"
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            isFav ? 'text-red-500 fill-red-500' : 'text-slate-400'
+                          }`}
+                        />
+                      </button>
+
+                      <a
+                        href={track.downloadUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Download Audio MP3"
+                        className="p-2 rounded-lg bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 transition-all text-xs flex items-center space-x-1"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+
+                      <button
+                        onClick={() => removeFromPlaylist(track.trackId)}
+                        title="Hapus dari Playlist"
+                        className="p-2 rounded-lg bg-slate-900 hover:bg-red-950 text-slate-400 hover:text-red-400 transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODE 2: YouTube Search Section */}
       {activeTabMode === 'youtube' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
@@ -783,10 +839,93 @@ export const MusicPlayViewer: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Search Results Display */}
+          {!isSearching && searchResults.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1">
+              {searchResults.map((item, idx) => {
+                const trackId = item.videoId || `yt_${idx}`;
+                const isFav = favorites.some((f) => f.trackId === trackId);
+
+                return (
+                  <div
+                    key={idx}
+                    className="bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 transition-all flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group"
+                  >
+                    {/* Thumbnail */}
+                    <div className="relative w-full sm:w-28 h-28 sm:h-28 rounded-xl overflow-hidden aspect-square bg-slate-900 flex-shrink-0 border border-slate-800">
+                      {item.thumbnail ? (
+                        <img
+                          src={item.thumbnail}
+                          alt={item.title}
+                          className="w-full h-full object-cover object-center aspect-square overflow-hidden group-hover:scale-105 transition-transform"
+                          style={{ objectFit: 'cover', objectPosition: 'center', aspectRatio: '1 / 1' }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                          <Music className="w-8 h-8" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info & Action Buttons */}
+                    <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                      <div className="space-y-1">
+                        <div className="flex items-start justify-between gap-1">
+                          <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug group-hover:text-sky-300 transition-colors">
+                            {item.title}
+                          </h4>
+                          <button
+                            onClick={() =>
+                              toggleFavorite({
+                                trackId,
+                                title: item.title,
+                                artist: item.channel || 'YouTube Artist',
+                                thumbnail: item.thumbnail,
+                                downloadUrl: item.url,
+                              })
+                            }
+                            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-red-400 transition-all flex-shrink-0"
+                            title={isFav ? 'Disukai' : 'Sukai Lagu'}
+                          >
+                            <Heart
+                              className={`w-4 h-4 ${
+                                isFav ? 'text-red-500 fill-red-500' : 'text-slate-400'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate">{item.channel}</p>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center space-x-2 pt-2">
+                        <button
+                          onClick={() => handleFetchMedia(item, 'audio')}
+                          className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                        >
+                          <Music className="w-3.5 h-3.5" />
+                          <span>🎧 Putar MP3</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleFetchMedia(item, 'video')}
+                          className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                          <span>🎥 Video</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Mode 2: TikTok Downloader Section */}
+      {/* MODE 3: TikTok Downloader Section */}
       {activeTabMode === 'tiktok' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex items-center space-x-2 pb-1 border-b border-slate-800">
@@ -824,7 +963,7 @@ export const MusicPlayViewer: React.FC = () => {
         </div>
       )}
 
-      {/* Mode 3: Spotify Downloader Section */}
+      {/* MODE 4: Spotify Downloader Section */}
       {activeTabMode === 'spotify' && (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
           <div className="flex items-center space-x-2 pb-1 border-b border-slate-800">
@@ -861,152 +1000,6 @@ export const MusicPlayViewer: React.FC = () => {
           </form>
         </div>
       )}
-
-      {/* YouTube Search Results Grid */}
-      {activeTabMode === 'youtube' && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center space-x-2">
-              <Music className="w-4 h-4 text-sky-400" />
-              <span>Hasil Pencarian YouTube</span>
-              {searchResults.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-xs font-normal">
-                  {searchResults.length} Hasil
-                </span>
-              )}
-            </h3>
-          </div>
-
-          {/* Error message for search */}
-          {searchError && (
-            <div className="space-y-4 mb-4">
-              <div className="bg-red-950/30 border border-red-500/40 rounded-xl p-4 text-center space-y-2">
-                <AlertCircle className="w-6 h-6 text-red-400 mx-auto" />
-                <p className="text-xs text-red-300">{searchError}</p>
-                <button
-                  onClick={() => handleSearch()}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold inline-flex items-center space-x-1"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>Coba Lagi</span>
-                </button>
-              </div>
-
-              <DebugCard debugList={searchDebugList} title="🌐 Log Error Worker API Search" />
-            </div>
-          )}
-
-          {/* Skeleton Loading state */}
-          {isSearching && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: 6 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 flex space-x-3 animate-pulse"
-                >
-                  <div className="w-24 h-24 bg-slate-800 rounded-lg flex-shrink-0"></div>
-                  <div className="flex-1 space-y-2 py-1">
-                    <div className="h-4 bg-slate-800 rounded w-3/4"></div>
-                    <div className="h-3 bg-slate-800/60 rounded w-1/2"></div>
-                    <div className="h-3 bg-slate-800/40 rounded w-1/3"></div>
-                    <div className="flex space-x-2 pt-2">
-                      <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
-                      <div className="h-7 bg-slate-800 rounded-lg w-20"></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Search Results Display */}
-          {!isSearching && searchResults.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[640px] overflow-y-auto pr-1.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-900">
-              {searchResults.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 transition-all hover:shadow-lg flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group"
-                >
-                  {/* Thumbnail */}
-                  <div className="relative w-full sm:w-28 h-32 sm:h-28 rounded-xl overflow-hidden bg-slate-950 flex-shrink-0 border border-slate-800">
-                    {item.thumbnail ? (
-                      <img
-                        src={item.thumbnail}
-                        alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-600">
-                        <Music className="w-8 h-8" />
-                      </div>
-                    )}
-                    {item.duration && (
-                      <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-slate-950/80 text-[10px] font-semibold text-slate-300 backdrop-blur-sm">
-                        {item.duration}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Info & Action Buttons */}
-                  <div className="flex-1 flex flex-col justify-between overflow-hidden">
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug group-hover:text-sky-300 transition-colors">
-                        {item.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 truncate flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-slate-500 rounded-full"></span>
-                        {item.channel}
-                      </p>
-                    </div>
-
-                    {/* Modern Action Buttons */}
-                    <div className="flex items-center space-x-2 pt-2">
-                      <button
-                        onClick={() => handleFetchMedia(item, 'audio')}
-                        className="flex-1 px-3 py-1.5 bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-500/30 hover:border-sky-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
-                      >
-                        <Music className="w-3.5 h-3.5" />
-                        <span>🎧 Audio MP3</span>
-                      </button>
-
-                      <button
-                        onClick={() => handleFetchMedia(item, 'video')}
-                        className="flex-1 px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600 text-purple-300 hover:text-white border border-purple-500/30 hover:border-purple-500 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
-                      >
-                        <Video className="w-3.5 h-3.5" />
-                        <span>🎥 Video 720p</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Initial Empty state before search */}
-          {!isSearching && hasSearched && searchResults.length === 0 && !searchError && (
-            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-500 space-y-2">
-              <Music className="w-10 h-10 mx-auto text-slate-600" />
-              <p className="text-xs">Tidak ada hasil ditemukan. Coba ketik kata kunci lain di atas.</p>
-            </div>
-          )}
-
-          {!hasSearched && !isSearching && (
-            <div className="text-center py-12 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto text-sky-400">
-                <Play className="w-6 h-6 ml-0.5" />
-              </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-200">Siap Mencari Musik</h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Ketik nama lagu favoritmu di kolom pencarian atau pilih tombol rekomendasi di atas.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };
-
