@@ -36,6 +36,7 @@ export const MediaNotificationOverlay: React.FC = () => {
     setVolume,
     toggleMute,
     toggleFavorite,
+    favorites,
     isNotificationVisible,
     isNotificationFadingOut,
     closeNotification,
@@ -438,13 +439,22 @@ export const MediaNotificationOverlay: React.FC = () => {
 
               {/* Favorite Badge */}
               <button
-                onClick={() => toggleFavorite(currentTrack)}
-                className="no-drag absolute top-1 right-1 p-1 rounded-full bg-slate-900/80 hover:bg-slate-900 text-rose-400 transition-all shadow"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (currentTrack) {
+                    toggleFavorite(currentTrack);
+                  }
+                }}
+                className="no-drag absolute top-1 right-1 p-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-rose-400 transition-all shadow-md z-30 cursor-pointer pointer-events-auto"
                 title="Sukai / Favorite Lagu"
               >
                 <Heart
-                  className={`w-3.5 h-3.5 ${
-                    currentTrack.isFavorite ? 'fill-rose-500 text-rose-500' : 'text-slate-400'
+                  className={`w-3.5 h-3.5 transition-colors ${
+                    currentTrack && (favorites.some((f) => f.trackId === currentTrack.trackId || (f.videoId && f.videoId === currentTrack.videoId)) || currentTrack.isFavorite)
+                      ? 'fill-rose-500 text-rose-500'
+                      : 'text-slate-400'
                   }`}
                 />
               </button>

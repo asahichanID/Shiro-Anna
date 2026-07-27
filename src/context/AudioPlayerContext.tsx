@@ -513,65 +513,86 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Toggle Favorite
   const toggleFavorite = async (track: JukeboxTrack): Promise<boolean> => {
-    if (!track || !track.trackId) return false;
+    if (!track || (!track.trackId && !track.videoId)) return false;
 
-    let targetTrack = { ...track };
-    if (targetTrack.thumbnail) {
-      try {
-        const cropped = await CacheService.getSmartCroppedThumbnail(targetTrack.thumbnail);
-        if (cropped) targetTrack.thumbnail = cropped;
-      } catch (e) {}
+    const trackId = track.trackId || track.videoId || '';
+    if (!trackId) return false;
+
+    const isCurrentlyFav = favorites.some((f) => f.trackId === trackId);
+    const newFavState = !isCurrentlyFav;
+
+    let targetTrack: JukeboxTrack = {
+      ...track,
+      trackId,
+      source: track.source || 'youtube',
+      videoId: track.videoId || trackId,
+      isFavorite: newFavState,
+    };
+
+    // 1. OPTIMISTIC STATE UPDATE (Instant UI feedback without refresh)
+    if (newFavState) {
+      setFavorites((prev) => [targetTrack, ...prev.filter((f) => f.trackId !== trackId)]);
+      setPlaylist((prev) => {
+        if (!prev.some((p) => p.trackId === trackId)) {
+          return [targetTrack, ...prev];
+        }
+        return prev;
+      });
+    } else {
+      setFavorites((prev) => prev.filter((f) => f.trackId !== trackId));
     }
 
-    const res = await D1DatabaseService.toggleJukeboxFavorite({
-      userId,
-      trackId: targetTrack.trackId,
-      source: targetTrack.source || 'youtube',
-      videoId: targetTrack.videoId || targetTrack.trackId,
-      title: targetTrack.title,
-      artist: targetTrack.artist,
-      thumbnail: targetTrack.thumbnail,
-      downloadUrl: targetTrack.downloadUrl,
-      duration: targetTrack.duration,
-      audioExpireAt: targetTrack.audioExpireAt,
-      lastPlayedAt: targetTrack.lastPlayedAt || Date.now(),
-    });
+    // Update currentTrack if playing
+    if (currentTrack && (currentTrack.trackId === trackId || currentTrack.videoId === trackId)) {
+      setCurrentTrack((prev) => (prev ? { ...prev, isFavorite: newFavState } : prev));
+    }
 
-    if (res.success) {
-      if (res.isFavorite) {
-        // Add to local favorites
-        const favTrack = { ...targetTrack, isFavorite: true };
-        setFavorites((prev) => [favTrack, ...prev.filter((f) => f.trackId !== targetTrack.trackId)]);
-        
-        // Auto add to Playlist if not present
-        if (!playlist.some((p) => p.trackId === targetTrack.trackId)) {
-          setPlaylist((prev) => [favTrack, ...prev]);
+    // Pre-crop thumbnail
+    if (targetTrack.thumbnail) {
+      CacheService.getSmartCroppedThumbnail(targetTrack.thumbnail).then((cropped) => {
+        if (cropped) targetTrack.thumbnail = cropped;
+      });
+    }
+
+    // 2. PERSIST TO D1 DATABASE IN BACKGROUND
+    try {
+      const res = await D1DatabaseService.toggleJukeboxFavorite({
+        userId,
+        trackId: targetTrack.trackId,
+        source: targetTrack.source || 'youtube',
+        videoId: targetTrack.videoId || targetTrack.trackId,
+        title: targetTrack.title || 'Music Track',
+        artist: targetTrack.artist || 'Artist',
+        thumbnail: targetTrack.thumbnail || '',
+        downloadUrl: targetTrack.downloadUrl || '',
+        duration: targetTrack.duration || '',
+        audioExpireAt: targetTrack.audioExpireAt || 0,
+        lastPlayedAt: targetTrack.lastPlayedAt || Date.now(),
+      });
+
+      if (res && res.success) {
+        if (res.isFavorite) {
           D1DatabaseService.addToJukeboxPlaylist({
             userId,
             trackId: targetTrack.trackId,
             source: targetTrack.source || 'youtube',
             videoId: targetTrack.videoId || targetTrack.trackId,
-            title: targetTrack.title,
-            artist: targetTrack.artist,
-            thumbnail: targetTrack.thumbnail,
-            downloadUrl: targetTrack.downloadUrl,
-            duration: targetTrack.duration,
-            audioExpireAt: targetTrack.audioExpireAt,
+            title: targetTrack.title || 'Music Track',
+            artist: targetTrack.artist || 'Artist',
+            thumbnail: targetTrack.thumbnail || '',
+            downloadUrl: targetTrack.downloadUrl || '',
+            duration: targetTrack.duration || '',
+            audioExpireAt: targetTrack.audioExpireAt || 0,
             lastPlayedAt: Date.now(),
           });
         }
-      } else {
-        // Remove from local favorites
-        setFavorites((prev) => prev.filter((f) => f.trackId !== targetTrack.trackId));
+        return res.isFavorite;
       }
-
-      // Sync current track favorite state
-      if (currentTrack && currentTrack.trackId === targetTrack.trackId) {
-        setCurrentTrack((prev) => (prev ? { ...prev, isFavorite: res.isFavorite } : prev));
-      }
+    } catch (err) {
+      console.warn('[TOGGLE FAVORITE WARN] Failed to persist favorite:', err);
     }
 
-    return res.isFavorite;
+    return newFavState;
   };
 
   // Add to Playlist

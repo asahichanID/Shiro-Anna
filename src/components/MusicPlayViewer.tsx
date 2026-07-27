@@ -750,14 +750,19 @@ export const MusicPlayViewer: React.FC = () => {
                     </div>
 
                     {/* Actions: Love ❤️, Download Audio, Remove */}
-                    <div className="flex items-center space-x-2 flex-shrink-0 ml-2">
+                    <div className="flex items-center space-x-2 flex-shrink-0 ml-2 relative z-20">
                       <button
-                        onClick={() => toggleFavorite(track)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          toggleFavorite(track);
+                        }}
                         title={isFav ? 'Disukai' : 'Sukai Lagu'}
-                        className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-red-400 transition-all"
+                        className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-red-400 transition-all relative z-20 cursor-pointer pointer-events-auto"
                       >
                         <Heart
-                          className={`w-4 h-4 ${
+                          className={`w-4 h-4 transition-colors ${
                             isFav ? 'text-red-500 fill-red-500' : 'text-slate-400'
                           }`}
                         />
@@ -876,20 +881,25 @@ export const MusicPlayViewer: React.FC = () => {
                             {item.title}
                           </h4>
                           <button
-                            onClick={() =>
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
                               toggleFavorite({
                                 trackId,
+                                source: item.source || 'youtube',
+                                videoId: item.videoId || trackId,
                                 title: item.title,
                                 artist: item.channel || 'YouTube Artist',
                                 thumbnail: item.thumbnail,
                                 downloadUrl: item.url,
-                              })
-                            }
-                            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-red-400 transition-all flex-shrink-0"
+                              });
+                            }}
+                            className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-red-400 transition-all flex-shrink-0 relative z-20 cursor-pointer pointer-events-auto"
                             title={isFav ? 'Disukai' : 'Sukai Lagu'}
                           >
                             <Heart
-                              className={`w-4 h-4 ${
+                              className={`w-4 h-4 transition-colors ${
                                 isFav ? 'text-red-500 fill-red-500' : 'text-slate-400'
                               }`}
                             />
