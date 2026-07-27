@@ -15,6 +15,7 @@ import { DatabaseViewer } from './components/DatabaseViewer';
 import { DataQueueViewer } from './components/DataQueueViewer';
 import { ArchitectureAnalysisModal } from './components/ArchitectureAnalysisModal';
 import { ProfileProvider, useProfile } from './context/ProfileContext';
+import { StateSyncService } from './services/StateSyncService';
 import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
@@ -81,13 +82,31 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
     };
   }, []);
 
-  // Keep name synced with profile
+  // Keep name synced with profile and register StateSyncService listener
   useEffect(() => {
     if (profile) {
       setUserName(profile.username);
-      setUserCoins(profile.coins);
-      userDb.getUser(CURRENT_USER_ID, profile.username);
+      const isDev = profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
+      setUserCoins(isDev ? 999999999 : profile.coins);
+      userDb.getUser(profile.id, profile.username);
     }
+
+    const unsubSync = StateSyncService.on('user_stats_updated', (data) => {
+      const activeId = profile?.id || CURRENT_USER_ID;
+      const activeName = profile?.username || userName;
+      if (data && (data.id === activeId || (data.username && data.username.toLowerCase() === activeName.toLowerCase()))) {
+        const isDev = profile?.role === 'Developer' || profile?.username.toLowerCase() === 'shiro anna';
+        const finalCoins = isDev ? 999999999 : (data.coins !== undefined ? data.coins : (data.carrotCoins !== undefined ? data.carrotCoins : userCoins));
+        setUserCoins(finalCoins);
+        if (data.winStreak !== undefined) {
+          setUserWinStreak(data.winStreak);
+        }
+      }
+    });
+
+    return () => {
+      unsubSync();
+    };
   }, [profile]);
 
   // Sync state on demand or periodic interval
@@ -96,8 +115,9 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
     const currentName = profile?.username || 'Trainer Sensei';
     const user = userDb.getUser(activeUserId, currentName);
 
-    // Prefer coins from profile if logged in, otherwise from userDb
-    const currentCoins = profile ? profile.coins : user.carrotCoins;
+    const isDev = profile?.role === 'Developer' || profile?.username.toLowerCase() === 'shiro anna';
+    const currentCoins = isDev ? 999999999 : (profile ? profile.coins : user.carrotCoins);
+    
     setUserCoins(currentCoins);
     setUserName(currentName);
     setUserWinStreak(user.winStreak || 0);
@@ -114,6 +134,7 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
   }, [profile]);
 
   const handleSendMessage = (text: string) => {
+    const activeUserId = profile?.id || CURRENT_USER_ID;
     const currentName = profile?.username || userName;
     const userMsg: BotMessage = {
       id: `msg_user_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -129,7 +150,7 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
     // Process via MessageHandler
     messageHandler.handleUserMessage(
       DEFAULT_CHAT_ID,
-      CURRENT_USER_ID,
+      activeUserId,
       currentName,
       text,
       userMsg.id

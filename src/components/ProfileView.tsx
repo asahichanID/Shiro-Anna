@@ -47,12 +47,9 @@ export const ProfileView: React.FC = () => {
   const [renameError, setRenameError] = useState<string | null>(null);
   const [savingBadge, setSavingBadge] = useState<boolean>(false);
 
-  if (!profile) return null;
-
-  const isDeveloper = profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
-
   // Fetch badges from D1 Database
   const fetchUserBadges = async () => {
+    if (!profile) return;
     try {
       const res = await D1DatabaseService.getUserBadges(profile.id);
       if (res) {
@@ -67,8 +64,14 @@ export const ProfileView: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchUserBadges();
-  }, [profile.id]);
+    if (profile?.id) {
+      fetchUserBadges();
+    }
+  }, [profile?.id]);
+
+  if (!profile) return null;
+
+  const isDeveloper = profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
 
   const handleStartEdit = () => {
     setNewName(profile.username);

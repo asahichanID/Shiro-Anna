@@ -1,14 +1,17 @@
 # ⚡ Realtime Synchronization & Supabase Integration Architecture
 
-Dokumentasi mengenai sistem sinkronisasi realtime, Supabase Client integration, dan Presence Tracking pada aplikasi **Tracen Academy**.
+Dokumentasi arsitektur sinkronisasi real-time dan Supabase Client integration di **Tracen Academy**.
 
 ---
 
-## 🌐 Arsitektur Hybrid Realtime
+## 📡 Dual-Engine Realtime Architecture
 
-Aplikasi Tracen Academy menggunakan pendekatan **Dual-Backend Realtime Hybrid**:
-1. **Supabase Realtime Channel (`@supabase/supabase-js`)**: Digunakan untuk penyiaran instant (Broadcast Events) pesan Global Chat, updates Live Duel, dan Presence Tracking antarpengguna.
-2. **D1 Polling Fallback (Smart Polling Engine)**: Apabila Supabase mengalami kendala konektivitas, sistem secara otomatis beralih ke interval polling ringan (2-3 detik) dari REST API D1.
+Untuk memastikan latensi ultra-rendah dan keandalan tinggi, **Tracen Academy** menggabungkan dua mekanisme realtime:
+
+1. **Supabase Realtime Broadcast Channels (`@supabase/supabase-js`)**:
+   - Berfungsi mempublikasikan dan menerima pesan instant (0-latency broadcast) untuk Global Chat, Live Duel, Typing Indicator, dan Notifications.
+2. **D1 Sync Engine (Smart Polling Fallback)**:
+   - Apabila koneksi WebSocket Supabase terputus, frontend secara otomatis melakukan sinkronisasi delta berkala (3-4 detik) ke endpoint `/api/v1/sync/poll`.
 
 ---
 
@@ -19,12 +22,11 @@ Aplikasi Tracen Academy menggunakan pendekatan **Dual-Backend Realtime Hybrid**:
 
 ---
 
-## 📡 Saluran Realtime (Realtime Channels)
+## 📺 Broadcast Channels & Events
 
 ### 1. Channel `tracen_global_chat`
-Memfasilitasi penyiaran pesan Global Chat secara instant.
 - **Event**: `new_message`
-- **Payload**:
+- **Payload Structure**:
   ```json
   {
     "id": "gmsg_1785117000_abcd",
@@ -32,29 +34,24 @@ Memfasilitasi penyiaran pesan Global Chat secara instant.
     "senderName": "Shiro Anna",
     "senderRole": "Developer",
     "senderBadge": "badge_legendary_rainbow",
-    "text": "Halo semua Trainer!",
+    "senderBadgeName": "Supreme Dev",
+    "text": "Halo para Trainer Tracen Academy! 🐎",
+    "time": "20:00",
     "timestamp": 1785117000000
   }
   ```
 
-### 2. Channel `tracen_live_duel`
-Mengelola sinkronisasi pertarungan Live Duel antar Trainer.
-- **Events**: `duel_start`, `duel_answer_submit`, `duel_round_advance`, `duel_finish`.
+### 2. Channel `tracen_presence`
+- **Events**: `presence_heartbeat`, `user_status_change`
+- Mengirimkan update status Online, Device, Browser, dan Aktivitas secara langsung.
 
-### 3. Channel `tracen_presence`
-Melacak status pengguna (Online, Away, Offline) dan pembaruan Win Streak secara konsisten.
+### 3. Channel `tracen_live_duel`
+- **Events**: `duel_start`, `duel_answer_submit`, `duel_round_advance`, `duel_finish`
+- Mengelola state pertarungan Live Duel real-time antarpemain.
 
 ---
 
-## 🔄 Alur Sinkronisasi Badge & Profile State
+## 🔄 Re-connection & Error Handling Strategy
 
-1. **Pembelian Badge di Shop**:
-   - User mengirimkan `POST /api/v1/badges/buy`.
-   - D1 memverifikasi sisa koin dan mencatat entri baru ke tabel `user_badges`.
-   - D1 mengembalikan koin terbaru.
-   - Frontend memperbarui state lokal di `ProfileContext` secara otomatis.
-
-2. **Pengubahan Badge Aktif / Rename Badge**:
-   - User memperbarui status badge melalui menu **Profile > Badge Collection**.
-   - API `POST /api/v1/badges/set-active` dan `POST /api/v1/badges/rename` memperbarui D1.
-   - Pemasangan badge langsung disinkronkan ke pengiriman pesan Global Chat berikutnya (`senderBadge`).
+- **WebSocket Reconnection**: Apabila Supabase terputus, library `@supabase/supabase-js` melakukan auto-reconnect dengan exponential backoff.
+- **State Hydration**: Setiap kali halaman dibuka atau jaringan tersambung kembali, frontend memanggil API D1 (`/api/v1/chat/global`, `/api/v1/badges/user`) untuk mengambil state resmi terbaru dari Cloudflare D1.

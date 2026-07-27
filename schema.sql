@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   role TEXT DEFAULT 'Trainer',
   avatar TEXT,
-  coins INTEGER DEFAULT 1000,
+  coins INTEGER DEFAULT 0,
   totalGame INTEGER DEFAULT 0,
   win INTEGER DEFAULT 0,
   lose INTEGER DEFAULT 0,

@@ -3,6 +3,8 @@ import { ActivityService } from '../services/ActivityService';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { NotificationService } from '../services/NotificationService';
+import { StateSyncService } from '../services/StateSyncService';
+import { userDb } from '../database/userDb';
 
 export interface UserAccount {
   id: string;
@@ -23,6 +25,7 @@ interface ProfileContextType {
   updateUsername: (newUsername: string) => { success: boolean; error?: string };
   updateAvatar: (base64Image: string) => void;
   updateStats: (coins: number, totalGame: number, win: number, lose: number) => void;
+  updateCoins: (newCoins: number) => void;
   getRegisteredNames: () => string[];
   logout: () => void;
 }
@@ -136,7 +139,46 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEY_ID_COUNTER, next.toString());
   };
 
-  // Save profile to active storage and accounts map & D1
+  // Real-time Event Listener & Cross-Tab Storage Sync
+  useEffect(() => {
+    const unsubStats = StateSyncService.on('user_stats_updated', (data) => {
+      setProfile((prev) => {
+        if (!prev) return prev;
+        if (data && (data.id === prev.id || (data.username && data.username.toLowerCase() === prev.username.toLowerCase()))) {
+          const isDev = prev.id === '#1' || prev.role === 'Developer' || prev.username.toLowerCase() === 'shiro anna';
+          const newCoins = isDev ? 999999999 : (data.coins !== undefined ? data.coins : (data.carrotCoins !== undefined ? data.carrotCoins : prev.coins));
+          return {
+            ...prev,
+            coins: newCoins,
+            totalGame: data.totalGame !== undefined ? data.totalGame : (data.gamesPlayed !== undefined ? data.gamesPlayed : prev.totalGame),
+            win: data.win !== undefined ? data.win : (data.gamesWon !== undefined ? data.gamesWon : prev.win),
+            lose: data.lose !== undefined ? data.lose : prev.lose,
+          };
+        }
+        return prev;
+      });
+    });
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY_PROFILE && e.newValue) {
+        try {
+          const parsed: UserAccount = JSON.parse(e.newValue);
+          setProfile(parsed);
+        } catch (err) {
+          // ignored
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      unsubStats();
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Save profile to active storage and accounts map & D1 & userDb
   const saveProfile = (newProfile: UserAccount) => {
     setProfile(newProfile);
     try {
@@ -153,6 +195,21 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         coins: newProfile.coins,
         totalGame: newProfile.totalGame,
         win: newProfile.win,
+        lose: newProfile.lose,
+      });
+
+      userDb.saveUser({
+        id: newProfile.id,
+        username: newProfile.username,
+        name: newProfile.username,
+        role: newProfile.role,
+        avatar: newProfile.avatar,
+        carrotCoins: newProfile.coins,
+        coin: newProfile.coins,
+        totalGame: newProfile.totalGame,
+        gamesPlayed: newProfile.totalGame,
+        win: newProfile.win,
+        gamesWon: newProfile.win,
         lose: newProfile.lose,
       });
     } catch (e) {
@@ -197,7 +254,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         role: 'Developer',
         avatar: BOT_DEFAULT_AVATAR,
         createdAt: formattedDate,
-        coins: 10000,
+        coins: 999999999,
         totalGame: 0,
         win: 0,
         lose: 0,
@@ -212,7 +269,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         role: 'Trainer',
         avatar: BOT_DEFAULT_AVATAR,
         createdAt: formattedDate,
-        coins: 1000,
+        coins: 0,
         totalGame: 0,
         win: 0,
         lose: 0,
@@ -271,16 +328,29 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     ActivityService.logActivity('profile_avatar', 'Mengubah Foto Profile', `Pembaruan foto profil untuk akun ${profile.username}.`);
   };
 
+  const updateCoins = (newCoins: number) => {
+    if (!profile) return;
+    const isDev = profile.id === '#1' || profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
+    const finalCoins = isDev ? 999999999 : Math.max(0, newCoins);
+    const updatedProfile: UserAccount = {
+      ...profile,
+      coins: finalCoins,
+    };
+    saveProfile(updatedProfile);
+  };
+
   const updateStats = (coins: number, totalGame: number, win: number, lose: number) => {
     if (!profile) return;
+    const isDev = profile.id === '#1' || profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
+    const finalCoins = isDev ? 999999999 : Math.max(0, coins);
 
-    if (coins > profile.coins) {
-      ActivityService.logActivity('coin_earned', 'Mendapat Carrot Coin', `Mendapatkan +${coins - profile.coins} Carrot Coin. Total saat ini: 🥕 ${coins}`);
+    if (finalCoins > profile.coins) {
+      ActivityService.logActivity('coin_earned', 'Mendapat Carrot Coin', `Mendapatkan +${finalCoins - profile.coins} Carrot Coin. Total saat ini: 🥕 ${finalCoins}`);
     }
 
     const updatedProfile: UserAccount = {
       ...profile,
-      coins,
+      coins: finalCoins,
       totalGame,
       win,
       lose,
@@ -305,6 +375,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updateUsername,
         updateAvatar,
         updateStats,
+        updateCoins,
         getRegisteredNames,
         logout,
       }}

@@ -1,6 +1,7 @@
 import { AppUser, UserProfile, Friend } from '../types';
 import { StorageService } from '../services/StorageService';
 import { D1DatabaseService } from '../services/D1DatabaseService';
+import { StateSyncService } from '../services/StateSyncService';
 
 const STORAGE_KEY_USER = 'oguri_user_profile';
 const STORAGE_KEY_USERS_ALL = 'oguri_all_registered_users';
@@ -172,6 +173,21 @@ export class UserDatabaseService {
       status: user.status || 'Online',
     }).catch((e) => {
       console.error('[D1 USER REGISTRATION/UPDATE ERROR]:', e);
+    });
+
+    StateSyncService.emitUserStatsUpdate({
+      id: user.id || '#1',
+      username: user.username || user.name,
+      role: user.role,
+      avatar: user.avatar,
+      coins: coinsToSync,
+      carrotCoins: coinsToSync,
+      totalGame: totalGameToSync,
+      win: winToSync,
+      lose: user.lose || 0,
+      winStreak: user.winStreak || 0,
+      maxWinStreak: user.maxWinStreak || 0,
+      status: user.status || 'Online',
     });
 
     return user;
