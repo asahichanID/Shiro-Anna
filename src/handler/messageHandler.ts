@@ -197,13 +197,13 @@ export class MessageHandler {
         }
 
         const tebakTypingStatuses = [
-          '🐴 Oguri sedang mengetik',
-          '🥕 Oguri sedang berpikir',
-          '📖 Oguri sedang mencari soal',
-          '💭 Oguri sedang menyiapkan tantangan',
-          '✍️ Oguri sedang menulis',
-          '🎲 Oguri sedang memilih pertanyaan',
-          '🍀 Oguri sedang mengacak soal',
+          '🐴 Sedang mengetik...',
+          '🥕 Oguri sedang berpikir...',
+          '📖 Oguri sedang mencari soal...',
+          '💭 Oguri sedang menyiapkan tantangan...',
+          '✍️ Oguri sedang menulis...',
+          '🎲 Oguri sedang memilih pertanyaan...',
+          '🍀 Oguri sedang mengacak soal...',
         ];
 
         this.triggerTyping(5000, tebakTypingStatuses, () => {
@@ -244,9 +244,9 @@ export class MessageHandler {
         }
 
         const hintTypingStatuses = [
-          '🥕 Oguri sedang berpikir',
-          '📖 Oguri sedang mencari hint',
-          '💭 Oguri sedang menyusun petunjuk',
+          '🥕 Sedang mengetik...',
+          '📖 Oguri sedang mencari hint...',
+          '💭 Oguri sedang menyusun petunjuk...',
         ];
 
         this.triggerTyping(2500, hintTypingStatuses, () => {
@@ -284,9 +284,9 @@ export class MessageHandler {
         }
 
         const surrenderTypingStatuses = [
-          '🐴 Oguri sedang menulis',
-          '💭 Oguri sedang menyiapkan jawaban',
-          '🥕 Oguri sedang mencatat jawaban',
+          '🐴 Sedang mengetik...',
+          '💭 Oguri sedang menyiapkan jawaban...',
+          '🥕 Oguri sedang mencatat jawaban...',
         ];
 
         this.triggerTyping(2000, surrenderTypingStatuses, () => {
