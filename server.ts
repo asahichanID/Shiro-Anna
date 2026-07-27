@@ -940,7 +940,18 @@ async function startServer() {
   // 1. Get Shop Products
   app.get('/api/v1/shop/products', async (req, res) => {
     try {
-      const products = await queryAll<any>('SELECT * FROM shop_products ORDER BY sort_order ASC, created_at ASC');
+      let products = await queryAll<any>('SELECT * FROM shop_products ORDER BY sort_order ASC, created_at ASC');
+      if (!products || products.length === 0) {
+        const now = Date.now();
+        await executeSql(
+          `INSERT INTO shop_products (id, name, description, duration, coins, stock, is_active, sort_order, created_at, updated_at) VALUES
+           ('prod_1', 'Premium Wibuku 1 Hari', 'Akses Premium Wibuku selama 1 Hari full', '1 Hari', 15000, 50, 1, 1, ?, ?),
+           ('prod_2', 'Premium Wibuku 7 Hari', 'Akses Premium Wibuku selama 7 Hari full (Hemat 10%)', '7 Hari', 95000, 30, 1, 2, ?, ?),
+           ('prod_3', 'Premium Wibuku 30 Hari', 'Akses Premium Wibuku selama 30 Hari VIP (Hemat 25%)', '30 Hari', 350000, 15, 1, 3, ?, ?)`,
+          [now, now, now, now, now, now]
+        );
+        products = await queryAll<any>('SELECT * FROM shop_products ORDER BY sort_order ASC, created_at ASC');
+      }
       return res.json({ success: true, result: products });
     } catch (err) {
       console.error('[GET SHOP PRODUCTS ERROR]:', err);
@@ -1068,7 +1079,18 @@ async function startServer() {
       const cleanUserName = user_name || 'Trainer Sensei';
       let user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [cleanUserId, cleanUserName]);
       if (!user) {
-        return res.status(404).json({ success: false, message: 'User tidak ditemukan.' });
+        const now = Date.now();
+        const initialCoins = typeof req.body.user_coins === 'number' ? req.body.user_coins : 0;
+        await executeSql(
+          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
+           VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, ?)`,
+          [cleanUserId, cleanUserName, initialCoins, now, now]
+        );
+        user = await queryOne<any>('SELECT * FROM users WHERE id = ?', [cleanUserId]);
+      } else if (typeof req.body.user_coins === 'number' && req.body.user_coins > user.coins) {
+        const now = Date.now();
+        user.coins = req.body.user_coins;
+        await executeSql('UPDATE users SET coins = ?, updated_at = ? WHERE id = ?', [user.coins, now, user.id]);
       }
 
       const product = await queryOne<any>('SELECT * FROM shop_products WHERE id = ?', [product_id]);
@@ -1248,8 +1270,17 @@ async function startServer() {
     try {
       const { user_id, user_name, type, title, amount, detail } = req.body;
       const cleanUserId = user_id || '#1';
-      const user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [cleanUserId, user_name || '']);
-      if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+      const cleanUserName = user_name || 'Trainer Sensei';
+      let user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [cleanUserId, cleanUserName]);
+      if (!user) {
+        const now = Date.now();
+        await executeSql(
+          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
+           VALUES (?, ?, 'Trainer', '/assets/avatar.png', 0, 0, 0, 0, 'Online', ?, ?)`,
+          [cleanUserId, cleanUserName, now, now]
+        );
+        user = await queryOne<any>('SELECT * FROM users WHERE id = ?', [cleanUserId]);
+      }
 
       const now = Date.now();
       const histId = `ch_${now}_${Math.random().toString(36).substring(2, 6)}`;
@@ -1300,17 +1331,22 @@ async function startServer() {
       if (isDev) {
         // Shiro Anna (Developer) has ALL badges unlocked by default
         const allBadgeIds = ['ruby', 'common_red', 'common_blue', 'common_green', 'common_yellow', 'rare_red_blue', 'rare_yellow_green', 'rare_purple_blue', 'rare_red_purple', 'rare_cyan_blue', 'epic_red', 'epic_blue', 'epic_green', 'epic_yellow', 'epic_purple', 'legendary_rainbow'];
-        const activeBadgeRow = await queryOne<any>('SELECT * FROM user_badges WHERE user_id = ? AND is_active = 1 LIMIT 1', [userId]);
+        const userBadgeRows = await queryAll<any>('SELECT * FROM user_badges WHERE user_id = ?', [userId]);
+        const activeBadgeRow = userBadgeRows.find((r) => r.is_active === 1);
+        const activeBadgeId = activeBadgeRow ? activeBadgeRow.badge_id : 'ruby';
 
         return res.json({
           success: true,
           result: {
-            ownedBadges: allBadgeIds.map((bId) => ({
-              badge_id: bId,
-              custom_name: activeBadgeRow?.badge_id === bId ? (activeBadgeRow?.custom_name || '') : '',
-              is_active: activeBadgeRow ? (activeBadgeRow.badge_id === bId ? 1 : 0) : (bId === 'ruby' ? 1 : 0),
-            })),
-            activeBadge: activeBadgeRow?.badge_id || 'ruby',
+            ownedBadges: allBadgeIds.map((bId) => {
+              const row = userBadgeRows.find((r) => r.badge_id === bId);
+              return {
+                badge_id: bId,
+                custom_name: row?.custom_name || '',
+                is_active: activeBadgeId === bId ? 1 : 0,
+              };
+            }),
+            activeBadge: activeBadgeId,
             customName: activeBadgeRow?.custom_name || '',
           },
         });
@@ -1330,7 +1366,7 @@ async function startServer() {
             is_active: r.is_active === 1 ? 1 : 0,
           })),
           activeBadge: activeRow ? activeRow.badge_id : null,
-          customName: activeRow ? activeRow.custom_name : '',
+          customName: activeRow ? (activeRow.custom_name || '') : '',
         },
       });
     } catch (err) {
@@ -1342,14 +1378,27 @@ async function startServer() {
   // 21. BADGE SYSTEM: Buy Badge
   app.post('/api/v1/badges/buy', async (req, res) => {
     try {
-      const { userId = '#1', badgeId, price } = req.body;
+      const { userId = '#1', badgeId, price, userCoins, userName } = req.body;
       if (!badgeId || typeof price !== 'number') {
         return res.status(400).json({ success: false, message: 'Badge ID and price are required.' });
       }
 
-      const user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [userId, userId]);
+      const cleanUserId = userId || '#1';
+      const cleanUserName = userName || 'Trainer Sensei';
+      let user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [cleanUserId, cleanUserName]);
       if (!user) {
-        return res.status(404).json({ success: false, message: 'User not found.' });
+        const now = Date.now();
+        const initialCoins = typeof userCoins === 'number' ? userCoins : 0;
+        await executeSql(
+          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
+           VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, ?)`,
+          [cleanUserId, cleanUserName, initialCoins, now, now]
+        );
+        user = await queryOne<any>('SELECT * FROM users WHERE id = ?', [cleanUserId]);
+      } else if (typeof userCoins === 'number' && userCoins > user.coins) {
+        const now = Date.now();
+        user.coins = userCoins;
+        await executeSql('UPDATE users SET coins = ?, updated_at = ? WHERE id = ?', [user.coins, now, user.id]);
       }
 
       const isDev = user.id === '#1' || user.role === 'Developer' || user.username?.toLowerCase() === 'shiro anna';
@@ -1404,28 +1453,16 @@ async function startServer() {
       if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
 
       const now = Date.now();
-      const isDev = user.id === '#1' || user.role === 'Developer' || user.username?.toLowerCase() === 'shiro anna';
 
-      if (isDev) {
-        // Reset active badges for dev and set selected badge active
-        await executeSql('DELETE FROM user_badges WHERE user_id = ?', [user.id]);
-        if (badgeId) {
-          const ubId = `ub_${now}_dev`;
-          await executeSql(
-            'INSERT INTO user_badges (id, user_id, badge_id, custom_name, is_active, created_at, updated_at) VALUES (?, ?, ?, "", 1, ?, ?)',
-            [ubId, user.id, badgeId, now, now]
-          );
-        }
-        return res.json({ success: true, activeBadge: badgeId });
-      }
-
-      // For regular users, update is_active flags
+      // Deactivate all active badges for this user
       await executeSql('UPDATE user_badges SET is_active = 0, updated_at = ? WHERE user_id = ?', [now, user.id]);
 
+      let customName = '';
       if (badgeId) {
         const existing = await queryOne<any>('SELECT * FROM user_badges WHERE user_id = ? AND badge_id = ?', [user.id, badgeId]);
         if (existing) {
           await executeSql('UPDATE user_badges SET is_active = 1, updated_at = ? WHERE id = ?', [now, existing.id]);
+          customName = existing.custom_name || '';
         } else {
           const ubId = `ub_${now}_${Math.random().toString(36).substring(2, 6)}`;
           await executeSql(
@@ -1435,7 +1472,7 @@ async function startServer() {
         }
       }
 
-      return res.json({ success: true, activeBadge: badgeId });
+      return res.json({ success: true, activeBadge: badgeId, customName });
     } catch (err) {
       console.error('[SET ACTIVE BADGE ERROR]:', err);
       return res.status(500).json({ success: false, message: 'Gagal mengubah badge aktif.' });

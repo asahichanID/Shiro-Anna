@@ -123,6 +123,7 @@ export const ShopView: React.FC = () => {
         wibuku_name: wibukuName.trim(),
         wibuku_id: wibukuId.trim(),
         product_id: selectedProduct.id,
+        user_coins: profile?.coins || 0,
       });
 
       if (res.success) {
@@ -169,7 +170,13 @@ export const ShopView: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const res = await D1DatabaseService.buyBadge(profile?.id || '#1', selectedBadgeToBuy.id, selectedBadgeToBuy.price);
+      const res = await D1DatabaseService.buyBadge(
+        profile?.id || '#1',
+        selectedBadgeToBuy.id,
+        selectedBadgeToBuy.price,
+        profile?.coins || 0,
+        profile?.username || 'Trainer Sensei'
+      );
       if (res.success) {
         if (typeof res.newCoins === 'number') {
           updateCoins(res.newCoins);

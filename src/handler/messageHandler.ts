@@ -48,6 +48,8 @@ export class MessageHandler {
   }
 
   private emitMessage(msg: BotMessage) {
+    this.isTypingState = false;
+    this.emitTyping({ active: false, text: '', dots: '' });
     this.messageListeners.forEach((fn) => fn(msg));
   }
 
@@ -185,28 +187,28 @@ export class MessageHandler {
     switch (command) {
       case 'tebak':
       case 'tebakkata': {
-        if (gameDb.isGameActive(chatId)) {
-          const session = gameDb.getSession(chatId)!;
-          const msg = ReplyHelper.createBotReply(
-            chatId,
-            `⚠️ *Game Tebak Kata sedang berlangsung!*\n\n📝 *Soal:* ${session.question.soal}\n💡 *Clue:* ${session.question.clue}\n\nKetik jawabanmu, atau gunakan *.hint* / *.nyerah*`,
-            messageId
-          );
-          this.emitMessage(msg);
-          return msg;
-        }
-
         const tebakTypingStatuses = [
-          '🐴 Sedang mengetik...',
-          '🥕 Oguri sedang berpikir...',
-          '📖 Oguri sedang mencari soal...',
-          '💭 Oguri sedang menyiapkan tantangan...',
-          '✍️ Oguri sedang menulis...',
-          '🎲 Oguri sedang memilih pertanyaan...',
-          '🍀 Oguri sedang mengacak soal...',
+          '🐴 Oguri sedang mengetik',
+          '🥕 Oguri sedang berpikir',
+          '📖 Oguri sedang mencari soal',
+          '💭 Oguri sedang menyiapkan tantangan',
+          '✍️ Oguri sedang menulis',
+          '🎲 Oguri sedang memilih pertanyaan',
+          '🍀 Oguri sedang mengacak soal',
         ];
 
-        this.triggerTyping(5000, tebakTypingStatuses, () => {
+        this.triggerTyping(4000, tebakTypingStatuses, () => {
+          if (gameDb.isGameActive(chatId)) {
+            const session = gameDb.getSession(chatId)!;
+            const msg = ReplyHelper.createBotReply(
+              chatId,
+              `⚠️ *Game Tebak Kata sedang berlangsung!*\n\n📝 *Soal:* ${session.question.soal}\n💡 *Clue:* ${session.question.clue}\n\nKetik jawabanmu, atau gunakan *.hint* / *.nyerah*`,
+              messageId
+            );
+            this.emitMessage(msg);
+            return;
+          }
+
           // Pull question from queue -> random permanen
           const question = tebakKataManager.getNextQuestion();
           
@@ -233,23 +235,23 @@ export class MessageHandler {
 
       case 'hint':
       case 'clue': {
-        if (!gameDb.isGameActive(chatId)) {
-          const msg = ReplyHelper.createBotReply(
-            chatId,
-            `❌ *Tidak ada game Tebak Kata yang sedang aktif!*\nKetik *.tebakkata* untuk memulai game baru.`,
-            messageId
-          );
-          this.emitMessage(msg);
-          return msg;
-        }
-
         const hintTypingStatuses = [
-          '🥕 Sedang mengetik...',
-          '📖 Oguri sedang mencari hint...',
-          '💭 Oguri sedang menyusun petunjuk...',
+          '🥕 Oguri sedang berpikir',
+          '📖 Oguri sedang mencari hint',
+          '💭 Oguri sedang menyusun petunjuk',
         ];
 
-        this.triggerTyping(2500, hintTypingStatuses, () => {
+        this.triggerTyping(3000, hintTypingStatuses, () => {
+          if (!gameDb.isGameActive(chatId)) {
+            const msg = ReplyHelper.createBotReply(
+              chatId,
+              `❌ *Tidak ada game Tebak Kata yang sedang aktif!*\nKetik *.tebakkata* untuk memulai game baru.`,
+              messageId
+            );
+            this.emitMessage(msg);
+            return;
+          }
+
           const session = gameDb.getSession(chatId);
           if (!session || session.status !== 'active') return;
 
@@ -273,23 +275,23 @@ export class MessageHandler {
 
       case 'nyerah':
       case 'surrender': {
-        if (!gameDb.isGameActive(chatId)) {
-          const msg = ReplyHelper.createBotReply(
-            chatId,
-            `❌ *Tidak ada game Tebak Kata yang sedang aktif!*`,
-            messageId
-          );
-          this.emitMessage(msg);
-          return msg;
-        }
-
         const surrenderTypingStatuses = [
-          '🐴 Sedang mengetik...',
-          '💭 Oguri sedang menyiapkan jawaban...',
-          '🥕 Oguri sedang mencatat jawaban...',
+          '🐴 Oguri sedang menulis',
+          '💭 Oguri sedang menyiapkan jawaban',
+          '🥕 Oguri sedang mencatat jawaban',
         ];
 
         this.triggerTyping(2000, surrenderTypingStatuses, () => {
+          if (!gameDb.isGameActive(chatId)) {
+            const msg = ReplyHelper.createBotReply(
+              chatId,
+              `❌ *Tidak ada game Tebak Kata yang sedang aktif!*`,
+              messageId
+            );
+            this.emitMessage(msg);
+            return;
+          }
+
           const session = gameDb.endSession(chatId, 'surrendered');
           if (!session) return;
 
@@ -311,36 +313,40 @@ export class MessageHandler {
       case 'coins':
       case 'saldo':
       case 'balance': {
-        const user = userDb.getUser(userId, userName);
-        const coinMsg = ReplyHelper.createBotReply(
-          chatId,
-          ReplyHelper.formatBalance(user.name, user.carrotCoins, user.gamesWon, user.winStreak, user.maxWinStreak),
-          messageId
-        );
+        this.triggerTyping(3000, ['🥕 Oguri sedang memeriksa dompet Carrot Coin'], () => {
+          const user = userDb.getUser(userId, userName);
+          const coinMsg = ReplyHelper.createBotReply(
+            chatId,
+            ReplyHelper.formatBalance(user.name, user.carrotCoins, user.gamesWon, user.winStreak, user.maxWinStreak),
+            messageId
+          );
 
-        this.emitMessage(coinMsg);
-        return coinMsg;
+          this.emitMessage(coinMsg);
+        });
+        return null;
       }
 
       case 'leaderboard':
       case 'lb':
       case 'top': {
-        const users = userDb.getAllUsers();
-        let lbText = '';
-        users.slice(0, 10).forEach((u, i) => {
-          const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '👤';
-          const streakBadge = (u.winStreak || 0) >= 3 ? ` 🔥${u.winStreak}x Combo!` : u.winStreak > 0 ? ` (Streak: ${u.winStreak})` : '';
-          lbText += `${medal} *${i + 1}. ${u.name}* - ${u.carrotCoins.toLocaleString('id-ID')} Coins 🥕 (${u.gamesWon} Win${streakBadge})\n`;
+        this.triggerTyping(3000, ['🏆 Oguri sedang menghitung klasemen Trainer'], () => {
+          const users = userDb.getAllUsers();
+          let lbText = '';
+          users.slice(0, 10).forEach((u, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '👤';
+            const streakBadge = (u.winStreak || 0) >= 3 ? ` 🔥${u.winStreak}x Combo!` : u.winStreak > 0 ? ` (Streak: ${u.winStreak})` : '';
+            lbText += `${medal} *${i + 1}. ${u.name}* - ${u.carrotCoins.toLocaleString('id-ID')} Coins 🥕 (${u.gamesWon} Win${streakBadge})\n`;
+          });
+
+          const lbMsg = ReplyHelper.createBotReply(
+            chatId,
+            ReplyHelper.formatLeaderboard(lbText),
+            messageId
+          );
+
+          this.emitMessage(lbMsg);
         });
-
-        const lbMsg = ReplyHelper.createBotReply(
-          chatId,
-          ReplyHelper.formatLeaderboard(lbText),
-          messageId
-        );
-
-        this.emitMessage(lbMsg);
-        return lbMsg;
+        return null;
       }
 
       case 'queue':

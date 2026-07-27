@@ -453,22 +453,17 @@ export class D1DatabaseService {
     wibuku_name: string;
     wibuku_id: string;
     product_id: string;
+    user_coins?: number;
   }): Promise<{ success: boolean; result?: ShopOrder; newCoins?: number; message?: string }> {
     try {
-      const url = `${this.baseUrl}/shop/orders/create`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (json && json.success) {
-        RealtimeService.broadcast('shop_order_updated', { action: 'create', order: json.result, newCoins: json.newCoins });
-        if (json.newCoins !== undefined) {
-          RealtimeService.broadcast('user_stats_updated', { id: data.user_id, coins: json.newCoins });
+      const result = await this.post<{ success: boolean; result?: ShopOrder; newCoins?: number; message?: string }>('/shop/orders/create', data);
+      if (result && result.success) {
+        RealtimeService.broadcast('shop_order_updated', { action: 'create', order: result.result, newCoins: result.newCoins });
+        if (result.newCoins !== undefined) {
+          RealtimeService.broadcast('user_stats_updated', { id: data.user_id, coins: result.newCoins });
         }
       }
-      return json;
+      return result || { success: false, message: 'Gagal membuat pesanan.' };
     } catch (err: any) {
       return { success: false, message: err.message || 'Error connection to server.' };
     }
@@ -528,13 +523,19 @@ export class D1DatabaseService {
     return result;
   }
 
-  public static async buyBadge(userId: string, badgeId: string, price: number): Promise<{
+  public static async buyBadge(
+    userId: string,
+    badgeId: string,
+    price: number,
+    userCoins?: number,
+    userName?: string
+  ): Promise<{
     success: boolean;
     newCoins?: number;
     badgeId?: string;
     message?: string;
   }> {
-    const result = await this.post<any>('/badges/buy', { userId, badgeId, price });
+    const result = await this.post<any>('/badges/buy', { userId, badgeId, price, userCoins, userName });
     if (result && result.success) {
       RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
       if (result.newCoins !== undefined) {
@@ -545,9 +546,9 @@ export class D1DatabaseService {
   }
 
   public static async setActiveBadge(userId: string, badgeId: string | null): Promise<boolean> {
-    const result = await this.post<{ success: boolean }>('/badges/set-active', { userId, badgeId: badgeId || '' });
+    const result = await this.post<{ success: boolean; activeBadge?: string; customName?: string }>('/badges/set-active', { userId, badgeId: badgeId || '' });
     if (result && result.success) {
-      RealtimeService.broadcast('user_badge_updated', { action: 'set_active', userId, badgeId });
+      RealtimeService.broadcast('user_badge_updated', { action: 'set_active', userId, badgeId, customName: result.customName });
     }
     return !!(result && result.success);
   }

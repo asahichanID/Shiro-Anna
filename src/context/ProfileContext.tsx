@@ -22,6 +22,9 @@ export interface UserAccount {
 interface ProfileContextType {
   profile: UserAccount | null;
   isLoggedIn: boolean;
+  activeBadge: string | null;
+  activeBadgeCustomName: string;
+  refreshBadges: () => Promise<void>;
   login: (username: string) => { success: boolean; error?: string };
   updateUsername: (newUsername: string) => { success: boolean; error?: string };
   updateAvatar: (base64Image: string) => void;
@@ -41,6 +44,36 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
 export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [profile, setProfile] = useState<UserAccount | null>(null);
+  const [activeBadge, setActiveBadge] = useState<string | null>(null);
+  const [activeBadgeCustomName, setActiveBadgeCustomName] = useState<string>('');
+
+  const refreshBadges = async () => {
+    const targetUserId = profile?.id || '#1';
+    try {
+      const res = await D1DatabaseService.getUserBadges(targetUserId);
+      if (res) {
+        setActiveBadge(res.activeBadge);
+        setActiveBadgeCustomName(res.customName || '');
+      }
+    } catch (e) {
+      console.warn('Failed to load user badges in ProfileContext:', e);
+    }
+  };
+
+  useEffect(() => {
+    refreshBadges();
+
+    const unsubRealtime = RealtimeService.subscribe('user_badge_updated', (payload: any) => {
+      const targetUserId = profile?.id || '#1';
+      if (!payload || payload.userId === targetUserId || payload.userId === '#1') {
+        refreshBadges();
+      }
+    });
+
+    return () => {
+      unsubRealtime();
+    };
+  }, [profile?.id]);
 
   // Request browser notifications permission
   useEffect(() => {
@@ -60,9 +93,14 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         // Register/Login to D1
         D1DatabaseService.registerOrLoginUser({
+          id: parsed.id,
           username: parsed.username,
           role: parsed.role,
           avatar: parsed.avatar,
+          coins: parsed.coins,
+          totalGame: parsed.totalGame,
+          win: parsed.win,
+          lose: parsed.lose,
         });
       }
     } catch (e) {
@@ -385,6 +423,9 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
       value={{
         profile,
         isLoggedIn: !!profile,
+        activeBadge,
+        activeBadgeCustomName,
+        refreshBadges,
         login,
         updateUsername,
         updateAvatar,

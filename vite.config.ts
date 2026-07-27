@@ -179,6 +179,7 @@ export default defineConfig(() => {
     },
     optimizeDeps: {
       include: ['react', 'react-dom', 'lucide-react', 'motion'],
+      exclude: ['@tailwindcss/vite', '@tailwindcss/oxide'],
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',

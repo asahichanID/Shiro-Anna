@@ -4,6 +4,7 @@ import { BotAvatar } from './BotAvatar';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { ALL_BADGES, BADGE_MAP, BadgeConfig } from '../config/badgeThemes';
 import { DeveloperBadge } from './DeveloperBadge';
+import { RealtimeService } from '../services/SupabaseService';
 import {
   User,
   Camera,
@@ -30,7 +31,7 @@ import {
 } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
-  const { profile, updateUsername, updateAvatar, logout } = useProfile();
+  const { profile, activeBadge, activeBadgeCustomName, refreshBadges, updateUsername, updateAvatar, logout } = useProfile();
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
@@ -66,12 +67,22 @@ export const ProfileView: React.FC = () => {
   useEffect(() => {
     if (profile?.id) {
       fetchUserBadges();
+
+      const unsub = RealtimeService.subscribe('user_badge_updated', (payload: any) => {
+        if (!payload || payload.userId === profile.id || payload.userId === '#1') {
+          fetchUserBadges();
+        }
+      });
+
+      return () => unsub();
     }
   }, [profile?.id]);
 
   if (!profile) return null;
 
   const isDeveloper = profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
+  const effectiveActiveBadgeId = activeBadgeId || activeBadge;
+  const activeCustomName = ownedBadges.find((b) => b.badge_id === effectiveActiveBadgeId)?.custom_name || activeBadgeCustomName || '';
 
   const handleStartEdit = () => {
     setNewName(profile.username);
@@ -128,6 +139,7 @@ export const ProfileView: React.FC = () => {
       if (ok) {
         setActiveBadgeId(badgeId);
         await fetchUserBadges();
+        await refreshBadges();
       }
     } catch (err) {
       console.error('[SET ACTIVE BADGE ERROR]:', err);
@@ -162,6 +174,7 @@ export const ProfileView: React.FC = () => {
       if (res.success) {
         setEditingBadgeId(null);
         await fetchUserBadges();
+        await refreshBadges();
       } else {
         setRenameError(res.message || 'Gagal menyimpan nama badge.');
       }
@@ -179,6 +192,7 @@ export const ProfileView: React.FC = () => {
       const res = await D1DatabaseService.renameBadge(profile.id, badgeId, '');
       if (res.success) {
         await fetchUserBadges();
+        await refreshBadges();
       }
     } catch (err) {
       console.error('[RESET BADGE NAME ERROR]:', err);
@@ -258,8 +272,8 @@ export const ProfileView: React.FC = () => {
                 )}
 
                 {/* Active Badge Display */}
-                {activeBadgeId && (
-                  <DeveloperBadge badgeId={activeBadgeId} showRarity={false} size="sm" />
+                {effectiveActiveBadgeId && (
+                  <DeveloperBadge badgeId={effectiveActiveBadgeId} badgeName={activeCustomName} showRarity={false} size="sm" />
                 )}
               </div>
 
@@ -383,8 +397,8 @@ export const ProfileView: React.FC = () => {
         <div className="p-4 rounded-xl bg-slate-950/80 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
             <span className="text-xs text-slate-400 font-bold">Badge Aktif Sekarang:</span>
-            {activeBadgeId ? (
-              <DeveloperBadge badgeId={activeBadgeId} showRarity={true} size="md" />
+            {effectiveActiveBadgeId ? (
+              <DeveloperBadge badgeId={effectiveActiveBadgeId} badgeName={activeCustomName} showRarity={true} size="md" />
             ) : (
               <span className="text-xs text-slate-500 italic">Belum ada badge yang dipasang</span>
             )}
