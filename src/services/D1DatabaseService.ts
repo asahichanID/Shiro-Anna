@@ -21,8 +21,30 @@ export interface DeveloperBadgeData {
   updatedAt?: number;
 }
 
+export interface SyncDeltaPayload {
+  users?: AppUser[];
+  friends?: Friend[];
+  presence?: Array<{ userId: string; status: UserStatus; lastActive: number; updatedAt: number }>;
+  messages?: DirectMessage[];
+  globalMessages?: GlobalChatMessage[];
+  activityLogs?: ActivityLog[];
+  notifications?: Array<{ id: string; userId: string; title: string; body: string; type: string; isRead: boolean; timestamp: number; updatedAt: number }>;
+  botProfile?: BotProfile;
+  developerBadge?: DeveloperBadgeData;
+  settings?: Array<{ settingKey: string; settingValue: string; updatedAt: number }>;
+  duel?: Array<{ id: string; status: string; updatedAt: number }>;
+  shopProducts?: ShopProduct[];
+  shopOrders?: ShopOrder[];
+  coinHistory?: CoinHistoryItem[];
+  userBadges?: Array<{ id: string; user_id: string; badge_id: string; custom_name: string; is_active: number; updatedAt: number }>;
+  activeUsers?: AppUser[];
+  unreadNotificationsCount?: number;
+  hasChanges?: boolean;
+}
+
 export interface SyncPayload {
   lastTimestamp: number;
+  changed?: SyncDeltaPayload;
   botProfile?: BotProfile;
   developerBadge?: DeveloperBadgeData;
   activeUsers?: AppUser[];
@@ -30,6 +52,7 @@ export interface SyncPayload {
   newMessages?: DirectMessage[];
   activityLogs?: ActivityLog[];
   unreadNotificationsCount?: number;
+  hasChanges?: boolean;
 }
 
 export class D1DatabaseService {

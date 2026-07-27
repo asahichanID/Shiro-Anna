@@ -81,15 +81,25 @@ export class GlobalChatService {
     try {
       const d1Messages = await D1DatabaseService.getGlobalMessages(this.lastGlobalFetchTimestamp);
       if (d1Messages && Array.isArray(d1Messages) && d1Messages.length > 0) {
-        // Merge without duplicates
         const existingMap = new Map(cached.map((m) => [m.id, m]));
-        d1Messages.forEach((m) => existingMap.set(m.id, m));
+        let changed = false;
+
+        d1Messages.forEach((m) => {
+          const prev = existingMap.get(m.id);
+          if (!prev || prev.timestamp !== m.timestamp || prev.text !== m.text || prev.senderId !== m.senderId) {
+            changed = true;
+          }
+          existingMap.set(m.id, m);
+        });
 
         const merged = Array.from(existingMap.values()).sort((a, b) => a.timestamp - b.timestamp);
-        StorageService.setItem(STORAGE_KEY_GLOBAL_CHAT, merged);
-        this.notifyGlobalListeners(merged);
+        if (changed) {
+          StorageService.setItem(STORAGE_KEY_GLOBAL_CHAT, merged);
+          this.notifyGlobalListeners(merged);
+        }
         if (merged.length > 0) {
-          this.lastGlobalFetchTimestamp = merged[merged.length - 1].timestamp;
+          const last = merged[merged.length - 1] as any;
+          this.lastGlobalFetchTimestamp = Math.max(this.lastGlobalFetchTimestamp, last.updatedAt || last.timestamp || Date.now());
         }
         return merged;
       }
@@ -251,7 +261,7 @@ export class GlobalChatService {
     if (this.pollTimer) clearInterval(this.pollTimer);
 
     const settings = SettingsService.getSettingsSync();
-    const pollInterval = Math.max(1500, settings.maxPollingMs || 3000);
+    const pollInterval = Math.max(1000, settings.maxPollingMs || 1000);
 
     this.pollTimer = setInterval(() => {
       if (settings.globalChatEnabled) {

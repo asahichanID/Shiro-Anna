@@ -133,6 +133,10 @@ RealtimeService.subscribe('friend_updated', (payload: any) => {
     const updated = FriendsService.ensureDeveloperAtTop(current.filter((f) => f.id !== payload.friendId));
     StorageService.setItem(STORAGE_KEY_FRIENDS, updated);
     (FriendsService as any).notifyListeners(updated);
+  } else if (payload.action === 'sync' && Array.isArray(payload.friends)) {
+    const updated = FriendsService.ensureDeveloperAtTop(payload.friends);
+    StorageService.setItem(STORAGE_KEY_FRIENDS, updated);
+    (FriendsService as any).notifyListeners(updated);
   }
 });
 

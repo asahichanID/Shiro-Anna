@@ -12,7 +12,7 @@ export const DEFAULT_DEVELOPER_SETTINGS: DeveloperSettings = {
   shopEnabled: true,
   minStreakBanner: 5,
   minStreakMarquee: 5,
-  maxPollingMs: 3000,
+  maxPollingMs: 1000,
   duelRewardCoins: 5000,
   duelCooldownSec: 10,
 };

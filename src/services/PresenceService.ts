@@ -14,10 +14,10 @@ export class PresenceService {
       clearInterval(this.intervalId);
     }
 
-    // Ping presence every 10 seconds
+    // Ping presence every 1 second
     this.intervalId = setInterval(() => {
       this.updatePresence(this.currentStatus);
-    }, 10000);
+    }, 1000);
 
     // Track user activity (Away on tab blur or idle)
     const handleVisibility = () => {
