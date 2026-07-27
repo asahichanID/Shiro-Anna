@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile, GameSession } from '../types';
 import { userDb } from '../database/userDb';
 import { gameDb } from '../database/gameDb';
@@ -7,10 +7,23 @@ import { Coins, Trophy, Users, ShieldAlert, Plus, RefreshCw, Clock } from 'lucid
 export const DatabaseViewer: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [activeSession, setActiveSession] = useState<GameSession | undefined>(undefined);
+  const lastUsersSig = useRef('');
+  const lastSessionSig = useRef('');
 
   const refreshData = () => {
-    setUsers(userDb.getAllUsers());
-    setActiveSession(gameDb.getSession('chat_default'));
+    const nextUsers = userDb.getAllUsers();
+    const nextSession = gameDb.getSession('chat_default');
+    const usersSig = JSON.stringify(nextUsers.map((u) => ({ id: u.id, coin: u.carrotCoins, win: u.win, lose: u.lose, winStreak: u.winStreak, status: u.status })));
+    const sessionSig = JSON.stringify(nextSession ? { chatId: nextSession.chatId, status: nextSession.status, question: nextSession.question?.id, hintsUsed: nextSession.hintsUsed } : null);
+
+    if (usersSig !== lastUsersSig.current) {
+      lastUsersSig.current = usersSig;
+      setUsers(nextUsers);
+    }
+    if (sessionSig !== lastSessionSig.current) {
+      lastSessionSig.current = sessionSig;
+      setActiveSession(nextSession);
+    }
   };
 
   useEffect(() => {

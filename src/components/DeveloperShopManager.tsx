@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingBag,
   Copy,
@@ -39,6 +39,7 @@ export const DeveloperShopManager: React.FC = () => {
 
   const [loading, setLoading] = useState<boolean>(true);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const lastDataSig = useRef('');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -56,11 +57,25 @@ export const DeveloperShopManager: React.FC = () => {
         D1DatabaseService.getShopSettings(),
       ]);
 
-      setOrders(ords || []);
-      setProducts(prods || []);
-      setStats(st || null);
-      if (cfg && Object.keys(cfg).length > 0) {
-        setShopConfig((prev) => ({ ...prev, ...cfg }));
+      const nextOrders = ords || [];
+      const nextProducts = prods || [];
+      const nextStats = st || null;
+      const nextConfig = cfg && Object.keys(cfg).length > 0 ? { ...shopConfig, ...cfg } : shopConfig;
+      const sig = JSON.stringify({
+        orders: nextOrders.map((o) => ({ id: o.id, status: o.status, updated_at: o.updated_at })),
+        products: nextProducts.map((p) => ({ id: p.id, stock: p.stock, is_active: p.is_active, updated_at: p.updated_at })),
+        stats: nextStats,
+        config: nextConfig,
+      });
+
+      if (sig !== lastDataSig.current) {
+        lastDataSig.current = sig;
+        setOrders(nextOrders);
+        setProducts(nextProducts);
+        setStats(nextStats);
+        if (cfg && Object.keys(cfg).length > 0) {
+          setShopConfig((prev) => ({ ...prev, ...cfg }));
+        }
       }
     } catch (err) {
       console.error('[DEV SHOP MANAGER FETCH ERROR]:', err);
@@ -71,7 +86,7 @@ export const DeveloperShopManager: React.FC = () => {
 
   useEffect(() => {
     fetchAllData();
-    const interval = setInterval(fetchAllData, 5000);
+    const interval = setInterval(fetchAllData, 1000);
 
     const unsubProds = RealtimeService.subscribe('shop_product_updated', fetchAllData);
     const unsubOrds = RealtimeService.subscribe('shop_order_updated', fetchAllData);

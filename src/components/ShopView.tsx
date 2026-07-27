@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, History, Coins, CheckCircle2, XCircle, AlertCircle, Sparkles, RefreshCw, ChevronRight, User, Hash, Award, ShieldCheck, Flame } from 'lucide-react';
 import { useProfile } from '../context/ProfileContext';
 import { D1DatabaseService } from '../services/D1DatabaseService';
@@ -19,6 +19,7 @@ export const ShopView: React.FC = () => {
   const [ownedBadgeIds, setOwnedBadgeIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const lastShopSig = useRef('');
 
   // Dialog State
   const [selectedProduct, setSelectedProduct] = useState<ShopProduct | null>(null);
@@ -39,23 +40,33 @@ export const ShopView: React.FC = () => {
         D1DatabaseService.getUserBadges(profile?.id || '#1'),
       ]);
 
-      if (prods && prods.length > 0) {
-        setProducts(prods.filter((p) => p.is_active === 1).sort((a, b) => a.sort_order - b.sort_order));
-      } else {
-        setProducts([
-          { id: 'prod_1', name: 'Premium Wibuku 1 Hari', description: 'Akses Fitur Premium Wibuku selama 1 Hari', duration: '1 Hari', coins: 50000, stock: 100, is_active: 1, sort_order: 1 },
-          { id: 'prod_2', name: 'Premium Wibuku 3 Hari', description: 'Akses Fitur Premium Wibuku selama 3 Hari', duration: '3 Hari', coins: 175000, stock: 100, is_active: 1, sort_order: 2 },
-          { id: 'prod_3', name: 'Premium Wibuku 7 Hari', description: 'Akses Fitur Premium Wibuku selama 7 Hari', duration: '7 Hari', coins: 525000, stock: 100, is_active: 1, sort_order: 3 },
-        ]);
+      const nextProducts = (prods && prods.length > 0
+        ? prods.filter((p) => p.is_active === 1).sort((a, b) => a.sort_order - b.sort_order)
+        : [
+            { id: 'prod_1', name: 'Premium Wibuku 1 Hari', description: 'Akses Fitur Premium Wibuku selama 1 Hari', duration: '1 Hari', coins: 50000, stock: 100, is_active: 1, sort_order: 1 },
+            { id: 'prod_2', name: 'Premium Wibuku 3 Hari', description: 'Akses Fitur Premium Wibuku selama 3 Hari', duration: '3 Hari', coins: 175000, stock: 100, is_active: 1, sort_order: 2 },
+            { id: 'prod_3', name: 'Premium Wibuku 7 Hari', description: 'Akses Fitur Premium Wibuku selama 7 Hari', duration: '7 Hari', coins: 525000, stock: 100, is_active: 1, sort_order: 3 },
+          ]) as ShopProduct[];
+      const nextOrders = ords || [];
+      const nextHistory = cHist || [];
+      const nextOwned = new Set<string>();
+      if (userBadgesRes && userBadgesRes.ownedBadges) {
+        userBadgesRes.ownedBadges.forEach((b) => nextOwned.add(b.badge_id));
       }
 
-      setOrders(ords || []);
-      setCoinHistory(cHist || []);
+      const sig = JSON.stringify({
+        products: nextProducts.map((p) => ({ id: p.id, stock: p.stock, is_active: p.is_active, updated_at: p.updated_at })),
+        orders: nextOrders.map((o) => ({ id: o.id, status: o.status, updated_at: o.updated_at })),
+        history: nextHistory.map((h) => ({ id: h.id, timestamp: h.timestamp })),
+        badges: Array.from(nextOwned.values()).sort(),
+      });
 
-      if (userBadgesRes && userBadgesRes.ownedBadges) {
-        const owned = new Set<string>();
-        userBadgesRes.ownedBadges.forEach((b) => owned.add(b.badge_id));
-        setOwnedBadgeIds(owned);
+      if (sig !== lastShopSig.current) {
+        lastShopSig.current = sig;
+        setProducts(nextProducts);
+        setOrders(nextOrders);
+        setCoinHistory(nextHistory);
+        setOwnedBadgeIds(nextOwned);
       }
     } catch (err) {
       console.error('[SHOP DATA LOAD ERROR]:', err);
@@ -67,7 +78,7 @@ export const ShopView: React.FC = () => {
 
   useEffect(() => {
     loadShopData();
-    const interval = setInterval(loadShopData, 5000);
+    const interval = setInterval(loadShopData, 1000);
 
     const unsubProds = RealtimeService.subscribe('shop_product_updated', loadShopData);
     const unsubOrds = RealtimeService.subscribe('shop_order_updated', loadShopData);
