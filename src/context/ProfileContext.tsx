@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { ActivityService } from '../services/ActivityService';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
 import { D1DatabaseService } from '../services/D1DatabaseService';
@@ -6,6 +6,8 @@ import { NotificationService } from '../services/NotificationService';
 import { StateSyncService } from '../services/StateSyncService';
 import { userDb } from '../database/userDb';
 import { RealtimeService } from '../services/SupabaseService';
+import { FriendsService } from '../services/FriendsService';
+import { StorageService } from '../services/StorageService';
 
 export interface UserAccount {
   id: string;
@@ -46,6 +48,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [profile, setProfile] = useState<UserAccount | null>(null);
   const [activeBadge, setActiveBadge] = useState<string | null>(null);
   const [activeBadgeCustomName, setActiveBadgeCustomName] = useState<string>('');
+  const lastSyncRef = useRef<number>(0);
+  const lastProfileSnapshotRef = useRef<string>('');
 
   const refreshBadges = async () => {
     const targetUserId = profile?.id || '#1';
@@ -108,35 +112,147 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
-  // Real-time Presence & Sync Polling Engine (3–5 seconds)
+  // Real-time Presence & Sync Polling Engine (1 second)
   useEffect(() => {
     if (!profile) return;
 
-    const intervalId = setInterval(() => {
-      // 1. Send Presence Heartbeat
-      D1DatabaseService.updatePresence({
-        userId: profile.id,
-        status: 'Online',
-        device: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop',
-        browser: navigator.userAgent,
-      }).catch((e) => console.warn('Presence heartbeat skipped:', e));
+    lastSyncRef.current = Math.max(lastSyncRef.current, Date.now() - 1000);
 
-      // 2. Poll Sync
-      D1DatabaseService.pollSync(profile.id, Date.now() - 10000)
-        .then((syncData) => {
-          if (!syncData) return;
-          if (syncData.unreadNotificationsCount && syncData.unreadNotificationsCount > 0) {
+    const syncOnce = async () => {
+      const since = lastSyncRef.current || Date.now() - 1000;
+
+      try {
+        await D1DatabaseService.updatePresence({
+          userId: profile.id,
+          status: 'Online',
+          device: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop',
+          browser: navigator.userAgent,
+        });
+      } catch (e) {
+        console.warn('Presence heartbeat skipped:', e);
+      }
+
+      try {
+        const syncData = await D1DatabaseService.pollSync(profile.id, since);
+        if (!syncData) return;
+
+        if (typeof syncData.lastTimestamp === 'number' && syncData.lastTimestamp > lastSyncRef.current) {
+          lastSyncRef.current = syncData.lastTimestamp;
+        }
+
+        const changed: any = syncData.changed || (syncData as any);
+        if (changed?.users?.length) {
+          const currentId = profile.id;
+          const currentName = profile.username.toLowerCase();
+
+          changed.users.forEach((u: any) => {
+            const payload = {
+              id: u.id,
+              username: u.username,
+              role: u.role,
+              avatar: u.avatar,
+              coins: u.coin ?? u.coins,
+              carrotCoins: u.carrotCoins ?? u.coins,
+              totalGame: u.totalGame ?? 0,
+              win: u.win ?? 0,
+              lose: u.lose ?? 0,
+              status: u.status,
+            };
+
+            RealtimeService.broadcast('user_stats_updated', payload);
+
+            if (u.id === currentId || (u.username && u.username.toLowerCase() === currentName)) {
+              try {
+                const currentProfileRaw = localStorage.getItem(STORAGE_KEY_PROFILE);
+                if (currentProfileRaw) {
+                  const parsed = JSON.parse(currentProfileRaw);
+                  const merged = {
+                    ...parsed,
+                    username: u.username || parsed.username,
+                    role: u.role || parsed.role,
+                    avatar: u.avatar || parsed.avatar,
+                    coins: u.coin ?? u.coins ?? parsed.coins,
+                    totalGame: u.totalGame ?? parsed.totalGame,
+                    win: u.win ?? parsed.win,
+                    lose: u.lose ?? parsed.lose,
+                  };
+                  const snapshot = JSON.stringify(merged);
+                  if (snapshot !== lastProfileSnapshotRef.current) {
+                    lastProfileSnapshotRef.current = snapshot;
+                    localStorage.setItem(STORAGE_KEY_PROFILE, snapshot);
+                    setProfile(merged);
+                  }
+                }
+              } catch (e) {
+                // ignored
+              }
+            }
+          });
+        }
+
+        if (changed?.presence?.length) {
+          changed.presence.forEach((p: any) => {
+            RealtimeService.broadcast('user_presence_updated', { userId: p.userId, status: p.status, lastActive: p.lastActive });
+          });
+        }
+
+        if (changed?.friends?.length) {
+          const currentFriends = FriendsService.getFriendsSync();
+          const merged = [...currentFriends];
+          changed.friends.forEach((f: any) => {
+            const idx = merged.findIndex((x) => x.id === f.id || x.id === f.friendId);
+            const normalized = {
+              id: f.id || f.friendId,
+              username: f.username || 'Trainer',
+              avatar: f.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+              status: f.status || 'Offline',
+              lastMessage: f.bio || '',
+              lastOnline: f.isOnline ? 'Online Sekarang' : 'Baru saja',
+              bio: f.bio || '',
+              role: f.role || 'Trainer',
+              isOnline: !!f.isOnline || f.status === 'Online',
+            };
+            if (idx >= 0) merged[idx] = { ...merged[idx], ...normalized };
+            else merged.push(normalized as any);
+          });
+          StorageService.setItem('oguri_friends_list', merged);
+          RealtimeService.broadcast('friend_updated', { action: 'sync', friends: merged });
+        }
+
+        if (changed?.botProfile) {
+          StorageService.setItem('oguri_bot_profile', changed.botProfile);
+          RealtimeService.broadcast('bot_profile_updated', changed.botProfile);
+        }
+
+        if (changed?.developerBadge) {
+          RealtimeService.broadcast('developer_badge_updated', changed.developerBadge);
+        }
+
+        if (changed?.userBadges?.length) {
+          const userBadgeChanged = changed.userBadges.some((b: any) => b.user_id === profile.id);
+          if (userBadgeChanged) {
+            refreshBadges();
+          }
+          RealtimeService.broadcast('user_badge_updated', { action: 'sync', userId: profile.id });
+        }
+
+        if (changed?.notifications?.length) {
+          if (changed.notifications.length > 0) {
             NotificationService.sendNotification(
               'Oguri Cap Notice',
-              `Anda memiliki ${syncData.unreadNotificationsCount} pesan/notifikasi baru.`
+              `Ada ${changed.notifications.length} pembaruan/notifikasi baru.`
             );
           }
-        })
-        .catch(() => {});
-    }, 4000);
+        }
+      } catch (e) {
+        console.warn('Sync polling skipped:', e);
+      }
+    };
 
+    syncOnce();
+    const intervalId = setInterval(syncOnce, 1000);
     return () => clearInterval(intervalId);
-  }, [profile]);
+  }, [profile?.id, profile?.username]);
 
   // Helper to get all registered accounts map
   const getRegisteredAccountsMap = (): Record<string, UserAccount> => {
