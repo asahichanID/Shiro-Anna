@@ -1,6 +1,7 @@
 import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 import { DeveloperSettings } from '../types';
+import { RealtimeService } from './SupabaseService';
 
 const STORAGE_KEY_SETTINGS = 'oguri_developer_settings';
 
@@ -74,3 +75,12 @@ export class SettingsService {
     return updated;
   }
 }
+
+// Subscribe to Realtime Developer Settings updates from Supabase Broadcast
+RealtimeService.subscribe('developer_settings_updated', (settings: Partial<DeveloperSettings>) => {
+  if (!settings) return;
+  const current = SettingsService.getSettingsSync();
+  const updated = { ...current, ...settings };
+  StorageService.setItem(STORAGE_KEY_SETTINGS, updated);
+  (SettingsService as any).notifyListeners(updated);
+});

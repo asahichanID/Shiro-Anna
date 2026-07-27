@@ -3,6 +3,7 @@ import { StorageService } from './StorageService';
 import { LiveDuelSession, QuestionData, DuelStep } from '../types';
 import { tebakKataManager } from '../musume/gametebak/tebakkata';
 import { SettingsService } from './SettingsService';
+import { RealtimeService } from './SupabaseService';
 
 const STORAGE_KEY_ACTIVE_DUEL = 'oguri_active_live_duel';
 
@@ -238,3 +239,14 @@ export class LiveDuelService {
     this.notifyListeners(null);
   }
 }
+
+// Subscribe to Realtime Live Duel updates from Supabase Broadcast
+RealtimeService.subscribe('live_duel_updated', (duel: LiveDuelSession) => {
+  if (!duel) {
+    StorageService.removeItem(STORAGE_KEY_ACTIVE_DUEL);
+    (LiveDuelService as any).notifyListeners(null);
+    return;
+  }
+  StorageService.setItem(STORAGE_KEY_ACTIVE_DUEL, duel);
+  (LiveDuelService as any).notifyListeners(duel);
+});

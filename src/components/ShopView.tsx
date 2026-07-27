@@ -5,6 +5,7 @@ import { D1DatabaseService } from '../services/D1DatabaseService';
 import { ShopProduct, ShopOrder, CoinHistoryItem } from '../types';
 import { ALL_BADGES, BADGE_MAP, BadgeConfig, BadgeRarity } from '../config/badgeThemes';
 import { DeveloperBadge } from './DeveloperBadge';
+import { RealtimeService } from '../services/SupabaseService';
 
 export const ShopView: React.FC = () => {
   const { profile, updateCoins } = useProfile();
@@ -66,8 +67,18 @@ export const ShopView: React.FC = () => {
 
   useEffect(() => {
     loadShopData();
-    const interval = setInterval(loadShopData, 3000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadShopData, 5000);
+
+    const unsubProds = RealtimeService.subscribe('shop_product_updated', loadShopData);
+    const unsubOrds = RealtimeService.subscribe('shop_order_updated', loadShopData);
+    const unsubBadges = RealtimeService.subscribe('user_badge_updated', loadShopData);
+
+    return () => {
+      clearInterval(interval);
+      unsubProds();
+      unsubOrds();
+      unsubBadges();
+    };
   }, [profile?.id]);
 
   const handleManualRefresh = () => {

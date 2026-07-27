@@ -2,6 +2,7 @@ import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 import { GlobalChatMessage, DirectMessage } from '../types';
 import { SettingsService } from './SettingsService';
+import { RealtimeService } from './SupabaseService';
 
 const STORAGE_KEY_GLOBAL_CHAT = 'oguri_global_chat_messages';
 const STORAGE_KEY_DIRECT_MESSAGES = 'oguri_direct_messages_map';
@@ -266,3 +267,26 @@ export class GlobalChatService {
     }
   }
 }
+
+// Auto-subscribe to Realtime Broadcast Events for Instant Chat Updates
+RealtimeService.subscribe('global_message_new', (msg: GlobalChatMessage) => {
+  if (!msg || !msg.id) return;
+  const current = GlobalChatService.getGlobalMessagesSync();
+  if (current.some((m) => m.id === msg.id)) return;
+  const updated = [...current, msg].sort((a, b) => a.timestamp - b.timestamp);
+  StorageService.setItem(STORAGE_KEY_GLOBAL_CHAT, updated);
+  (GlobalChatService as any).notifyGlobalListeners(updated);
+});
+
+RealtimeService.subscribe('direct_message_new', (msg: DirectMessage) => {
+  if (!msg || !msg.id) return;
+  const targetRoomId = msg.roomId || (msg.receiverId ? [msg.senderId, msg.receiverId].sort().join('_') : null);
+  if (!targetRoomId) return;
+  const storeMap = StorageService.getItem<Record<string, DirectMessage[]>>(STORAGE_KEY_DIRECT_MESSAGES, {});
+  const current = storeMap[targetRoomId] || [];
+  if (current.some((m) => m.id === msg.id)) return;
+  const updated = [...current, msg].sort((a, b) => a.timestamp - b.timestamp);
+  storeMap[targetRoomId] = updated;
+  StorageService.setItem(STORAGE_KEY_DIRECT_MESSAGES, storeMap);
+  (GlobalChatService as any).notifyDirectListeners(targetRoomId, updated);
+});

@@ -58,6 +58,7 @@ export interface DirectMessage {
   id: string;
   senderId: string;
   receiverId?: string;
+  roomId?: string;
   text: string;
   time: string;
   timestamp: number;

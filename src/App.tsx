@@ -16,6 +16,7 @@ import { DataQueueViewer } from './components/DataQueueViewer';
 import { ArchitectureAnalysisModal } from './components/ArchitectureAnalysisModal';
 import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { StateSyncService } from './services/StateSyncService';
+import { RealtimeService } from './services/SupabaseService';
 import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
@@ -91,7 +92,7 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
       userDb.getUser(profile.id, profile.username);
     }
 
-    const unsubSync = StateSyncService.on('user_stats_updated', (data) => {
+    const handleStatsSync = (data: any) => {
       const activeId = profile?.id || CURRENT_USER_ID;
       const activeName = profile?.username || userName;
       if (data && (data.id === activeId || (data.username && data.username.toLowerCase() === activeName.toLowerCase()))) {
@@ -102,10 +103,14 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
           setUserWinStreak(data.winStreak);
         }
       }
-    });
+    };
+
+    const unsubSync = StateSyncService.on('user_stats_updated', handleStatsSync);
+    const unsubRealtimeStats = RealtimeService.subscribe('user_stats_updated', handleStatsSync);
 
     return () => {
       unsubSync();
+      unsubRealtimeStats();
     };
   }, [profile]);
 

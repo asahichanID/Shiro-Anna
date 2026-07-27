@@ -1,5 +1,6 @@
 import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
+import { RealtimeService } from './SupabaseService';
 
 export interface ActivityLog {
   id: string;
@@ -96,3 +97,15 @@ export class ActivityService {
     return this.clearHistory();
   }
 }
+
+// Subscribe to Realtime Activity Log updates from Supabase Broadcast
+RealtimeService.subscribe('activity_log_new', (log: ActivityLog) => {
+  if (!log || !log.id) return;
+  const current = ActivityService.getHistorySync();
+  if (current.some((l) => l.id === log.id)) return;
+  const updated = [log, ...current].slice(0, 100);
+  StorageService.setItem(STORAGE_KEY_ACTIVITIES, updated);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('activity_log_updated'));
+  }
+});

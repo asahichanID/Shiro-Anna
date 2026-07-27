@@ -8,6 +8,7 @@ import { AppUser, Friend, DirectMessage, UserStatus, GlobalChatMessage, LiveDuel
 import { BotProfile } from './BotService';
 import { ActivityLog } from './ActivityService';
 import { BadgeThemeId } from '../config/badgeThemes';
+import { RealtimeService } from './SupabaseService';
 
 
 export interface DeveloperBadgeData {
@@ -114,6 +115,8 @@ export class D1DatabaseService {
     const result = await this.post<AppUser>('/users/register-or-login', payload);
     if (!result) {
       console.error('[D1 USER INSERT FAIL] Failed to register or login user on D1 database:', payload);
+    } else {
+      RealtimeService.broadcast('user_stats_updated', result);
     }
     return result;
   }
@@ -132,6 +135,8 @@ export class D1DatabaseService {
     const result = await this.post<AppUser>('/users/update', payload);
     if (!result) {
       console.error('[D1 USER UPDATE FAIL] Failed to update user stats on D1 database:', payload);
+    } else {
+      RealtimeService.broadcast('user_stats_updated', result);
     }
     return result;
   }
@@ -143,6 +148,9 @@ export class D1DatabaseService {
     browser?: string;
   }): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/users/presence', payload);
+    if (result && result.success) {
+      RealtimeService.broadcast('user_presence_updated', { ...payload, lastSeen: Date.now() });
+    }
     return !!(result && result.success);
   }
 
@@ -168,12 +176,17 @@ export class D1DatabaseService {
     const result = await this.post<Friend>('/friends', { userId, friend });
     if (!result) {
       console.error('[D1 INSERT FRIEND FAIL] Failed to add friend in D1 database:', friend);
+    } else {
+      RealtimeService.broadcast('friend_updated', { userId, friend: result, action: 'add' });
     }
     return result;
   }
 
   public static async removeFriend(userId: string, friendId: string): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/friends/remove', { userId, friendId });
+    if (result && result.success) {
+      RealtimeService.broadcast('friend_updated', { userId, friendId, action: 'remove' });
+    }
     return !!(result && result.success);
   }
 
@@ -193,6 +206,8 @@ export class D1DatabaseService {
     const result = await this.post<GlobalChatMessage>('/global-chat', msg);
     if (!result) {
       console.error('[D1 INSERT CHAT FAIL] Failed to send global chat message to D1:', msg);
+    } else {
+      RealtimeService.broadcast('global_message_new', result);
     }
     return result;
   }
@@ -206,11 +221,17 @@ export class D1DatabaseService {
 
   public static async createDuel(duelData: Partial<LiveDuelSession>): Promise<LiveDuelSession | null> {
     const result = await this.post<LiveDuelSession>('/duel/start', duelData);
+    if (result) {
+      RealtimeService.broadcast('live_duel_updated', result);
+    }
     return result;
   }
 
   public static async updateDuel(duelData: Partial<LiveDuelSession>): Promise<LiveDuelSession | null> {
     const result = await this.post<LiveDuelSession>('/duel/update', duelData);
+    if (result) {
+      RealtimeService.broadcast('live_duel_updated', result);
+    }
     return result;
   }
 
@@ -221,6 +242,9 @@ export class D1DatabaseService {
     answer: string;
   }): Promise<{ isCorrect: boolean; updatedDuel: LiveDuelSession } | null> {
     const result = await this.post<{ isCorrect: boolean; updatedDuel: LiveDuelSession }>('/duel/answer', payload);
+    if (result && result.updatedDuel) {
+      RealtimeService.broadcast('live_duel_updated', result.updatedDuel);
+    }
     return result;
   }
 
@@ -249,6 +273,8 @@ export class D1DatabaseService {
     const result = await this.post<{ success: boolean }>('/settings', settings);
     if (!result || !result.success) {
       console.error('[D1 UPDATE FAIL] /settings: Failed to update developer settings:', settings);
+    } else {
+      RealtimeService.broadcast('developer_settings_updated', settings);
     }
     return !!(result && result.success);
   }
@@ -275,6 +301,8 @@ export class D1DatabaseService {
     const result = await this.post<DirectMessage>('/chat', message);
     if (!result) {
       console.error('[D1 INSERT DIRECT CHAT FAIL] Failed to send direct chat message:', message);
+    } else {
+      RealtimeService.broadcast('direct_message_new', result);
     }
     return result;
   }
@@ -293,6 +321,9 @@ export class D1DatabaseService {
 
   public static async updateBotProfile(botData: Partial<BotProfile>): Promise<BotProfile | null> {
     const result = await this.post<BotProfile>('/profile', botData);
+    if (result) {
+      RealtimeService.broadcast('bot_profile_updated', result);
+    }
     return result;
   }
 
@@ -305,6 +336,9 @@ export class D1DatabaseService {
 
   public static async updateDeveloperBadge(badgeData: Partial<DeveloperBadgeData>): Promise<DeveloperBadgeData | null> {
     const result = await this.post<DeveloperBadgeData>('/badge', badgeData);
+    if (result) {
+      RealtimeService.broadcast('developer_badge_updated', result);
+    }
     return result;
   }
 
@@ -322,6 +356,8 @@ export class D1DatabaseService {
     const result = await this.post<ActivityLog>('/activity', activity);
     if (!result) {
       console.error('[D1 INSERT ACTIVITY LOG FAIL] Failed to log activity to D1:', activity);
+    } else {
+      RealtimeService.broadcast('activity_log_new', result);
     }
     return result;
   }
@@ -362,11 +398,17 @@ export class D1DatabaseService {
 
   public static async saveShopProduct(product: Partial<ShopProduct>): Promise<ShopProduct | null> {
     const result = await this.post<ShopProduct>('/shop/products/save', product);
+    if (result) {
+      RealtimeService.broadcast('shop_product_updated', { action: 'save', product: result });
+    }
     return result;
   }
 
   public static async deleteShopProduct(id: string): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/shop/products/delete', { id });
+    if (result && result.success) {
+      RealtimeService.broadcast('shop_product_updated', { action: 'delete', id });
+    }
     return !!(result && result.success);
   }
 
@@ -377,6 +419,9 @@ export class D1DatabaseService {
 
   public static async updateShopSettings(settings: Record<string, string>): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/shop/settings/update', settings);
+    if (result && result.success) {
+      RealtimeService.broadcast('shop_settings_updated', settings);
+    }
     return !!(result && result.success);
   }
 
@@ -402,6 +447,12 @@ export class D1DatabaseService {
         body: JSON.stringify(data),
       });
       const json = await res.json();
+      if (json && json.success) {
+        RealtimeService.broadcast('shop_order_updated', { action: 'create', order: json.result, newCoins: json.newCoins });
+        if (json.newCoins !== undefined) {
+          RealtimeService.broadcast('user_stats_updated', { id: data.user_id, coins: json.newCoins });
+        }
+      }
       return json;
     } catch (err: any) {
       return { success: false, message: err.message || 'Error connection to server.' };
@@ -418,6 +469,9 @@ export class D1DatabaseService {
       status,
       rejection_reason,
     });
+    if (result) {
+      RealtimeService.broadcast('shop_order_updated', { action: 'update_status', order: result });
+    }
     return result;
   }
 
@@ -442,6 +496,9 @@ export class D1DatabaseService {
     detail?: string;
   }): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/coin-history/record', data);
+    if (result && result.success) {
+      RealtimeService.broadcast('shop_coin_history_new', data);
+    }
     return !!(result && result.success);
   }
 
@@ -463,11 +520,20 @@ export class D1DatabaseService {
     message?: string;
   }> {
     const result = await this.post<any>('/badges/buy', { userId, badgeId, price });
+    if (result && result.success) {
+      RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
+      if (result.newCoins !== undefined) {
+        RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
+      }
+    }
     return result || { success: false, message: 'Koneksi gagal.' };
   }
 
   public static async setActiveBadge(userId: string, badgeId: string | null): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/badges/set-active', { userId, badgeId: badgeId || '' });
+    if (result && result.success) {
+      RealtimeService.broadcast('user_badge_updated', { action: 'set_active', userId, badgeId });
+    }
     return !!(result && result.success);
   }
 
@@ -477,6 +543,9 @@ export class D1DatabaseService {
     message?: string;
   }> {
     const result = await this.post<any>('/badges/rename', { userId, badgeId, newName });
+    if (result && result.success) {
+      RealtimeService.broadcast('user_badge_updated', { action: 'rename', userId, badgeId, customName: result.customName });
+    }
     return result || { success: false, message: 'Koneksi gagal.' };
   }
 

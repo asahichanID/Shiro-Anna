@@ -18,7 +18,7 @@ Untuk memastikan latensi ultra-rendah dan keandalan tinggi, **Tracen Academy** m
 ## 🔑 Supabase Connection Credentials
 
 - **Project URL**: `https://liecstkcclpkjkdqkvga.supabase.co`
-- **Publishable Key**: `sb_publishable_*****`
+- **Publishable Key**: `sb_publishable_1BE8rNRK67AGBnt2jGT6iw_iIPHWXLz`
 
 ---
 

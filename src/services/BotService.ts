@@ -1,5 +1,6 @@
 import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
+import { RealtimeService } from './SupabaseService';
 
 export interface BotProfile {
   id?: string;
@@ -94,3 +95,10 @@ export class BotService {
     return this.updateProfile(profileData);
   }
 }
+
+// Auto-subscribe to Realtime Bot Profile Updates from Supabase Broadcast
+RealtimeService.subscribe('bot_profile_updated', (profile: BotProfile) => {
+  if (!profile || !profile.name) return;
+  StorageService.setItem(STORAGE_KEY_BOT_PROFILE, profile);
+  (BotService as any).notifyListeners(profile);
+});

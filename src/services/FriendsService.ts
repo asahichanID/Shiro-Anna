@@ -1,6 +1,7 @@
 import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 import { Friend } from '../types';
+import { RealtimeService } from './SupabaseService';
 
 const STORAGE_KEY_FRIENDS = 'oguri_friends_list';
 
@@ -117,3 +118,43 @@ export class FriendsService {
     return sorted;
   }
 }
+
+// Auto-subscribe to Realtime Friend and Presence Events
+RealtimeService.subscribe('friend_updated', (payload: any) => {
+  if (!payload) return;
+  const current = FriendsService.getFriendsSync();
+  if (payload.action === 'add' && payload.friend) {
+    if (payload.friend.id === '#1') return;
+    const updated = FriendsService.ensureDeveloperAtTop([payload.friend, ...current.filter((f) => f.id !== payload.friend.id)]);
+    StorageService.setItem(STORAGE_KEY_FRIENDS, updated);
+    (FriendsService as any).notifyListeners(updated);
+  } else if (payload.action === 'remove' && payload.friendId) {
+    if (payload.friendId === '#1') return;
+    const updated = FriendsService.ensureDeveloperAtTop(current.filter((f) => f.id !== payload.friendId));
+    StorageService.setItem(STORAGE_KEY_FRIENDS, updated);
+    (FriendsService as any).notifyListeners(updated);
+  }
+});
+
+RealtimeService.subscribe('user_presence_updated', (payload: any) => {
+  if (!payload || !payload.userId) return;
+  const current = FriendsService.getFriendsSync();
+  let changed = false;
+  const updated = current.map((f) => {
+    if (f.id === payload.userId) {
+      changed = true;
+      return {
+        ...f,
+        status: payload.status || f.status,
+        isOnline: payload.status === 'Online',
+        lastOnline: payload.status === 'Online' ? 'Online Sekarang' : 'Baru saja',
+      };
+    }
+    return f;
+  });
+
+  if (changed) {
+    StorageService.setItem(STORAGE_KEY_FRIENDS, updated);
+    (FriendsService as any).notifyListeners(updated);
+  }
+});

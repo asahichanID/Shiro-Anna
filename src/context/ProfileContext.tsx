@@ -5,6 +5,7 @@ import { D1DatabaseService } from '../services/D1DatabaseService';
 import { NotificationService } from '../services/NotificationService';
 import { StateSyncService } from '../services/StateSyncService';
 import { userDb } from '../database/userDb';
+import { RealtimeService } from '../services/SupabaseService';
 
 export interface UserAccount {
   id: string;
@@ -142,22 +143,34 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Real-time Event Listener & Cross-Tab Storage Sync
   useEffect(() => {
     const unsubStats = StateSyncService.on('user_stats_updated', (data) => {
+      handleUserStatsUpdate(data);
+    });
+
+    const unsubRealtimeStats = RealtimeService.subscribe('user_stats_updated', (data) => {
+      handleUserStatsUpdate(data);
+    });
+
+    const handleUserStatsUpdate = (data: any) => {
       setProfile((prev) => {
         if (!prev) return prev;
         if (data && (data.id === prev.id || (data.username && data.username.toLowerCase() === prev.username.toLowerCase()))) {
           const isDev = prev.id === '#1' || prev.role === 'Developer' || prev.username.toLowerCase() === 'shiro anna';
           const newCoins = isDev ? 999999999 : (data.coins !== undefined ? data.coins : (data.carrotCoins !== undefined ? data.carrotCoins : prev.coins));
-          return {
+          const updated = {
             ...prev,
             coins: newCoins,
             totalGame: data.totalGame !== undefined ? data.totalGame : (data.gamesPlayed !== undefined ? data.gamesPlayed : prev.totalGame),
             win: data.win !== undefined ? data.win : (data.gamesWon !== undefined ? data.gamesWon : prev.win),
             lose: data.lose !== undefined ? data.lose : prev.lose,
           };
+          try {
+            localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
         }
         return prev;
       });
-    });
+    };
 
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY_PROFILE && e.newValue) {
@@ -174,6 +187,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     return () => {
       unsubStats();
+      unsubRealtimeStats();
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);

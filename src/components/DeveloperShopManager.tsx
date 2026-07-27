@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { ShopOrder, ShopProduct, ShopStats } from '../types';
+import { RealtimeService } from '../services/SupabaseService';
 
 export const DeveloperShopManager: React.FC = () => {
   const [subTab, setSubTab] = useState<'orders' | 'products' | 'settings'>('orders');
@@ -70,8 +71,18 @@ export const DeveloperShopManager: React.FC = () => {
 
   useEffect(() => {
     fetchAllData();
-    const interval = setInterval(fetchAllData, 3000); // Polling realtime setiap 3s
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchAllData, 5000);
+
+    const unsubProds = RealtimeService.subscribe('shop_product_updated', fetchAllData);
+    const unsubOrds = RealtimeService.subscribe('shop_order_updated', fetchAllData);
+    const unsubSettings = RealtimeService.subscribe('shop_settings_updated', fetchAllData);
+
+    return () => {
+      clearInterval(interval);
+      unsubProds();
+      unsubOrds();
+      unsubSettings();
+    };
   }, []);
 
   const showToast = (msg: string, isError = false) => {
