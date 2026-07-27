@@ -22,14 +22,14 @@ export interface ServiceProfileConfig {
 
 export const SERVICE_PROFILE: ServiceProfileConfig = {
   name: 'Shiro Anna',
-  badgeName: 'Developer',
-  badgeThemeId: 'absolute',
-  badgeIconOverride: '',
+  badgeName: 'Ruby Developer',
+  badgeThemeId: 'ruby',
+  badgeIconOverride: '🔥',
   bio: 'Developer sekaligus pembuat project Oguri Cap Web App.',
   status: 'Online',
   avatarUrl: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
-  whatsappUrl: 'https://wa.me/6281563808289',
-  whatsappNumber: '+62 815-6380-8289',
+  whatsappUrl: 'https://wa.me/6281563808299',
+  whatsappNumber: '+62 815-6380-8299',
   systemInfo: {
     version: 'v2.5.0-PRO',
     apiStatus: 'Active / Normal',

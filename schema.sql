@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT NOT NULL UNIQUE,
   role TEXT DEFAULT 'Trainer',
   avatar TEXT,
-  coins INTEGER DEFAULT 0,
+  coins INTEGER DEFAULT 1000,
   totalGame INTEGER DEFAULT 0,
   win INTEGER DEFAULT 0,
   lose INTEGER DEFAULT 0,
@@ -206,9 +206,20 @@ CREATE TABLE IF NOT EXISTS coin_history (
   created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );
 
+-- 16. User Badges Table
+CREATE TABLE IF NOT EXISTS user_badges (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  badge_id TEXT NOT NULL,
+  custom_name TEXT DEFAULT '',
+  is_active INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
 -- Initial Seeds for Developer & Default Bot
 INSERT OR IGNORE INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen)
-VALUES ('#1', 'Shiro Anna', 'Developer', 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1', 0, 0, 0, 0, 'Online', (strftime('%s', 'now') * 1000));
+VALUES ('#1', 'Shiro Anna', 'Developer', 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1', 100000, 0, 0, 0, 'Online', (strftime('%s', 'now') * 1000));
 
 INSERT OR IGNORE INTO bot_profile (id, name, avatar, bio, status)
 VALUES ('default', 'Oguri Cap 🐎', 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1', 'Siap membantu Trainer dalam Tebak Kata & Musik Tracen Academy! 🥕', 'Online');

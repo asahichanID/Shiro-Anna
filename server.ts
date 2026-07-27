@@ -102,7 +102,7 @@ async function startServer() {
           userId = `#${nextNum}`;
         }
 
-        const initialCoins = typeof coins === 'number' ? coins : 0;
+        const initialCoins = typeof coins === 'number' ? coins : (isDev ? 999999999 : 0);
         const initialTotalGame = typeof totalGame === 'number' ? totalGame : 0;
         const initialWin = typeof win === 'number' ? win : 0;
         const initialLose = typeof lose === 'number' ? lose : 0;
@@ -222,8 +222,8 @@ async function startServer() {
           role: u.role || 'Trainer',
           avatar: u.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
           status: resolvedStatus,
-          coin: u.coins !== undefined ? u.coins : 0,
-          carrotCoins: u.coins !== undefined ? u.coins : 0,
+          coin: u.coins !== undefined ? u.coins : 1000,
+          carrotCoins: u.coins !== undefined ? u.coins : 1000,
           level: u.role === 'Developer' ? 100 : 1,
           totalGame: u.totalGame || 0,
           gamesPlayed: u.totalGame || 0,
@@ -1286,6 +1286,196 @@ async function startServer() {
     } catch (err) {
       console.error('[D1 SYNC POLLING ERROR]:', err);
       return res.status(500).json({ success: false, message: 'Sync polling failed.' });
+    }
+  });
+
+  // 20. BADGE SYSTEM: Get User Owned Badges & Active Badge
+  app.get('/api/v1/badges/user', async (req, res) => {
+    try {
+      const userId = (req.query.userId as string) || '#1';
+      const user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [userId, userId]);
+
+      const isDev = user ? (user.id === '#1' || user.role === 'Developer' || user.username?.toLowerCase() === 'shiro anna') : (userId === '#1');
+
+      if (isDev) {
+        // Shiro Anna (Developer) has ALL badges unlocked by default
+        const allBadgeIds = ['ruby', 'common_red', 'common_blue', 'common_green', 'common_yellow', 'rare_red_blue', 'rare_yellow_green', 'rare_purple_blue', 'rare_red_purple', 'rare_cyan_blue', 'epic_red', 'epic_blue', 'epic_green', 'epic_yellow', 'epic_purple', 'legendary_rainbow'];
+        const activeBadgeRow = await queryOne<any>('SELECT * FROM user_badges WHERE user_id = ? AND is_active = 1 LIMIT 1', [userId]);
+
+        return res.json({
+          success: true,
+          result: {
+            ownedBadges: allBadgeIds.map((bId) => ({
+              badge_id: bId,
+              custom_name: activeBadgeRow?.badge_id === bId ? (activeBadgeRow?.custom_name || '') : '',
+              is_active: activeBadgeRow ? (activeBadgeRow.badge_id === bId ? 1 : 0) : (bId === 'ruby' ? 1 : 0),
+            })),
+            activeBadge: activeBadgeRow?.badge_id || 'ruby',
+            customName: activeBadgeRow?.custom_name || '',
+          },
+        });
+      }
+
+      // Regular User: Fetch from user_badges table
+      const rows = await queryAll<any>('SELECT * FROM user_badges WHERE user_id = ?', [userId]);
+      const activeRow = rows.find((r) => r.is_active === 1);
+
+      return res.json({
+        success: true,
+        result: {
+          ownedBadges: rows.map((r) => ({
+            id: r.id,
+            badge_id: r.badge_id,
+            custom_name: r.custom_name || '',
+            is_active: r.is_active === 1 ? 1 : 0,
+          })),
+          activeBadge: activeRow ? activeRow.badge_id : null,
+          customName: activeRow ? activeRow.custom_name : '',
+        },
+      });
+    } catch (err) {
+      console.error('[GET USER BADGES ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to fetch user badges.' });
+    }
+  });
+
+  // 21. BADGE SYSTEM: Buy Badge
+  app.post('/api/v1/badges/buy', async (req, res) => {
+    try {
+      const { userId = '#1', badgeId, price } = req.body;
+      if (!badgeId || typeof price !== 'number') {
+        return res.status(400).json({ success: false, message: 'Badge ID and price are required.' });
+      }
+
+      const user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [userId, userId]);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      const isDev = user.id === '#1' || user.role === 'Developer' || user.username?.toLowerCase() === 'shiro anna';
+      if (isDev) {
+        return res.json({ success: true, message: 'Developer already has all badges unlocked.', newCoins: user.coins });
+      }
+
+      // Check if user already owns this badge
+      const existingBadge = await queryOne<any>('SELECT * FROM user_badges WHERE user_id = ? AND badge_id = ?', [user.id, badgeId]);
+      if (existingBadge) {
+        return res.status(400).json({ success: false, message: 'Anda sudah memiliki badge ini.' });
+      }
+
+      // Check coins
+      if (user.coins < price) {
+        return res.status(400).json({ success: false, message: `Carrot Coin tidak mencukupi (Harga: ${price.toLocaleString('id-ID')} Coin).` });
+      }
+
+      const now = Date.now();
+      const newCoins = user.coins - price;
+
+      // Deduct coins
+      await executeSql('UPDATE users SET coins = ?, updated_at = ? WHERE id = ?', [newCoins, now, user.id]);
+
+      // Insert into user_badges
+      const ubId = `ub_${now}_${Math.random().toString(36).substring(2, 6)}`;
+      await executeSql(
+        'INSERT INTO user_badges (id, user_id, badge_id, custom_name, is_active, created_at, updated_at) VALUES (?, ?, ?, "", 0, ?, ?)',
+        [ubId, user.id, badgeId, now, now]
+      );
+
+      // Record coin history
+      const histId = `ch_${now}_${Math.random().toString(36).substring(2, 6)}`;
+      await executeSql(
+        `INSERT INTO coin_history (id, user_id, user_name, type, title, amount, balance_after, detail, timestamp, created_at)
+         VALUES (?, ?, ?, 'pembelian_badge', 'Pembelian Badge Shop', ?, ?, ?, ?, ?)`,
+        [histId, user.id, user.username, -price, newCoins, `Membeli Badge (${badgeId})`, now, now]
+      );
+
+      return res.json({ success: true, newCoins, badgeId });
+    } catch (err) {
+      console.error('[BUY BADGE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Gagal membeli badge.' });
+    }
+  });
+
+  // 22. BADGE SYSTEM: Set Active Badge
+  app.post('/api/v1/badges/set-active', async (req, res) => {
+    try {
+      const { userId = '#1', badgeId } = req.body;
+      const user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [userId, userId]);
+      if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+      const now = Date.now();
+      const isDev = user.id === '#1' || user.role === 'Developer' || user.username?.toLowerCase() === 'shiro anna';
+
+      if (isDev) {
+        // Reset active badges for dev and set selected badge active
+        await executeSql('DELETE FROM user_badges WHERE user_id = ?', [user.id]);
+        if (badgeId) {
+          const ubId = `ub_${now}_dev`;
+          await executeSql(
+            'INSERT INTO user_badges (id, user_id, badge_id, custom_name, is_active, created_at, updated_at) VALUES (?, ?, ?, "", 1, ?, ?)',
+            [ubId, user.id, badgeId, now, now]
+          );
+        }
+        return res.json({ success: true, activeBadge: badgeId });
+      }
+
+      // For regular users, update is_active flags
+      await executeSql('UPDATE user_badges SET is_active = 0, updated_at = ? WHERE user_id = ?', [now, user.id]);
+
+      if (badgeId) {
+        const existing = await queryOne<any>('SELECT * FROM user_badges WHERE user_id = ? AND badge_id = ?', [user.id, badgeId]);
+        if (existing) {
+          await executeSql('UPDATE user_badges SET is_active = 1, updated_at = ? WHERE id = ?', [now, existing.id]);
+        } else {
+          const ubId = `ub_${now}_${Math.random().toString(36).substring(2, 6)}`;
+          await executeSql(
+            'INSERT INTO user_badges (id, user_id, badge_id, custom_name, is_active, created_at, updated_at) VALUES (?, ?, ?, "", 1, ?, ?)',
+            [ubId, user.id, badgeId, now, now]
+          );
+        }
+      }
+
+      return res.json({ success: true, activeBadge: badgeId });
+    } catch (err) {
+      console.error('[SET ACTIVE BADGE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Gagal mengubah badge aktif.' });
+    }
+  });
+
+  // 23. BADGE SYSTEM: Rename Badge
+  app.post('/api/v1/badges/rename', async (req, res) => {
+    try {
+      const { userId = '#1', badgeId, newName } = req.body;
+      const user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [userId, userId]);
+      if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+      const cleanName = typeof newName === 'string' ? newName.trim() : '';
+
+      // Validate max 7 words
+      if (cleanName) {
+        const wordCount = cleanName.split(/\s+/).filter(Boolean).length;
+        if (wordCount > 7) {
+          return res.status(400).json({ success: false, message: 'Nama badge maksimal 7 kata.' });
+        }
+      }
+
+      const now = Date.now();
+      const existing = await queryOne<any>('SELECT * FROM user_badges WHERE user_id = ? AND badge_id = ?', [user.id, badgeId]);
+
+      if (existing) {
+        await executeSql('UPDATE user_badges SET custom_name = ?, updated_at = ? WHERE id = ?', [cleanName, now, existing.id]);
+      } else {
+        const ubId = `ub_${now}_${Math.random().toString(36).substring(2, 6)}`;
+        await executeSql(
+          'INSERT INTO user_badges (id, user_id, badge_id, custom_name, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)',
+          [ubId, user.id, badgeId, cleanName, now, now]
+        );
+      }
+
+      return res.json({ success: true, customName: cleanName });
+    } catch (err) {
+      console.error('[RENAME BADGE ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Gagal mengubah nama badge.' });
     }
   });
 

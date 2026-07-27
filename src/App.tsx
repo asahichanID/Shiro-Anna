@@ -17,9 +17,9 @@ import { ArchitectureAnalysisModal } from './components/ArchitectureAnalysisModa
 import { ProfileProvider, useProfile } from './context/ProfileContext';
 import { LoginModal } from './components/LoginModal';
 import { ProfileView } from './components/ProfileView';
-import { ShopView } from './components/ShopView';
 import { DeveloperPanelView } from './components/DeveloperPanelView';
 import { ServiceView } from './components/ServiceView';
+import { ShopView } from './components/ShopView';
 import { RunningMarquee } from './components/RunningMarquee';
 
 const DEFAULT_CHAT_ID = 'chat_default';
@@ -96,28 +96,11 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
     const currentName = profile?.username || 'Trainer Sensei';
     const user = userDb.getUser(activeUserId, currentName);
 
-    // Sync the visible state from the game/user database (source of truth)
-    const currentCoins = user.carrotCoins ?? user.coin ?? profile?.coins ?? 0;
-    const currentTotalGame = user.gamesPlayed ?? user.totalGame ?? profile?.totalGame ?? 0;
-    const currentWins = user.gamesWon ?? user.win ?? profile?.win ?? 0;
-    const currentLosses = user.lose ?? profile?.lose ?? 0;
-
+    // Prefer coins from profile if logged in, otherwise from userDb
+    const currentCoins = profile ? profile.coins : user.carrotCoins;
     setUserCoins(currentCoins);
     setUserName(currentName);
     setUserWinStreak(user.winStreak || 0);
-
-    // Keep profile context aligned so the header/profile page update immediately.
-    if (
-      profile &&
-      (
-        profile.coins !== currentCoins ||
-        profile.totalGame !== currentTotalGame ||
-        profile.win !== currentWins ||
-        profile.lose !== currentLosses
-      )
-    ) {
-      updateStats(currentCoins, currentTotalGame, currentWins, currentLosses);
-    }
 
     const session = gameDb.getSession(DEFAULT_CHAT_ID);
     setActiveSession(session);
@@ -188,9 +171,9 @@ Ketik *.tebakkata* atau klik tombol di bawah untuk memulai!`,
 
         {activeTab === 'play' && <MusicPlayViewer />}
 
-        {activeTab === 'service' && <ServiceView />}
-
         {activeTab === 'shop' && <ShopView />}
+
+        {activeTab === 'service' && <ServiceView />}
 
         {activeTab === 'devpanel' && <DeveloperPanelView />}
 

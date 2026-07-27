@@ -5,9 +5,8 @@ import { useProfile } from '../context/ProfileContext';
 import { BotService, BotProfile } from '../services/BotService';
 import { BotAvatar } from './BotAvatar';
 import { BOT_DEFAULT_AVATAR } from '../config/constants';
-import { BadgePill } from './BadgePill';
 
-export type HeaderTab = 'chat' | 'play' | 'service' | 'shop' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
+export type HeaderTab = 'chat' | 'play' | 'shop' | 'service' | 'devpanel' | 'database' | 'queue' | 'analysis' | 'profile';
 
 interface OguriCapHeaderProps {
   userCoins: number;
@@ -149,22 +148,17 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
                   {profile?.username || userName}
                 </span>
 
-                <div className="flex flex-col items-start gap-1">
-                  {isDeveloper ? (
-                    <span className="relative overflow-hidden text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white border border-red-400/40 shadow-sm shadow-red-500/50 inline-flex items-center gap-0.5">
-                      <Sparkles className="w-2.5 h-2.5 text-amber-200" />
-                      <span>Dev</span>
-                      <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-badge-shine pointer-events-none"></span>
-                    </span>
-                  ) : (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-900/60 text-sky-300 border border-sky-500/30">
-                      ID {profile?.id || '#1'}
-                    </span>
-                  )}
-                  {profile?.equippedBadgeId && (
-                    <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} />
-                  )}
-                </div>
+                {isDeveloper ? (
+                  <span className="relative overflow-hidden text-[10px] font-black px-2 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 text-white border border-red-400/40 shadow-sm shadow-red-500/50 inline-flex items-center gap-0.5">
+                    <Sparkles className="w-2.5 h-2.5 text-amber-200" />
+                    <span>Dev</span>
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-badge-shine pointer-events-none"></span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-900/60 text-sky-300 border border-sky-500/30">
+                    ID {profile?.id || '#1'}
+                  </span>
+                )}
               </div>
             </button>
 
@@ -200,20 +194,20 @@ export const OguriCapHeader: React.FC<OguriCapHeaderProps> = ({
               <span>🎵 Play</span>
             </button>
 
-            {/* Shop Button */}
+            {/* Shop & Toko Button */}
             <button
               onClick={() => setActiveTab('shop')}
               className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 cursor-pointer ${
                 activeTab === 'shop'
-                  ? 'bg-gradient-to-r from-fuchsia-600 via-violet-600 to-cyan-600 text-white font-extrabold shadow-md shadow-violet-600/30 border border-cyan-300/40'
-                  : 'bg-violet-500/10 text-violet-300 hover:text-violet-100 hover:bg-violet-500/20 border border-violet-500/30 font-bold'
+                  ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 font-extrabold shadow-md shadow-amber-500/30 border border-yellow-200 scale-105'
+                  : 'bg-amber-500/10 text-amber-300 hover:text-amber-100 hover:bg-amber-500/20 border border-amber-500/30 font-bold'
               }`}
             >
-              <ShoppingBag className="w-3.5 h-3.5 text-violet-300" />
-              <span>Shop</span>
+              <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+              <span>Shop & Toko</span>
             </button>
 
-            {/* Service Button (Premium Gold / Yellow) */}
+            {/* Service Button */}
             <button
               onClick={() => setActiveTab('service')}
               className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-md transition-all flex-shrink-0 cursor-pointer ${

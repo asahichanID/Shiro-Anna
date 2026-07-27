@@ -1,58 +1,58 @@
 [
   {
     "id": "w_001",
-    "soal": "Hewan yang kakinya empat, larinya kencang, tapi kalau dipakein celana pasti aneh banget 🗿",
+    "soal": "Hewan yang larinya kencang banget dan sukanya makan wortel... mirip teman-temanku di Tracen!",
     "jawaban": "Kuda",
-    "clue": "Suka makan wortel, jalannya kencang di padang rumput",
-    "kategori": "Hewan"
+    "clue": "Lari kencang di lapangan, suka wortel",
+    "kategori": "Hewan & Umamusume"
   },
   {
     "id": "w_002",
-    "soal": "Sayur oranye yang rasanya manis, kalo dimakan banyak-banyak nanti telinga jadi panjang ga sih? 🐰😹",
+    "soal": "Makanan oranye ini super renyah dan manis, Oguri bisa makan berkarung-karung tanpa bosen!",
     "jawaban": "Wortel",
-    "clue": "Bentuknya panjang, warnanya oranye cerah",
+    "clue": "Sayuran oranye kesukaan Oguri Cap",
     "kategori": "Makanan"
   },
   {
     "id": "w_003",
-    "soal": "Orang yang ngarahin kita, ngajarin hal baru, tapi kadang lebih galak dari ibu sendiri 😂",
-    "jawaban": "Pelatih",
-    "clue": "Orang yang ngajarin dan bimbing kita biar jago",
-    "kategori": "Umum"
+    "soal": "Orang hebat yang selalu nemenin Oguri latihan dan nyiapin strategi balap... kamu tau kan siapa?",
+    "jawaban": "Trainer",
+    "clue": "Orang yang bimbing dan latih Uma Musume",
+    "kategori": "Umamusume"
   },
   {
     "id": "w_004",
-    "soal": "Acara lomba paling besar, yang kalah nangis, yang menang teriak sampe serak tenggorokan 🏆🗣️",
-    "jawaban": "Kejuaraan",
-    "clue": "Ajang kompetisi paling bergengsi",
-    "kategori": "Lomba"
+    "soal": "Balapan G1 penutup tahun di Jepang yang bikin jantung Oguri berdebar kencang saat garis finis!",
+    "jawaban": "Arima Kinen",
+    "clue": "Balapan megah penutup tahun",
+    "kategori": "Balapan"
   },
   {
     "id": "w_005",
-    "soal": "Tempat besar yang isinya orang-orang mau jadi jago, tapi malah sering ketiduran pas pelajaran 🤣",
-    "jawaban": "Sekolah",
-    "clue": "Tempat kita belajar dan kumpul sama temen",
+    "soal": "Akademi tempat Oguri dan para Uma Musume belajar serta berlatih setiap hari!",
+    "jawaban": "Tracen Academy",
+    "clue": "Sekolah dan pusat latihan para runner",
     "kategori": "Tempat"
   },
   {
     "id": "w_006",
-    "soal": "Benda besi dipasang di telapak kaki, biar jalan ga licin, padahal kalo dipakein ke tangan aneh banget 🦶🔩",
-    "jawaban": "Tapal Kuda",
-    "clue": "Pelindung yang dipasang di kaki hewan berkaki empat",
-    "kategori": "Alat"
+    "soal": "Sesuatu yang lembut dan hangat, selalu dipasang di kaki kuda agar tak cedera saat sprint kencang!",
+    "jawaban": "Sepatu Kuda",
+    "clue": "Pelindung telapak kaki kuda",
+    "kategori": "Peralatan"
   },
   {
     "id": "w_007",
-    "soal": "Minuman putih seger, baunya enak, tapi diminum pas lagi buru-buru malah tumpah ke baju 😹🥛",
-    "jawaban": "Susu",
-    "clue": "Minuman sehat yang kaya kalsium",
-    "kategori": "Minuman"
+    "soal": "Minuman segar yang sering dijual di kantin Tracen pas selesai sesi latihan berat jam 5 sore...",
+    "jawaban": "Susu Segar",
+    "clue": "Minuman bergizi pelepas dahaga",
+    "kategori": "Makanan & Minuman"
   },
   {
     "id": "w_008",
-    "soal": "Garis yang kalo lewatin duluan, rasanya kayak udah ngalahin satu dunia sekaligus 🏁😎",
+    "soal": "Istilah ketika Uma Musume berhasil melewati garis batas paling depan dan jadi juara!",
     "jawaban": "Garis Finis",
-    "clue": "Tanda akhir dari sebuah perlombaan",
-    "kategori": "Lomba"
+    "clue": "Batas akhir dari lintasan balap",
+    "kategori": "Balapan"
   }
 ]

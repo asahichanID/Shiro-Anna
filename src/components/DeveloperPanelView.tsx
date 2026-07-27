@@ -265,9 +265,9 @@ export const DeveloperPanelView: React.FC = () => {
       setActionSuccess('Berhasil me-reset sesi game Tebak Kata.');
     } else if (type === 'coin') {
       if (profile) {
-        updateStats(0, profile.totalGame, profile.win, profile.lose);
-        ActivityService.logActivity('system', 'Reset Coin', 'Carrot Coin dikembalikan ke standar 0.');
-        setActionSuccess('Berhasil me-reset Carrot Coin menjadi 0 Coins.');
+        updateStats(1000, profile.totalGame, profile.win, profile.lose);
+        ActivityService.logActivity('system', 'Reset Coin', 'Carrot Coin dikembalikan ke standar 1.000.');
+        setActionSuccess('Berhasil me-reset Carrot Coin menjadi 1.000 Coins.');
       }
     } else if (type === 'all') {
       localStorage.clear();
@@ -786,6 +786,9 @@ export const DeveloperPanelView: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* ===================== TAB SHOP: PENARIKAN PREMIUM & SHOP ===================== */}
+      {activeTab === 'shop' && <DeveloperShopManager />}
 
       {/* ===================== TAB 3: BOT PROFILE MANAGER ===================== */}
       {activeTab === 'bot' && (

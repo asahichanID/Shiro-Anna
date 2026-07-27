@@ -8,11 +8,11 @@ import { GlobalChatService } from '../services/GlobalChatService';
 import { FriendsService } from '../services/FriendsService';
 import { LiveDuelService } from '../services/LiveDuelService';
 import { PresenceService } from '../services/PresenceService';
-import { ChatService } from '../services/ChatService';
 import { BotAvatar } from './BotAvatar';
 import { LiveDuelPanel } from './LiveDuelPanel';
-import { useProfile } from '../context/ProfileContext';
-import { BadgePill } from './BadgePill';
+
+import { DeveloperBadge } from './DeveloperBadge';
+import { D1DatabaseService } from '../services/D1DatabaseService';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
@@ -32,7 +32,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   userWinStreak = 0,
 }) => {
   const currentUserId = 'trainer_01';
-  const { profile } = useProfile();
 
   // Navigation state
   const [chatMode, setChatMode] = useState<'global' | 'friends' | 'bot'>('global');
@@ -49,21 +48,14 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   const [timerSeconds, setTimerSeconds] = useState<number>(60);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [typingStatus, setTypingStatus] = useState<{ active: boolean; text: string; dots: string } | null>(null);
-  const [friendTypingStatus, setFriendTypingStatus] = useState<{ friendId: string; isTyping: boolean; text: string } | null>(null);
   const [botProfile, setBotProfile] = useState<BotProfile>(() => BotService.getBotProfileSync());
+  const [userActiveBadge, setUserActiveBadge] = useState<string | undefined>(undefined);
   
   // New Friend Input state
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
   const [newFriendName, setNewFriendName] = useState('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const botQuickCommands = [
-    { label: '.tebakkata', command: '.tebakkata', tone: 'from-sky-600 to-blue-600' },
-    { label: '.hint', command: '.hint', tone: 'from-amber-600 to-orange-600' },
-    { label: '.nyerah', command: '.nyerah', tone: 'from-rose-600 to-red-600' },
-    { label: '.coin', command: '.coin', tone: 'from-emerald-600 to-teal-600' },
-  ];
 
   // Initialize Services & Subscriptions
   useEffect(() => {
@@ -77,6 +69,11 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
     GlobalChatService.fetchGlobalMessages().then(setGlobalMessages);
     FriendsService.getFriends(currentUserId).then(setFriendsList);
     LiveDuelService.getActiveDuel().then(setActiveDuel);
+    D1DatabaseService.getUserBadges(currentUserId).then((res) => {
+      if (res && res.activeBadge) {
+        setUserActiveBadge(res.activeBadge);
+      }
+    });
 
     // Subscriptions
     const unsubBot = BotService.onBotProfileUpdate(setBotProfile);
@@ -84,9 +81,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
     const unsubFriends = FriendsService.onFriendsUpdate(setFriendsList);
     const unsubDuel = LiveDuelService.onDuelUpdate(setActiveDuel);
     const unsubTyping = messageHandler.onTyping(setTypingStatus);
-    const unsubFriendTyping = ChatService.onTyping((status) => {
-      setFriendTypingStatus(status);
-    });
 
     return () => {
       unsubBot();
@@ -94,7 +88,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
       unsubFriends();
       unsubDuel();
       unsubTyping();
-      unsubFriendTyping();
       GlobalChatService.stopPolling();
       PresenceService.stopPresenceTracking();
     };
@@ -111,31 +104,9 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
         setDirectMessages(msgs);
       });
 
-      const pollId = window.setInterval(() => {
-        GlobalChatService.fetchDirectMessages(roomId, currentUserId).then(setDirectMessages).catch(() => {});
-      }, 1500);
-
-      return () => {
-        clearInterval(pollId);
-        unsubDM();
-      };
+      return () => unsubDM();
     }
   }, [selectedFriend]);
-
-  // Refresh friends list so DM roster stays close to realtime
-  useEffect(() => {
-    const pollFriends = window.setInterval(() => {
-      FriendsService.getFriends(currentUserId).then(setFriendsList).catch(() => {});
-    }, 5000);
-
-    return () => clearInterval(pollFriends);
-  }, []);
-
-  useEffect(() => {
-    if (chatMode !== 'bot' && typingStatus?.active) {
-      setTypingStatus(null);
-    }
-  }, [chatMode, typingStatus]);
 
   // Auto scroll
   useEffect(() => {
@@ -223,6 +194,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
       await GlobalChatService.sendGlobalMessage({
         senderId: currentUserId,
         senderName: userName,
+        senderBadge: userActiveBadge,
         text,
       });
 
@@ -373,9 +345,11 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
               return (
                 <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`}>
                   <div className="flex items-center space-x-2 px-1">
-                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1">
-                      {isMe && profile?.equippedBadgeId ? <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} className="mr-1" /> : null}
-                      {msg.senderName}
+                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      {msg.senderBadge && (
+                        <DeveloperBadge badgeId={msg.senderBadge} badgeName={msg.senderBadgeName} showRarity={false} size="sm" />
+                      )}
+                      <span>{msg.senderName}</span>
                       {isDev && (
                         <span className="text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-1.5 py-0.2 rounded font-black">
                           DEV
@@ -415,7 +389,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
               );
             })}
             <div ref={messagesEndRef} />
-
           </div>
         )}
 
@@ -522,15 +495,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                     </button>
                   </div>
 
-                  {friendTypingStatus?.isTyping && friendTypingStatus.friendId === selectedFriend.id && (
-                    <div className="px-4 pt-3">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 shadow-md">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span>{friendTypingStatus.text}</span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* DM Feed */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {directMessages.map((dm) => {
@@ -558,11 +522,6 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                                 : 'bg-slate-900 text-slate-100 rounded-bl-none border border-slate-800'
                             }`}
                           >
-                            {isMe && profile?.equippedBadgeId && (
-                              <div className="mb-1">
-                                <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} />
-                              </div>
-                            )}
                             {dm.text}
                           </div>
                         </div>
@@ -584,22 +543,11 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
         {/* MODE 3: BOT GAME SIMULATOR */}
         {chatMode === 'bot' && (
           <div className="flex-1 flex flex-col bg-slate-950/80 overflow-y-auto p-4 space-y-3 scrollbar-thin">
-            {typingStatus?.active && (
-              <div className="flex justify-start">
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-[11px] font-semibold text-sky-200 shadow-md">
-                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-                  <span>{typingStatus.text}{typingStatus.dots}</span>
-                </div>
-              </div>
-            )}
             {messages.map((msg) => {
               const isUser = msg.sender === 'user';
               return (
                 <div key={msg.id} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
                   <div className="flex items-center space-x-2 px-1">
-                    {isUser && profile?.equippedBadgeId && (
-                      <BadgePill badgeId={profile.equippedBadgeId} compact ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} />
-                    )}
                     <span className="text-[10px] text-slate-400">{isUser ? msg.senderName : botProfile.name}</span>
                   </div>
                   <div
@@ -614,28 +562,11 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                 </div>
               );
             })}
-
             <div ref={messagesEndRef} />
           </div>
         )}
 
       </div>
-      {chatMode === 'bot' && (
-        <div className="px-3 pb-2 bg-slate-900 border-t border-slate-800">
-          <div className="flex flex-wrap gap-2">
-            {botQuickCommands.map((item) => (
-              <button
-                key={item.command}
-                type="button"
-                onClick={() => onSendMessage(item.command)}
-                className={`px-3 py-2 rounded-xl text-[11px] font-black text-white bg-gradient-to-r ${item.tone} shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* INPUT FORM */}
       <form onSubmit={handleSubmit} className="p-3 bg-slate-900 border-t border-slate-800 flex items-center space-x-2">

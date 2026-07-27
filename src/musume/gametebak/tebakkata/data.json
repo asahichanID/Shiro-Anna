@@ -1,352 +1,72 @@
 [
   {
     "id": "tk_001",
-    "soal": "Hewan yang punya belalai panjang dan telinga lebar?",
-    "jawaban": "Gajah",
-    "clue": "Biasanya warnanya abu-abu, paling besar di darat",
-    "kategori": "Hewan"
+    "soal": "Hewan yang larinya kencang banget dan sukanya makan wortel... mirip teman-temanku di Tracen!",
+    "jawaban": "Kuda",
+    "clue": "Lari kencang di lapangan, suka wortel",
+    "kategori": "Hewan & Umamusume"
   },
   {
     "id": "tk_002",
-    "soal": "Ibu kota negara Indonesia?",
-    "jawaban": "Jakarta",
-    "clue": "Pusat pemerintahan dulu sekarang pindah ke Nusantara",
-    "kategori": "Umum"
+    "soal": "Makanan oranye ini super renyah dan manis, Oguri bisa makan berkarung-karung tanpa bosen!",
+    "jawaban": "Wortel",
+    "clue": "Sayuran oranye kesukaan Oguri Cap",
+    "kategori": "Makanan"
   },
   {
     "id": "tk_003",
-    "soal": "Warna yang dihasilkan kalau campur merah + kuning?",
-    "jawaban": "Oranye",
-    "clue": "Warna buah jeruk atau wortel",
-    "kategori": "Pengetahuan"
+    "soal": "Orang hebat yang selalu nemenin Oguri latihan dan nyiapin strategi balap... kamu tau kan siapa?",
+    "jawaban": "Trainer",
+    "clue": "Orang yang bimbing dan latih Uma Musume",
+    "kategori": "Umamusume"
   },
   {
     "id": "tk_004",
-    "soal": "Benda yang dipakai buat nulis di papan tulis hitam?",
-    "jawaban": "Kapur",
-    "clue": "Biasanya putih atau warna-warni, mudah dihapus",
-    "kategori": "Sekolah"
+    "soal": "Balapan G1 penutup tahun di Jepang yang bikin jantung Oguri berdebar kencang saat garis finis!",
+    "jawaban": "Arima Kinen",
+    "clue": "Balapan megah penutup tahun",
+    "kategori": "Balapan"
   },
   {
     "id": "tk_005",
-    "soal": "Hewan yang tidur siang bangun malam, punya mata besar?",
-    "jawaban": "Burung hantu",
-    "clue": "Bisa putar kepala hampir muter penuh",
-    "kategori": "Hewan"
+    "soal": "Julukan keren yang orang-orang kasih ke Oguri gara-gara warna bulu dan lariku yang kencang!",
+    "jawaban": "Monster Grey",
+    "clue": "Julukan si Abu-abu legendaris",
+    "kategori": "Gelar"
   },
   {
     "id": "tk_006",
-    "soal": "Benda yang dipakai buat lihat kalau jarak jauh?",
-    "jawaban": "Teropong",
-    "clue": "Pakai ini benda jauh jadi kelihatan dekat",
-    "kategori": "Alat"
+    "soal": "Coba tebak... wadah bulat apa yang hampir selalu ada di meja makan Oguri buat porsi jumbo?",
+    "jawaban": "Mangkuk",
+    "clue": "Wadah kuah atau nasi porsi kenyang",
+    "kategori": "Barang"
   },
   {
     "id": "tk_007",
-    "soal": "Lagu nasional Indonesia yang dinyanyikan pas upacara bendera?",
-    "jawaban": "Indonesia Raya",
-    "clue": "Lagu ciptaan W.R. Supratman",
-    "kategori": "Negara"
+    "soal": "Lintasan rumput hijau tempat Oguri sama teman-teman adu lari kencang!",
+    "jawaban": "Racetrack",
+    "clue": "Tempat adu lari Uma Musume",
+    "kategori": "Tempat"
   },
   {
     "id": "tk_008",
-    "soal": "Buah yang kulitnya hijau dalemnya merah banyak air?",
-    "jawaban": "Semangka",
-    "clue": "Enak dimakan pas cuaca panas",
-    "kategori": "Makanan"
+    "soal": "Kegiatan capek tapi seru tiap pagi bareng Trainer biar lari Oguri makin kencang!",
+    "jawaban": "Latihan",
+    "clue": "Kegiatan ngelatih stamina dan fisik",
+    "kategori": "Aktivitas"
   },
   {
     "id": "tk_009",
-    "soal": "Satu jam berapa menit?",
-    "jawaban": "60",
-    "clue": "Setiap menit ada 60 detik",
-    "kategori": "Pengetahuan"
+    "soal": "Rival sekaligus temanku di Tracen yang sifatnya perhatian banget kayak ibu-ibu, hihi!",
+    "jawaban": "Super Creek",
+    "clue": "Rival Oguri yang keibuan dan lembut",
+    "kategori": "Karakter"
   },
   {
     "id": "tk_0010",
-    "soal": "Benda yang punya banyak halaman buat dibaca?",
-    "jawaban": "Buku",
-    "clue": "Isinya tulisan atau gambar",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0011",
-    "soal": "Hewan yang suka melompat dan punya kantong di perut?",
-    "jawaban": "Kanguru",
-    "clue": "Aslinya dari Australia",
-    "kategori": "Hewan"
-  },
-  {
-    "id": "tk_0012",
-    "soal": "Benda yang dipakai buat potong kertas?",
-    "jawaban": "Gunting",
-    "clue": "Ada dua bilah besi yang saling bertemu",
-    "kategori": "Alat"
-  },
-  {
-    "id": "tk_0013",
-    "soal": "Negara yang terkenal dengan Menara Eiffel?",
-    "jawaban": "Prancis",
-    "clue": "Ibukotanya Paris",
-    "kategori": "Geografi"
-  },
-  {
-    "id": "tk_0014",
-    "soal": "Benda yang menyala kalau malam dan mati kalau siang?",
-    "jawaban": "Lampu",
-    "clue": "Butuh listrik atau api biar menyala",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0015",
-    "soal": "Makanan pokok sebagian besar orang Indonesia?",
-    "jawaban": "Nasi",
-    "clue": "Dari tanaman padi",
-    "kategori": "Makanan"
-  },
-  {
-    "id": "tk_0016",
-    "soal": "Benda yang dipakai buat melindungi kepala pas naik motor?",
-    "jawaban": "Helm",
-    "clue": "Wajib dipakai biar aman",
-    "kategori": "Keselamatan"
-  },
-  {
-    "id": "tk_0017",
-    "soal": "Benda yang bulat dan bisa mengapung di air?",
-    "jawaban": "Bola",
-    "clue": "Biasanya dipakai main",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0018",
-    "soal": "Hewan yang bisa hidup di air dan di darat?",
-    "jawaban": "Katak",
-    "clue": "Dulu berudu sekarang berubah wujud",
-    "kategori": "Hewan"
-  },
-  {
-    "id": "tk_0019",
-    "soal": "Benda yang dipakai buat mendengar suara?",
-    "jawaban": "Telinga",
-    "clue": "Ada dua di sisi kepala",
-    "kategori": "Tubuh"
-  },
-  {
-    "id": "tk_0020",
-    "soal": "Minuman yang paling sehat dan paling sering kita butuhin?",
-    "jawaban": "Air putih",
-    "clue": "Tidak ada rasa dan tidak berwarna",
-    "kategori": "Kesehatan"
-  },
-  {
-    "id": "tk_0021",
-    "soal": "Benda yang dipakai buat menghitung?",
-    "jawaban": "Kalkulator",
-    "clue": "Bisa hitung cepat",
-    "kategori": "Alat"
-  },
-  {
-    "id": "tk_0022",
-    "soal": "Hewan yang berbulu tebal dan suka makan madu?",
-    "jawaban": "Beruang",
-    "clue": "Biasanya hibernasi pas musim dingin",
-    "kategori": "Hewan"
-  },
-  {
-    "id": "tk_0023",
-    "soal": "Benda yang dipakai buat menutup pintu biar aman?",
-    "jawaban": "Kunci",
-    "clue": "Kalau tidak ada tidak bisa dibuka",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0024",
-    "soal": "Benda yang punya roda empat dan dipakai jalan jauh?",
-    "jawaban": "Mobil",
-    "clue": "Bisa muat banyak orang",
-    "kategori": "Kendaraan"
-  },
-  {
-    "id": "tk_0025",
-    "soal": "Buah yang bentuknya bulat panjang kulitnya hijau dalemnya putih?",
-    "jawaban": "Pisang",
-    "clue": "Gampang dimakan langsung",
-    "kategori": "Makanan"
-  },
-  {
-    "id": "tk_0026",
-    "soal": "Benda yang dipakai buat tidur nyenyak?",
-    "jawaban": "Kasur",
-    "clue": "Biasanya ada di kamar",
-    "kategori": "Rumah"
-  },
-  {
-    "id": "tk_0027",
-    "soal": "Hewan yang punya sayap dan bisa terbang tinggi?",
-    "jawaban": "Burung",
-    "clue": "Biasanya bertelur",
-    "kategori": "Hewan"
-  },
-  {
-    "id": "tk_0028",
-    "soal": "Benda yang dipakai buat melihat wajah sendiri?",
-    "jawaban": "Cermin",
-    "clue": "Kalau kamu gerak dia ikut gerak",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0029",
-    "soal": "Benda yang dipakai buat mengirim pesan suara jarak jauh?",
-    "jawaban": "Telepon",
-    "clue": "Zaman sekarang hampir semua orang punya",
-    "kategori": "Teknologi"
-  },
-  {
-    "id": "tk_0030",
-    "soal": "Benda yang dipakai buat berjalan di atas air?",
-    "jawaban": "Perahu",
-    "clue": "Bisa muat barang atau orang",
-    "kategori": "Kendaraan"
-  },
-  {
-    "id": "tk_0031",
-    "soal": "Hewan yang hidup di air dan bernafas pakai insang?",
-    "jawaban": "Ikan",
-    "clue": "Biasanya punya sisik",
-    "kategori": "Hewan"
-  },
-  {
-    "id": "tk_0032",
-    "soal": "Benda yang dipakai buat menulis di layar sentuh?",
-    "jawaban": "Jari",
-    "clue": "Tidak perlu tinta",
-    "kategori": "Teknologi"
-  },
-  {
-    "id": "tk_0033",
-    "soal": "Benda yang dipakai buat mengukur waktu?",
-    "jawaban": "Jam",
-    "clue": "Ada jarum atau angka yang berubah",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0034",
-    "soal": "Makanan yang terbuat dari tepung digoreng dan asin?",
-    "jawaban": "Gorengan",
-    "clue": "Jajanan paling populer di Indonesia",
-    "kategori": "Makanan"
-  },
-  {
-    "id": "tk_0035",
-    "soal": "Benda yang dipakai buat melindungi mata dari sinar matahari?",
-    "jawaban": "Kacamata hitam",
-    "clue": "Biasanya kaca gelap",
-    "kategori": "Alat"
-  },
-  {
-    "id": "tk_0036",
-    "soal": "Benda yang dipakai buat menampung air?",
-    "jawaban": "Ember",
-    "clue": "Bentuknya biasanya cekung",
-    "kategori": "Rumah"
-  },
-  {
-    "id": "tk_0037",
-    "soal": "Benda yang dipakai buat naik ke tempat tinggi?",
-    "jawaban": "Tangga",
-    "clue": "Biasanya bertingkat-tingkat",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0038",
-    "soal": "Benda yang dipakai buat memotong rumput?",
-    "jawaban": "Mesin potong rumput",
-    "clue": "Biasanya dipakai di halaman",
-    "kategori": "Alat"
-  },
-  {
-    "id": "tk_0039",
-    "soal": "Benda yang dipakai buat menghangatkan badan?",
-    "jawaban": "Jaket",
-    "clue": "Dipakai pas cuaca dingin",
-    "kategori": "Pakaian"
-  },
-  {
-    "id": "tk_0040",
-    "soal": "Benda yang dipakai buat menyimpan uang?",
-    "jawaban": "Dompet",
-    "clue": "Biasanya dibawa ke mana-mana",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0041",
-    "soal": "Benda yang dipakai buat melihat ke langit?",
-    "jawaban": "Teropong bintang",
-    "clue": "Bisa lihat bintang dan bulan",
-    "kategori": "Pengetahuan"
-  },
-  {
-    "id": "tk_0042",
-    "soal": "Benda yang dipakai buat mendengarkan musik pribadi?",
-    "jawaban": "Headset",
-    "clue": "Tidak ganggu orang lain",
-    "kategori": "Teknologi"
-  },
-  {
-    "id": "tk_0043",
-    "soal": "Benda yang dipakai buat memasak air?",
-    "jawaban": "Panci",
-    "clue": "Ditaruh di atas kompor",
-    "kategori": "Dapur"
-  },
-  {
-    "id": "tk_0044",
-    "soal": "Benda yang dipakai buat mencuci tangan?",
-    "jawaban": "Sabun",
-    "clue": "Bisa cair atau padat",
-    "kategori": "Kesehatan"
-  },
-  {
-    "id": "tk_0045",
-    "soal": "Benda yang dipakai buat duduk santai?",
-    "jawaban": "Kursi",
-    "clue": "Biasanya ada di ruang tamu",
-    "kategori": "Rumah"
-  },
-  {
-    "id": "tk_0046",
-    "soal": "Benda yang dipakai buat menyimpan pakaian?",
-    "jawaban": "Lemari",
-    "clue": "Biasanya punya pintu",
-    "kategori": "Rumah"
-  },
-  {
-    "id": "tk_0047",
-    "soal": "Benda yang dipakai buat memadamkan api?",
-    "jawaban": "Air",
-    "clue": "Benda yang bisa hilangkan nyala api",
-    "kategori": "Keselamatan"
-  },
-  {
-    "id": "tk_0048",
-    "soal": "Benda yang dipakai buat melihat jalan pas malam?",
-    "jawaban": "Lampu jalan",
-    "clue": "Membantu melihat di tempat gelap",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0049",
-    "soal": "Benda yang dipakai buat mengikat barang biar tidak lepas?",
-    "jawaban": "Tali",
-    "clue": "Bisa ditarik dan diikat",
-    "kategori": "Umum"
-  },
-  {
-    "id": "tk_0050",
-    "soal": "Benda yang dipakai buat memegang makanan panas?",
-    "jawaban": "Sendok",
-    "clue": "Supaya tangan tidak kepanasan",
-    "kategori": "Dapur"
+    "soal": "Minuman oranye segar nan bergizi yang pas banget diminum Oguri habis lari capek!",
+    "jawaban": "Susu Wortel",
+    "clue": "Minuman sehat olahan sayur oranye",
+    "kategori": "Minuman"
   }
 ]

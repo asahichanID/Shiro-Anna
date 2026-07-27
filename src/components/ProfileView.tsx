@@ -1,8 +1,9 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useProfile } from '../context/ProfileContext';
 import { BotAvatar } from './BotAvatar';
-import { BadgePill } from './BadgePill';
-import { BADGE_CATALOG, getBadgeDefinition, clampBadgeText } from '../config/userBadges';
+import { D1DatabaseService } from '../services/D1DatabaseService';
+import { ALL_BADGES, BADGE_MAP, BadgeConfig } from '../config/badgeThemes';
+import { DeveloperBadge } from './DeveloperBadge';
 import {
   User,
   Camera,
@@ -21,29 +22,53 @@ import {
   Target,
   Swords,
   XCircle,
-  BadgeCheck,
-  Crown,
+  Award,
+  ShieldCheck,
+  RotateCcw,
+  RefreshCw,
+  CheckCircle2,
 } from 'lucide-react';
 
 export const ProfileView: React.FC = () => {
-  const { profile, updateUsername, updateAvatar, logout, equipBadge, renameBadge, purchaseBadge, purchasePremium, isPremiumActive } = useProfile();
+  const { profile, updateUsername, updateAvatar, logout } = useProfile();
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
-  const [showBadgeManager, setShowBadgeManager] = useState(false);
-  const [badgeRename, setBadgeRename] = useState('');
-  const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const ownedBadgeMap = useMemo(() => {
-    const map = new Map<string, string>();
-    profile?.badgeInventory?.forEach((badge) => map.set(badge.id, badge.customName));
-    return map;
-  }, [profile?.badgeInventory]);
+  // Badge Collection State
+  const [ownedBadges, setOwnedBadges] = useState<Array<{ id?: string; badge_id: string; custom_name: string; is_active: number }>>([]);
+  const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
+  const [loadingBadges, setLoadingBadges] = useState<boolean>(true);
+
+  // Rename Modal State
+  const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
+  const [customBadgeNameInput, setCustomBadgeNameInput] = useState<string>('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [savingBadge, setSavingBadge] = useState<boolean>(false);
 
   if (!profile) return null;
 
   const isDeveloper = profile.role === 'Developer' || profile.username.toLowerCase() === 'shiro anna';
+
+  // Fetch badges from D1 Database
+  const fetchUserBadges = async () => {
+    try {
+      const res = await D1DatabaseService.getUserBadges(profile.id);
+      if (res) {
+        setOwnedBadges(res.ownedBadges || []);
+        setActiveBadgeId(res.activeBadge);
+      }
+    } catch (err) {
+      console.error('[FETCH BADGES ERROR]:', err);
+    } finally {
+      setLoadingBadges(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserBadges();
+  }, [profile.id]);
 
   const handleStartEdit = () => {
     setNewName(profile.username);
@@ -63,6 +88,11 @@ export const ProfileView: React.FC = () => {
     }
   };
 
+  const handleCancelEdit = () => {
+    setIsEditingName(false);
+    setEditError(null);
+  };
+
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
@@ -80,68 +110,160 @@ export const ProfileView: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
-      if (base64) updateAvatar(base64);
+      if (base64) {
+        updateAvatar(base64);
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const activeBadge = profile.equippedBadgeId ? getBadgeDefinition(profile.equippedBadgeId) : undefined;
+  // Set Active Badge
+  const handleSetActiveBadge = async (badgeId: string | null) => {
+    setSavingBadge(true);
+    try {
+      const ok = await D1DatabaseService.setActiveBadge(profile.id, badgeId);
+      if (ok) {
+        setActiveBadgeId(badgeId);
+        await fetchUserBadges();
+      }
+    } catch (err) {
+      console.error('[SET ACTIVE BADGE ERROR]:', err);
+    } finally {
+      setSavingBadge(false);
+    }
+  };
+
+  // Open Rename Modal
+  const handleOpenRename = (badgeId: string, currentCustomName: string) => {
+    setEditingBadgeId(badgeId);
+    setCustomBadgeNameInput(currentCustomName || '');
+    setRenameError(null);
+  };
+
+  // Save Custom Badge Name (Max 7 words, fallback to default if empty)
+  const handleSaveBadgeRename = async () => {
+    if (!editingBadgeId) return;
+
+    const trimmed = customBadgeNameInput.trim();
+    if (trimmed) {
+      const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+      if (wordCount > 7) {
+        setRenameError('Nama badge maksimal 7 kata.');
+        return;
+      }
+    }
+
+    setSavingBadge(true);
+    try {
+      const res = await D1DatabaseService.renameBadge(profile.id, editingBadgeId, trimmed);
+      if (res.success) {
+        setEditingBadgeId(null);
+        await fetchUserBadges();
+      } else {
+        setRenameError(res.message || 'Gagal menyimpan nama badge.');
+      }
+    } catch (err: any) {
+      setRenameError(err.message || 'Terjadi kesalahan.');
+    } finally {
+      setSavingBadge(false);
+    }
+  };
+
+  // Reset Badge Custom Name to Default
+  const handleResetBadgeName = async (badgeId: string) => {
+    setSavingBadge(true);
+    try {
+      const res = await D1DatabaseService.renameBadge(profile.id, badgeId, '');
+      if (res.success) {
+        await fetchUserBadges();
+      }
+    } catch (err) {
+      console.error('[RESET BADGE NAME ERROR]:', err);
+    } finally {
+      setSavingBadge(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn pb-12">
-      <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/png, image/jpeg, image/jpg, image/webp" className="hidden" />
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/png, image/jpeg, image/jpg, image/webp"
+        className="hidden"
+      />
 
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl sm:p-8">
-        <div className="absolute top-0 right-0 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 h-80 w-80 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+      {/* Main Profile Card */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-start">
+        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+          {/* Avatar Area */}
           <div className="flex flex-col items-center space-y-3 flex-shrink-0">
             <div className="relative group">
-              <BotAvatar src={profile.avatar} alt={profile.username} className="w-32 h-32 sm:w-36 sm:h-36" showGlow />
+              <BotAvatar
+                src={profile.avatar}
+                alt={profile.username}
+                className="w-32 h-32 sm:w-36 sm:h-36"
+                showGlow={true}
+              />
+
               <button
                 onClick={handleAvatarClick}
                 title="Ubah Foto Profile"
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-full bg-slate-950/60 opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 cursor-pointer text-white text-xs font-semibold"
+                className="absolute inset-0 rounded-full bg-slate-950/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-xs font-semibold transition-all duration-200 cursor-pointer backdrop-blur-xs z-10"
               >
-                <Camera className="mb-1 h-6 w-6 text-sky-400" />
+                <Camera className="w-6 h-6 mb-1 text-sky-400" />
                 <span>Ubah Foto</span>
               </button>
             </div>
 
-            <button onClick={handleAvatarClick} className="flex items-center space-x-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-sky-300 shadow-sm transition-all hover:bg-slate-700 cursor-pointer">
-              <Camera className="h-3.5 w-3.5 text-sky-400" />
+            <button
+              onClick={handleAvatarClick}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+            >
+              <Camera className="w-3.5 h-3.5 text-sky-400" />
               <span>Ubah Foto</span>
             </button>
           </div>
 
-          <div className="flex-1 space-y-4 text-center md:text-left">
+          {/* Profile Basic Info */}
+          <div className="flex-1 space-y-4 text-center md:text-left w-full">
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center justify-center gap-2.5 md:justify-start">
-                <span className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-800/90 px-2.5 py-1 text-xs font-bold text-slate-300">
-                  <Hash className="h-3 w-3 text-sky-400" />
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5">
+                {/* ID Lokal */}
+                <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700 flex items-center gap-1">
+                  <Hash className="w-3 h-3 text-sky-400" />
                   ID {profile.id}
                 </span>
 
-                {activeBadge ? (
-                  <BadgePill badgeId={activeBadge.id} ownedBadge={profile.badgeInventory?.find((b) => b.id === activeBadge.id)} />
-                ) : isDeveloper ? (
-                  <span className="relative inline-flex items-center gap-1.5 rounded-full border border-red-400/50 bg-gradient-to-r from-red-600 via-rose-500 to-red-600 px-3.5 py-1 text-xs font-black tracking-wider text-white shadow-lg shadow-red-500/40 overflow-hidden">
-                    <Sparkles className="h-3.5 w-3.5 animate-pulse text-amber-200" />
+                {/* Role Badge */}
+                {isDeveloper ? (
+                  <span className="relative overflow-hidden inline-flex items-center gap-1.5 text-xs font-black px-3.5 py-1 rounded-full bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white border border-red-400/50 shadow-lg shadow-red-500/40 tracking-wider">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-200 animate-pulse" />
                     <span>Developer</span>
-                    <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-badge-shine" />
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-badge-shine pointer-events-none"></span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-900/50 px-3 py-1 text-xs font-semibold text-sky-300">
-                    <Shield className="h-3.5 w-3.5 text-sky-400" />
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-sky-900/50 text-sky-300 border border-sky-500/30">
+                    <Shield className="w-3.5 h-3.5 text-sky-400" />
                     <span>Trainer</span>
                   </span>
                 )}
+
+                {/* Active Badge Display */}
+                {activeBadgeId && (
+                  <DeveloperBadge badgeId={activeBadgeId} showRarity={false} size="sm" />
+                )}
               </div>
 
+              {/* Username with Edit Button */}
               {isEditingName ? (
                 <form onSubmit={handleSaveName} className="space-y-2 pt-1">
-                  <div className="flex items-center justify-center gap-2 md:justify-start">
+                  <div className="flex items-center gap-2 justify-center md:justify-start">
                     <input
                       type="text"
                       value={newName}
@@ -149,56 +271,75 @@ export const ProfileView: React.FC = () => {
                         setNewName(e.target.value);
                         if (editError) setEditError(null);
                       }}
-                      className="rounded-lg border border-sky-500 bg-slate-950 px-3 py-1.5 text-lg font-bold text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                      className="px-3 py-1.5 rounded-lg bg-slate-950 border border-sky-500 text-white font-bold text-lg focus:outline-none focus:ring-2 focus:ring-sky-500/50"
                       autoFocus
                     />
-                    <button type="submit" className="rounded-lg bg-emerald-600 p-2 text-white transition-all hover:bg-emerald-500 cursor-pointer" title="Simpan">
-                      <Check className="h-4 w-4" />
+                    <button
+                      type="submit"
+                      className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer"
+                      title="Simpan"
+                    >
+                      <Check className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => setIsEditingName(false)} className="rounded-lg bg-slate-800 p-2 text-slate-300 transition-all hover:bg-slate-700 cursor-pointer" title="Batal">
-                      <X className="h-4 w-4" />
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
+                      title="Batal"
+                    >
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
 
                   {editError && (
-                    <div className="flex items-center space-x-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-400">
-                      <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                    <div className="flex items-center space-x-1.5 text-xs font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 px-3 py-1.5 rounded-lg">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                       <span>{editError}</span>
                     </div>
                   )}
                 </form>
               ) : (
-                <div className="flex items-center justify-center gap-3 pt-1 md:justify-start">
-                  <h2 className={isDeveloper ? 'text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-purple-300 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]' : 'text-2xl sm:text-3xl font-bold text-white tracking-tight'}>
+                <div className="flex items-center justify-center md:justify-start space-x-3 pt-1">
+                  <h2
+                    className={
+                      isDeveloper
+                        ? 'text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-sky-200 to-purple-300 bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]'
+                        : 'text-2xl sm:text-3xl font-bold text-white tracking-tight'
+                    }
+                  >
                     {profile.username}
                   </h2>
-                  <button onClick={handleStartEdit} className="rounded-lg border border-slate-700 bg-slate-800/80 p-1.5 text-slate-300 transition-all hover:bg-slate-700 cursor-pointer" title="Edit Nama">
-                    <Edit3 className="h-4 w-4 text-sky-400" />
+                  <button
+                    onClick={handleStartEdit}
+                    className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all cursor-pointer"
+                    title="Edit Nama"
+                  >
+                    <Edit3 className="w-4 h-4 text-sky-400" />
                   </button>
                 </div>
               )}
 
-              <p className="flex items-center justify-center gap-1.5 pt-0.5 text-xs text-slate-400 md:justify-start">
-                <Calendar className="h-3.5 w-3.5 text-sky-400" />
-                <span>
-                  Pertama Login: <strong className="text-slate-200">{profile.createdAt}</strong>
-                </span>
+              <p className="text-xs text-slate-400 flex items-center justify-center md:justify-start gap-1.5 pt-0.5">
+                <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                <span>Pertama Login: <strong className="text-slate-200">{profile.createdAt}</strong></span>
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-2 md:justify-start">
-              <button onClick={handleStartEdit} className="flex items-center space-x-1.5 rounded-lg border border-sky-500/30 bg-sky-600/20 px-3.5 py-1.5 text-xs font-semibold text-sky-300 transition-all hover:bg-sky-600/30 cursor-pointer">
-                <Edit3 className="h-3.5 w-3.5" />
+            {/* Quick Action Buttons */}
+            <div className="pt-2 flex flex-wrap items-center justify-center md:justify-start gap-2">
+              <button
+                onClick={handleStartEdit}
+                className="px-3.5 py-1.5 rounded-lg bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 border border-sky-500/30 text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
                 <span>Edit Nama</span>
               </button>
 
-              <button onClick={() => setShowBadgeManager((v) => !v)} className="flex items-center space-x-1.5 rounded-lg border border-violet-500/30 bg-violet-600/15 px-3.5 py-1.5 text-xs font-semibold text-violet-300 transition-all hover:bg-violet-600/25 cursor-pointer">
-                <BadgeCheck className="h-3.5 w-3.5 text-violet-300" />
-                <span>Badge</span>
-              </button>
-
-              <button onClick={logout} className="flex items-center space-x-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 px-3.5 py-1.5 text-xs font-semibold text-rose-300 transition-all hover:bg-rose-500/20 cursor-pointer">
-                <LogOut className="h-3.5 w-3.5 text-rose-400" />
+              <button
+                onClick={logout}
+                className="px-3.5 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-semibold flex items-center space-x-1.5 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-400" />
                 <span>Ganti Akun / Logout</span>
               </button>
             </div>
@@ -206,131 +347,265 @@ export const ProfileView: React.FC = () => {
         </div>
       </div>
 
-      {showBadgeManager && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-black text-white">Badge Profile</h3>
-              <p className="text-sm text-slate-400">Pakai badge, ubah nama, dan pilih yang paling cocok.</p>
+      {/* BADGE COLLECTION SECTION */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center text-slate-950 font-black shadow-md shadow-amber-500/20">
+              <Award className="w-5 h-5" />
             </div>
-            {profile.equippedBadgeId ? <BadgePill badgeId={profile.equippedBadgeId} ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} /> : <span className="rounded-full border border-slate-700 bg-slate-950 px-3 py-1 text-xs font-semibold text-slate-400">Belum dipasang</span>}
+            <div>
+              <h3 className="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
+                Badge Collection
+                {isDeveloper && (
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+                    Dev Unlocked
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-400">Pilih badge aktif dan kustomisasi nama tampilan badge Anda.</p>
+            </div>
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-white">Inventory</h4>
-                <button onClick={() => setShowBadgeManager(false)} className="text-xs text-slate-400 hover:text-white">Tutup</button>
+          <button
+            onClick={fetchUserBadges}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold transition-all cursor-pointer self-start sm:self-auto flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loadingBadges ? 'animate-spin text-amber-400' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        {/* Currently Active Badge Showcase */}
+        <div className="p-4 rounded-xl bg-slate-950/80 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <span className="text-xs text-slate-400 font-bold">Badge Aktif Sekarang:</span>
+            {activeBadgeId ? (
+              <DeveloperBadge badgeId={activeBadgeId} showRarity={true} size="md" />
+            ) : (
+              <span className="text-xs text-slate-500 italic">Belum ada badge yang dipasang</span>
+            )}
+          </div>
+
+          {activeBadgeId && (
+            <button
+              onClick={() => handleSetActiveBadge(null)}
+              disabled={savingBadge}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold transition-all border border-slate-700 cursor-pointer"
+            >
+              Lepas Badge
+            </button>
+          )}
+        </div>
+
+        {/* Owned Badges Grid */}
+        {loadingBadges ? (
+          <div className="py-8 text-center text-slate-400 space-y-2">
+            <RefreshCw className="w-5 h-5 animate-spin mx-auto text-amber-400" />
+            <p className="text-xs">Memuat koleksi badge D1...</p>
+          </div>
+        ) : ownedBadges.length === 0 ? (
+          <div className="py-8 text-center text-slate-500 space-y-2">
+            <Award className="w-8 h-8 mx-auto text-slate-600" />
+            <p className="text-xs">Anda belum memiliki badge. Beli badge keren di Shop & Toko Tracen!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {ownedBadges.map((ob) => {
+              const badgeConfig = BADGE_MAP[ob.badge_id] || ALL_BADGES[0];
+              const isActive = activeBadgeId === ob.badge_id;
+              const hasCustomName = !!(ob.custom_name && ob.custom_name.trim());
+
+              return (
+                <div
+                  key={ob.badge_id}
+                  className={`p-4 rounded-xl border transition-all flex flex-col justify-between space-y-3 ${
+                    isActive
+                      ? 'bg-amber-950/20 border-amber-500/50 shadow-md shadow-amber-500/10'
+                      : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <DeveloperBadge
+                      badgeId={ob.badge_id}
+                      badgeName={ob.custom_name}
+                      showRarity={true}
+                      size="md"
+                    />
+
+                    {isActive ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-amber-400" />
+                        Aktif
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleSetActiveBadge(ob.badge_id)}
+                        disabled={savingBadge}
+                        className="px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Pasang
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Actions: Custom Rename */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-[11px] text-slate-400 truncate">
+                      {hasCustomName ? `Custom: "${ob.custom_name}"` : 'Nama Bawaan'}
+                    </span>
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {hasCustomName && (
+                        <button
+                          onClick={() => handleResetBadgeName(ob.badge_id)}
+                          disabled={savingBadge}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+                          title="Reset ke Nama Bawaan"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleOpenRename(ob.badge_id, ob.custom_name)}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-700 text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Ubahan</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* RENAME BADGE MODAL */}
+      {editingBadgeId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center space-x-3 pb-3 border-b border-slate-800">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                <Edit3 className="w-5 h-5" />
               </div>
-              <div className="mt-4 flex flex-wrap gap-2.5">
-                {profile.badgeInventory?.length ? (
-                  profile.badgeInventory.map((badge) => (
-                    <button
-                      key={badge.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedBadgeId(badge.id);
-                        setBadgeRename(badge.customName);
-                        equipBadge(badge.id);
-                      }}
-                      className={`rounded-2xl border px-3 py-2 transition-all hover:scale-[1.01] ${profile.equippedBadgeId === badge.id ? 'border-emerald-400/50 bg-emerald-500/10' : 'border-slate-700 bg-slate-900 hover:bg-slate-800'}`}
-                    >
-                      <BadgePill badgeId={badge.id} ownedBadge={badge} compact />
-                    </button>
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-700 px-4 py-6 text-sm text-slate-500">Belum ada badge yang dibeli.</div>
-                )}
+              <div>
+                <h3 className="text-sm font-extrabold text-white">Ubah Nama Badge Kustom</h3>
+                <p className="text-xs text-slate-400">Maksimal 7 kata. Kosongkan untuk nama bawaan.</p>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 space-y-4">
-              <h4 className="text-sm font-bold text-white">Kelola Badge</h4>
-              {selectedBadgeId && profile.badgeInventory?.some((b) => b.id === selectedBadgeId) ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nama badge custom (maks 7 huruf)</label>
-                    <input
-                      value={badgeRename}
-                      onChange={(e) => setBadgeRename(clampBadgeText(e.target.value, getBadgeDefinition(selectedBadgeId)?.displayName || 'Badge'))}
-                      maxLength={7}
-                      className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button onClick={() => renameBadge(selectedBadgeId as any, badgeRename)} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white">Simpan Nama</button>
-                    <button onClick={() => equipBadge(selectedBadgeId as any)} className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-black text-white">Pakai Badge</button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-700 px-4 py-6 text-sm text-slate-500">Pilih badge dari inventory dulu.</div>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-300">Nama Tampilan Badge Baru</label>
+              <input
+                type="text"
+                value={customBadgeNameInput}
+                onChange={(e) => {
+                  setCustomBadgeNameInput(e.target.value);
+                  if (renameError) setRenameError(null);
+                }}
+                placeholder="Contoh: Sang Juara Tracen"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500 transition-all"
+                autoFocus
+              />
+
+              {renameError && (
+                <div className="text-xs font-bold text-rose-400 bg-rose-500/10 border border-rose-500/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{renameError}</span>
+                </div>
               )}
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                onClick={() => setEditingBadgeId(null)}
+                disabled={savingBadge}
+                className="w-1/2 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer border border-slate-700"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveBadgeRename}
+                disabled={savingBadge}
+                className="w-1/2 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition-all cursor-pointer shadow-lg shadow-sky-600/20 flex items-center justify-center space-x-2"
+              >
+                {savingBadge ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Menyimpan...</span>
+                  </>
+                ) : (
+                  <span>Simpan Nama</span>
+                )}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+      {/* Stats Cards Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2 relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-amber-400">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Coin</span>
-            <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-2"><Coins className="h-5 w-5 text-amber-400" /></div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Total Coin
+            </span>
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <Coins className="w-5 h-5 text-amber-400" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-amber-300">{profile.coins.toLocaleString('id-ID')}</div>
+          <div className="text-2xl font-black text-amber-300">
+            {profile.coins.toLocaleString('id-ID')}
+          </div>
           <p className="text-[11px] text-slate-500">Carrot Coins Tracen</p>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2 relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-sky-400">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Permainan</span>
-            <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-2"><Gamepad2 className="h-5 w-5 text-sky-400" /></div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Total Permainan
+            </span>
+            <div className="p-2 rounded-lg bg-sky-500/10 border border-sky-500/20">
+              <Gamepad2 className="w-5 h-5 text-sky-400" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-white">{profile.totalGame}</div>
+          <div className="text-2xl font-black text-white">
+            {profile.totalGame}
+          </div>
           <p className="text-[11px] text-slate-500">Sesi Game Tebak Kata</p>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2 relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-emerald-400">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Kemenangan</span>
-            <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-2"><Trophy className="h-5 w-5 text-emerald-400" /></div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Kemenangan (Win)
+            </span>
+            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <Trophy className="w-5 h-5 text-emerald-400" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-emerald-400">{profile.win}</div>
+          <div className="text-2xl font-black text-emerald-400">
+            {profile.win}
+          </div>
           <p className="text-[11px] text-slate-500">Jawaban Benar</p>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2 relative overflow-hidden shadow-lg">
           <div className="flex items-center justify-between text-rose-400">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Kekalahan</span>
-            <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 p-2"><XCircle className="h-5 w-5 text-rose-400" /></div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Kekalahan (Lose)
+            </span>
+            <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
+              <XCircle className="w-5 h-5 text-rose-400" />
+            </div>
           </div>
-          <div className="text-2xl font-black text-rose-400">{profile.lose}</div>
+          <div className="text-2xl font-black text-rose-400">
+            {profile.lose}
+          </div>
           <p className="text-[11px] text-slate-500">Timeout / Salah</p>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-black text-white">Status Premium</h3>
-            <p className="text-sm text-slate-400">Paket premium muncul di shop dan tampil di profile.</p>
-          </div>
-          <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-widest ${isPremiumActive ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300' : 'border-slate-700 bg-slate-950 text-slate-400'}`}>
-            {isPremiumActive ? 'Aktif' : 'Nonaktif'}
-          </span>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tanggal aktif</div>
-            <div className="mt-1 text-sm font-bold text-white">{profile.premiumUntil ? new Date(profile.premiumUntil).toLocaleString('id-ID') : '-'}</div>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Badge aktif</div>
-            <div className="mt-2">{profile.equippedBadgeId ? <BadgePill badgeId={profile.equippedBadgeId} ownedBadge={profile.badgeInventory?.find((b) => b.id === profile.equippedBadgeId) || undefined} /> : <span className="text-sm text-slate-500">Belum ada</span>}</div>
-          </div>
-          <div className="rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500">Badge dibeli</div>
-            <div className="mt-1 text-sm font-bold text-white">{profile.badgeInventory?.length || 0}</div>
-          </div>
         </div>
       </div>
     </div>

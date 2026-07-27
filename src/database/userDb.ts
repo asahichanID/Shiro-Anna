@@ -7,30 +7,6 @@ const STORAGE_KEY_USERS_ALL = 'oguri_all_registered_users';
 const STORAGE_KEY_FRIENDS = 'oguri_friends_list';
 
 export class UserDatabaseService {
-  private static syncProfileSnapshot(user: any) {
-    try {
-      if (typeof localStorage === 'undefined') return;
-
-      const profileSnapshot = {
-        id: user.id,
-        username: user.username || user.name || 'Shiro Anna',
-        role: user.role === 'Developer' ? 'Developer' : 'Trainer',
-        avatar: user.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
-        createdAt: user.createdAt || new Date().toISOString(),
-        coins: Number(user.carrotCoins ?? user.coin ?? 0),
-        totalGame: Number(user.gamesPlayed ?? user.totalGame ?? 0),
-        win: Number(user.gamesWon ?? user.win ?? 0),
-        lose: Number(user.lose ?? 0),
-        badgeInventory: user.badgeInventory || [],
-        equippedBadgeId: user.equippedBadgeId || null,
-        premiumUntil: user.premiumUntil || null,
-      };
-
-      localStorage.setItem('oguri_profile', JSON.stringify(profileSnapshot));
-    } catch {
-      // ignore storage sync failures
-    }
-  }
   /**
    * Synchronous getUser to maintain existing game handler & UI compatibility
    */
@@ -46,9 +22,9 @@ export class UserDatabaseService {
         role: defaultName === 'Shiro Anna' ? 'Developer' : 'Trainer',
         avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
         status: 'Online',
-        coin: 0,
-        carrotCoins: 0,
-        level: 1,
+        coin: 100000,
+        carrotCoins: 100000,
+        level: 100,
         friends: [],
         createdAt: '2026-01-01',
         totalGame: 0,
@@ -61,13 +37,9 @@ export class UserDatabaseService {
         lastActive: Date.now(),
         lastOnline: 'Baru saja',
         lastMessage: 'Halo!',
-        badgeInventory: [],
-        equippedBadgeId: null,
-        premiumUntil: null,
       } as any;
       all.push(found as any);
       StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
-      this.syncProfileSnapshot(found);
 
       // Async sync to D1
       D1DatabaseService.registerOrLoginUser({
@@ -85,16 +57,13 @@ export class UserDatabaseService {
     }
 
     // Ensure all compatibility fields exist
-    (found as any).carrotCoins = found.carrotCoins !== undefined ? found.carrotCoins : (found.coin || 0);
+    (found as any).carrotCoins = found.carrotCoins !== undefined ? found.carrotCoins : (found.coin || 1000);
     (found as any).coin = (found as any).carrotCoins;
     (found as any).name = found.name || found.username;
     (found as any).gamesPlayed = found.gamesPlayed !== undefined ? found.gamesPlayed : (found.totalGame || 0);
     (found as any).gamesWon = found.gamesWon !== undefined ? found.gamesWon : (found.win || 0);
     (found as any).winStreak = found.winStreak || 0;
     (found as any).maxWinStreak = found.maxWinStreak || 0;
-    (found as any).badgeInventory = Array.isArray((found as any).badgeInventory) ? (found as any).badgeInventory : [];
-    (found as any).equippedBadgeId = (found as any).equippedBadgeId || null;
-    (found as any).premiumUntil = (found as any).premiumUntil || null;
 
     return found as any;
   }
@@ -113,9 +82,9 @@ export class UserDatabaseService {
         role: 'Developer',
         avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
         status: 'Online',
-        coin: 0,
-        carrotCoins: 0,
-        level: 1,
+        coin: 100000,
+        carrotCoins: 100000,
+        level: 100,
         friends: [],
         createdAt: '2026-01-01',
         totalGame: 0,
@@ -128,9 +97,6 @@ export class UserDatabaseService {
         lastActive: Date.now(),
         lastOnline: 'Baru saja',
         lastMessage: 'Halo!',
-        badgeInventory: [],
-        equippedBadgeId: null,
-        premiumUntil: null,
       };
       cached.push(defaultUser);
       StorageService.setItem(STORAGE_KEY_USERS_ALL, cached);
@@ -146,23 +112,25 @@ export class UserDatabaseService {
         const cached = StorageService.getItem<any[]>(STORAGE_KEY_USERS_ALL, []);
         const mergedMap = new Map<string, any>();
 
-        // Put cached local users first as fallback only
+        // Put cached local users first
         cached.forEach((u) => mergedMap.set(u.id, u));
 
-        // Prefer D1 as source of truth, with local storage only as fallback
+        // Merge D1 users intelligently
         d1Users.forEach((du) => {
-          const local = mergedMap.get(du.id) || {};
-          mergedMap.set(du.id, {
-            ...local,
-            ...du,
-            carrotCoins: du.carrotCoins ?? du.coin ?? local.carrotCoins ?? local.coin ?? 0,
-            coin: du.coin ?? du.carrotCoins ?? local.coin ?? local.carrotCoins ?? 0,
-            gamesPlayed: du.gamesPlayed ?? du.totalGame ?? local.gamesPlayed ?? local.totalGame ?? 0,
-            gamesWon: du.gamesWon ?? du.win ?? local.gamesWon ?? local.win ?? 0,
-            badgeInventory: du.badgeInventory ?? local.badgeInventory ?? [],
-            equippedBadgeId: du.equippedBadgeId ?? local.equippedBadgeId ?? null,
-            premiumUntil: du.premiumUntil ?? local.premiumUntil ?? null,
-          });
+          const local = mergedMap.get(du.id);
+          if (local) {
+            mergedMap.set(du.id, {
+              ...local,
+              ...du,
+              // Keep local carrotCoins if local has earned coins higher than default
+              carrotCoins: Math.max(local.carrotCoins || 0, du.carrotCoins || du.coin || 0),
+              coin: Math.max(local.coin || 0, du.coin || du.carrotCoins || 0),
+              gamesPlayed: Math.max(local.gamesPlayed || 0, du.totalGame || 0),
+              gamesWon: Math.max(local.gamesWon || 0, du.win || 0),
+            });
+          } else {
+            mergedMap.set(du.id, du);
+          }
         });
 
         const mergedList = Array.from(mergedMap.values());
@@ -186,10 +154,9 @@ export class UserDatabaseService {
       all.push(user);
     }
     StorageService.setItem(STORAGE_KEY_USERS_ALL, all);
-    this.syncProfileSnapshot(user);
 
     // Sync to D1 Database
-    const coinsToSync = user.carrotCoins !== undefined ? user.carrotCoins : (user.coin || 0);
+    const coinsToSync = user.carrotCoins !== undefined ? user.carrotCoins : (user.coin || 1000);
     const totalGameToSync = user.gamesPlayed !== undefined ? user.gamesPlayed : (user.totalGame || 0);
     const winToSync = user.gamesWon !== undefined ? user.gamesWon : (user.win || 0);
 
@@ -239,6 +206,8 @@ export class UserDatabaseService {
       if (user.winStreak > (user.maxWinStreak || 0)) {
         user.maxWinStreak = user.winStreak;
       }
+      user.carrotCoins = (user.carrotCoins || 0) + 100;
+      user.coin = user.carrotCoins;
     } else {
       user.lose = (user.lose || 0) + 1;
       user.winStreak = 0;

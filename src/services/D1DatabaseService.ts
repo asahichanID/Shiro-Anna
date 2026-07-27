@@ -445,6 +445,41 @@ export class D1DatabaseService {
     return !!(result && result.success);
   }
 
+  // ================= BADGE SYSTEM ================= //
+
+  public static async getUserBadges(userId: string): Promise<{
+    ownedBadges: Array<{ id?: string; badge_id: string; custom_name: string; is_active: number }>;
+    activeBadge: string | null;
+    customName: string | null;
+  } | null> {
+    const result = await this.get<any>('/badges/user', { userId });
+    return result;
+  }
+
+  public static async buyBadge(userId: string, badgeId: string, price: number): Promise<{
+    success: boolean;
+    newCoins?: number;
+    badgeId?: string;
+    message?: string;
+  }> {
+    const result = await this.post<any>('/badges/buy', { userId, badgeId, price });
+    return result || { success: false, message: 'Koneksi gagal.' };
+  }
+
+  public static async setActiveBadge(userId: string, badgeId: string | null): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/badges/set-active', { userId, badgeId: badgeId || '' });
+    return !!(result && result.success);
+  }
+
+  public static async renameBadge(userId: string, badgeId: string, newName: string): Promise<{
+    success: boolean;
+    customName?: string;
+    message?: string;
+  }> {
+    const result = await this.post<any>('/badges/rename', { userId, badgeId, newName });
+    return result || { success: false, message: 'Koneksi gagal.' };
+  }
+
   // ================= MIGRATION ================= //
 
   public static async migrateBatch(legacyData: Record<string, any>): Promise<boolean> {

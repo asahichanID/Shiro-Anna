@@ -1,107 +1,37 @@
 [
   {
     "id": "tk_301",
-    "soal": "Benda yang paling sering dibuka-tutup pas malem-malem nyari makanan padahal perut udah kenyang?",
-    "jawaban": ["Kulkas", "Lemari es"],
-    "clue": "Isinya dingin, tapi tangan kita yang sering panas buka terus",
-    "kategori": "Kehidupan Sehari-hari"
+    "soal": "Cairan manis buatan lebah yang rasanya lezat banget kalau dicampur ke teh hangat!",
+    "jawaban": "Madu",
+    "clue": "Cairan manis, buatan lebah",
+    "kategori": "Kuliner"
   },
   {
     "id": "tk_302",
-    "soal": "Sikap yang selalu kita lakuin pas liat orang lain makan enak padahal kita lagi diet?",
-    "jawaban": ["Ngiler", "Iri", "Melirik curi-curi pandang"],
-    "clue": "Mata senyum lebar, hati nangis kejer",
-    "kategori": "Perasaan"
+    "soal": "Lemari dingin yang sering Oguri buka pas malam hari buat nyari cemilan rahasia!",
+    "jawaban": "Kulkas",
+    "clue": "Lemari pendingin simpan makanan",
+    "kategori": "Peralatan"
   },
   {
     "id": "tk_303",
-    "soal": "Kondisi dompet pas tanggal tua yang isinya cuma angin doang?",
-    "jawaban": ["Kosong", "Kering kerontang", "Mampus"],
-    "clue": "Kalo digoyang bunyinya cuma hembusan napas",
-    "kategori": "Realita Hidup"
+    "soal": "Sepatu besi khusus yang dipasang di kaki biar lari di lintasan rumput nggak gampang kepleset.",
+    "jawaban": "Tapal Kuda",
+    "clue": "Pelindung besi di telapak kaki pelari",
+    "kategori": "Peralatan"
   },
   {
     "id": "tk_304",
-    "soal": "Kegiatan paling susah dilakuin pas bunyi alarm pagi hari?",
-    "jawaban": ["Bangun tidur", "Beranjak dari kasur"],
-    "clue": "Tubuh berat banget kayak ada yang nahan",
-    "kategori": "Pagi Hari"
+    "soal": "Nasi kepal bentuk segitiga dibungkus rumput laut, cemilan praktis Oguri pas jeda latihan!",
+    "jawaban": "Onigiri",
+    "clue": "Nasi kepal segitiga khas Jepang",
+    "kategori": "Makanan"
   },
   {
     "id": "tk_305",
-    "soal": "Makanan sejuta umat yang selalu jadi penyelamat pas laper tapi dompet lagi menderita?",
-    "jawaban": ["Gorengan", "Mie instan", "Nasi goreng"],
-    "clue": "Murah, enak, selalu ada dimana-mana",
-    "kategori": "Makanan Legendaris"
-  },
-  {
-    "id": "tk_306",
-    "soal": "Perasaan deg-degan pas nungguin balasan chat padahal cuma nanya 'lagi apa?'",
-    "jawaban": ["Galau", "Cemas", "Mengharap lebih"],
-    "clue": "Jempol udah siap ngetik tapi jantung yang berlagak",
-    "kategori": "Perasaan Kocak"
-  },
-  {
-    "id": "tk_307",
-    "soal": "Benda yang kalo dipake mau keluar rumah tiba-tiba mendung terus hujan deras?",
-    "jawaban": ["Jas hujan", "Payung"],
-    "clue": "Kalo ditinggal di rumah, matahari bersinar banget",
-    "kategori": "Hukum Alam Semesta"
-  },
-  {
-    "id": "tk_308",
-    "soal": "Kejadian pas kamu lagi curhat serius eh malah diketawain temen sendiri?",
-    "jawaban": ["Diejek", "Dibecandain", "Dibikin malu"],
-    "clue": "Salah ngomong apa salah punya temen ya?",
-    "kategori": "Persahabatan Absurd"
-  },
-  {
-    "id": "tk_309",
-    "soal": "Alasan paling ampuh buat nolak diajak keluar pas lagi malas gerak?",
-    "jawaban": ["Sakit", "Ada kerjaan", "Lagi capek"],
-    "clue": "Padahal cuma mau rebahan sambil main HP",
-    "kategori": "Modus Manusia"
-  },
-  {
-    "id": "tk_310",
-    "soal": "Minuman yang bikin mata melek padahal aslinya cuma nahan ngantuk sebentar doang?",
-    "jawaban": ["Kopi", "Kopi susu", "Kafein"],
-    "clue": "Rasanya nikmat, tapi efeknya bohong belaka",
-    "kategori": "Penolong Semu"
-  },
-  {
-    "id": "tk_311",
-    "soal": "Kejadian pas kamu lagi nyari barang sebenernya pas ditaruh di depan mata sendiri?",
-    "jawaban": ["Buta sesaat", "Gak liat", "Kehilangan akal sehat"],
-    "clue": "Dicari kemana-mana, ternyata di tangan sendiri",
-    "kategori": "Kebodohan Manusia"
-  },
-  {
-    "id": "tk_312",
-    "soal": "Kondisi HP pas lagi asik main eh tiba-tiba sinyalnya kabur entah kemana?",
-    "jawaban": ["No sinyal", "Lemot", "Mati total"],
-    "clue": "Sinyal hilang pas momen paling seru",
-    "kategori": "Teknologi Jahat"
-  },
-  {
-    "id": "tk_313",
-    "soal": "Janji yang selalu kita ucapin pas mau mulai hidup sehat tapi gak pernah terlaksana?",
-    "jawaban": ["Besok aja", "Mulai hari Senin", "Nanti aja"],
-    "clue": "Besoknya besok lagi, terus seterusnya",
-    "kategori": "Harapan Kosong"
-  },
-  {
-    "id": "tk_314",
-    "soal": "Perasaan pas udah rapi banget mau foto eh tiba-tiba ada yang lewat bikin rusak momen?",
-    "jawaban": ["Kesal", "Mau marah", "Rusak suasana"],
-    "clue": "Sudah siap gaya, eh malah kacau balau",
-    "kategori": "Momen Rusak"
-  },
-  {
-    "id": "tk_315",
-    "soal": "Hal yang paling sering kita lakukan pas lagi nungguin sesuatu yang lama banget?",
-    "jawaban": ["Main HP", "Melamun", "Menggerutu"],
-    "clue": "Duduk diam, mata melirik jam tiap detik",
-    "kategori": "Kesabaran Diuji"
+    "soal": "Seberapa kencang Oguri melesat di lintasan balap, biasanya diukur pake jam stopwatch Trainer!",
+    "jawaban": "Kecepatan",
+    "clue": "Tingkat kencangnya lari",
+    "kategori": "Atribut"
   }
 ]

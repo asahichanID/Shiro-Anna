@@ -103,6 +103,8 @@ export class GlobalChatService {
     senderName: string;
     senderRole?: 'Developer' | 'Trainer';
     senderAvatar?: string;
+    senderBadge?: string;
+    senderBadgeName?: string;
     text: string;
     isDuelAnswer?: boolean;
   }): Promise<GlobalChatMessage> {
@@ -115,6 +117,8 @@ export class GlobalChatService {
       senderName: msg.senderName,
       senderRole: msg.senderRole || 'Trainer',
       senderAvatar: msg.senderAvatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+      senderBadge: msg.senderBadge,
+      senderBadgeName: msg.senderBadgeName,
       text: msg.text,
       isDuelAnswer: !!msg.isDuelAnswer,
       time: timeStr,
