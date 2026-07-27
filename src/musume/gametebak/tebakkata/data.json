@@ -1,72 +1,317 @@
 [
   {
     "id": "tk_001",
-    "soal": "Hewan yang larinya kencang banget dan sukanya makan wortel... mirip teman-temanku di Tracen!",
-    "jawaban": "Kuda",
-    "clue": "Lari kencang di lapangan, suka wortel",
-    "kategori": "Hewan & Umamusume"
+    "soal": "🗼 Negara mana yang punya Menara Eiffel? Jangan bilang Bekasi ya. 😂",
+    "jawaban": "Prancis",
+    "clue": "Negara di Eropa",
+    "kategori": "Geografi"
   },
   {
     "id": "tk_002",
-    "soal": "Makanan oranye ini super renyah dan manis, Oguri bisa makan berkarung-karung tanpa bosen!",
-    "jawaban": "Wortel",
-    "clue": "Sayuran oranye kesukaan Oguri Cap",
-    "kategori": "Makanan"
+    "soal": "🌍 Planet yang kita tinggali sekarang... masa lupa rumah sendiri? 😭",
+    "jawaban": "Bumi",
+    "clue": "Planet biru",
+    "kategori": "Astronomi"
   },
   {
     "id": "tk_003",
-    "soal": "Orang hebat yang selalu nemenin Oguri latihan dan nyiapin strategi balap... kamu tau kan siapa?",
-    "jawaban": "Trainer",
-    "clue": "Orang yang bimbing dan latih Uma Musume",
-    "kategori": "Umamusume"
+    "soal": "⚡ Kilat dulu baru petir, atau petir dulu baru kilat? Jawab nama gejalanya aja!",
+    "jawaban": "Petir",
+    "clue": "Fenomena saat hujan",
+    "kategori": "Alam"
   },
   {
     "id": "tk_004",
-    "soal": "Balapan G1 penutup tahun di Jepang yang bikin jantung Oguri berdebar kencang saat garis finis!",
-    "jawaban": "Arima Kinen",
-    "clue": "Balapan megah penutup tahun",
-    "kategori": "Balapan"
+    "soal": "🐧 Hewan lucu yang jalannya kayak lagi buru-buru tapi gak bisa terbang.",
+    "jawaban": "Penguin",
+    "clue": "Hidup di daerah dingin",
+    "kategori": "Hewan"
   },
   {
     "id": "tk_005",
-    "soal": "Julukan keren yang orang-orang kasih ke Oguri gara-gara warna bulu dan lariku yang kencang!",
-    "jawaban": "Monster Grey",
-    "clue": "Julukan si Abu-abu legendaris",
-    "kategori": "Gelar"
+    "soal": "🔥 Kalau ada api pasti butuh satu benda ini buat dipadamkan. Apa hayo?",
+    "jawaban": "Air",
+    "clue": "Bening dan mengalir",
+    "kategori": "Umum"
   },
   {
     "id": "tk_006",
-    "soal": "Coba tebak... wadah bulat apa yang hampir selalu ada di meja makan Oguri buat porsi jumbo?",
-    "jawaban": "Mangkuk",
-    "clue": "Wadah kuah atau nasi porsi kenyang",
-    "kategori": "Barang"
+    "soal": "🌙 Benda langit yang muncul paling jelas saat malam dan mengelilingi Bumi.",
+    "jawaban": "Bulan",
+    "clue": "Satelit alami Bumi",
+    "kategori": "Astronomi"
   },
   {
     "id": "tk_007",
-    "soal": "Lintasan rumput hijau tempat Oguri sama teman-teman adu lari kencang!",
-    "jawaban": "Racetrack",
-    "clue": "Tempat adu lari Uma Musume",
-    "kategori": "Tempat"
+    "soal": "🧠 Semakin dipakai malah semakin tajam... bukan pisau ya!",
+    "jawaban": "Otak",
+    "clue": "Digunakan untuk berpikir",
+    "kategori": "Logika"
   },
   {
     "id": "tk_008",
-    "soal": "Kegiatan capek tapi seru tiap pagi bareng Trainer biar lari Oguri makin kencang!",
-    "jawaban": "Latihan",
-    "clue": "Kegiatan ngelatih stamina dan fisik",
-    "kategori": "Aktivitas"
+    "soal": "🕷️ Hewan berkaki delapan yang sering bikin orang lompat kaget.",
+    "jawaban": "Laba-laba",
+    "clue": "Pembuat jaring",
+    "kategori": "Hewan"
   },
   {
     "id": "tk_009",
-    "soal": "Rival sekaligus temanku di Tracen yang sifatnya perhatian banget kayak ibu-ibu, hihi!",
-    "jawaban": "Super Creek",
-    "clue": "Rival Oguri yang keibuan dan lembut",
-    "kategori": "Karakter"
+    "soal": "🌋 Gunung yang masih bisa mengeluarkan lava disebut gunung apa?",
+    "jawaban": "Aktif",
+    "clue": "Lawan kata mati",
+    "kategori": "Geografi"
   },
   {
     "id": "tk_0010",
-    "soal": "Minuman oranye segar nan bergizi yang pas banget diminum Oguri habis lari capek!",
-    "jawaban": "Susu Wortel",
-    "clue": "Minuman sehat olahan sayur oranye",
-    "kategori": "Minuman"
+    "soal": "🎵 Alat musik bertuts hitam putih yang ukurannya besar. Bukan keyboard komputer ya. 😹",
+    "jawaban": "Piano",
+    "clue": "Alat musik klasik",
+    "kategori": "Musik"
+  },
+  {
+    "id": "tk_0011",
+    "soal": "🐢 Hewan yang terkenal lambat tapi umurnya bisa sangat panjang.",
+    "jawaban": "Kura-kura",
+    "clue": "Rumahnya di punggung",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0012",
+    "soal": "💎 Batu paling keras yang sering dijadikan perhiasan mewah.",
+    "jawaban": "Berlian",
+    "clue": "Permata sangat keras",
+    "kategori": "Mineral"
+  },
+  {
+    "id": "tk_0013",
+    "soal": "🦒 Hewan yang lehernya panjang banget sampai susah diajak selfie. 📸",
+    "jawaban": "Jerapah",
+    "clue": "Leher paling panjang",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0014",
+    "soal": "❄️ Air yang berubah menjadi padat karena suhu sangat dingin disebut?",
+    "jawaban": "Es",
+    "clue": "Air beku",
+    "kategori": "Sains"
+  },
+  {
+    "id": "tk_0015",
+    "soal": "👑 Raja hutan yang suaranya bisa terdengar dari jauh. Gampang kan? 😼",
+    "jawaban": "Singa",
+    "clue": "Raja hutan",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0016",
+    "soal": "🌊 Laut paling luas di dunia. Jangan sampai kalah sama anak SD ya. 😼",
+    "jawaban": "Pasifik",
+    "clue": "Samudra terbesar",
+    "kategori": "Geografi"
+  },
+  {
+    "id": "tk_0017",
+    "soal": "🚀 Planet yang dijuluki Planet Merah. Bukan karena malu ya. 😂",
+    "jawaban": "Mars",
+    "clue": "Planet keempat dari Matahari",
+    "kategori": "Astronomi"
+  },
+  {
+    "id": "tk_0018",
+    "soal": "⚽ Berapa jumlah pemain satu tim yang berada di lapangan saat pertandingan sepak bola dimulai?",
+    "jawaban": "Sebelas",
+    "clue": "Lebih dari sepuluh",
+    "kategori": "Olahraga"
+  },
+  {
+    "id": "tk_0019",
+    "soal": "🧲 Benda yang bisa menarik besi tanpa lem atau tali disebut?",
+    "jawaban": "Magnet",
+    "clue": "Penarik logam",
+    "kategori": "Sains"
+  },
+  {
+    "id": "tk_0020",
+    "soal": "🌋 Cairan panas yang keluar dari gunung berapi disebut apa?",
+    "jawaban": "Lava",
+    "clue": "Batuan cair",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_0021",
+    "soal": "🐝 Hewan kecil yang menghasilkan madu manis. Jangan dikejar nanti disengat. 😭",
+    "jawaban": "Lebah",
+    "clue": "Penghasil madu",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0022",
+    "soal": "🗿 Pulau di Indonesia yang terkenal dengan Candi Borobudur berada di provinsi mana?",
+    "jawaban": "Jawa Tengah",
+    "clue": "Provinsi di Pulau Jawa",
+    "kategori": "Indonesia"
+  },
+  {
+    "id": "tk_0023",
+    "soal": "💡 Siapa penemu bola lampu yang paling sering diajarkan di sekolah?",
+    "jawaban": "Edison",
+    "clue": "Thomas Alva ...",
+    "kategori": "Sejarah"
+  },
+  {
+    "id": "tk_0024",
+    "soal": "🦈 Ikan predator yang terkenal dengan giginya yang tajam.",
+    "jawaban": "Hiu",
+    "clue": "Penguasa laut",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0025",
+    "soal": "🌧️ Sebelum hujan deras turun, biasanya langit menjadi berwarna apa?",
+    "jawaban": "Mendung",
+    "clue": "Awan gelap",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_0026",
+    "soal": "📱 Sistem operasi yang dibuat Google untuk sebagian besar smartphone bernama?",
+    "jawaban": "Android",
+    "clue": "Logo robot hijau",
+    "kategori": "Teknologi"
+  },
+  {
+    "id": "tk_0027",
+    "soal": "🧊 Air yang dipanaskan terus sampai 100°C akan berubah menjadi?",
+    "jawaban": "Uap",
+    "clue": "Bentuk gas dari air",
+    "kategori": "Sains"
+  },
+  {
+    "id": "tk_0028",
+    "soal": "🦉 Hewan yang terkenal aktif berburu pada malam hari dan memiliki mata besar.",
+    "jawaban": "Burung Hantu",
+    "clue": "Aktif malam hari",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0029",
+    "soal": "🏔️ Gunung tertinggi di dunia yang berada di perbatasan Nepal dan Tibet bernama?",
+    "jawaban": "Everest",
+    "clue": "Puncak tertinggi dunia",
+    "kategori": "Geografi"
+  },
+  {
+    "id": "tk_0030",
+    "soal": "🎯 Kalau semua jawabanmu benar, berarti kamu lagi apa... hoki atau pintar? Jawab yang lebih cocok. 😏",
+    "jawaban": "Pintar",
+    "clue": "Lawan kata bodoh",
+    "kategori": "Logika"
+  },
+  {
+    "id": "tk_0031",
+    "soal": "🧊 Aku selalu naik ke atas saat dicampur air, padahal badanku lebih dingin. Siapa aku?",
+    "jawaban": "Es",
+    "clue": "Air dalam bentuk padat",
+    "kategori": "Sains"
+  },
+  {
+    "id": "tk_0032",
+    "soal": "🦘 Hewan ini punya kantong di perut. Masa lupa ikon Australia? 😂",
+    "jawaban": "Kanguru",
+    "clue": "Melompat jauh",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0033",
+    "soal": "🌈 Pelangi biasanya muncul setelah apa? Jangan jawab 'setelah bangun tidur'. 😹",
+    "jawaban": "Hujan",
+    "clue": "Cuaca",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_0034",
+    "soal": "🗺️ Negara dengan jumlah penduduk terbanyak di dunia saat ini?",
+    "jawaban": "India",
+    "clue": "Negara di Asia Selatan",
+    "kategori": "Geografi"
+  },
+  {
+    "id": "tk_0035",
+    "soal": "🧬 Bagian tubuh manusia yang memompa darah tanpa pernah libur.",
+    "jawaban": "Jantung",
+    "clue": "Organ vital",
+    "kategori": "Biologi"
+  },
+  {
+    "id": "tk_0036",
+    "soal": "🌪️ Angin yang berputar sangat kencang hingga bisa merusak bangunan disebut?",
+    "jawaban": "Tornado",
+    "clue": "Angin berputar",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_0037",
+    "soal": "💻 Bahasa pemrograman yang terkenal dengan slogannya 'Write Once, Run Anywhere'.",
+    "jawaban": "Java",
+    "clue": "Bahasa pemrograman",
+    "kategori": "Teknologi"
+  },
+  {
+    "id": "tk_0038",
+    "soal": "🏛️ Kota yang dijuluki Kota Abadi di Italia.",
+    "jawaban": "Roma",
+    "clue": "Ibu kota Italia",
+    "kategori": "Sejarah"
+  },
+  {
+    "id": "tk_0039",
+    "soal": "🐬 Mamalia laut yang terkenal cerdas dan suka melompat di permukaan air.",
+    "jawaban": "Lumba-lumba",
+    "clue": "Mamalia laut",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_0040",
+    "soal": "🔬 Alat yang digunakan untuk melihat benda yang sangat kecil.",
+    "jawaban": "Mikroskop",
+    "clue": "Alat laboratorium",
+    "kategori": "Sains"
+  },
+  {
+    "id": "tk_0041",
+    "soal": "📚 Siapa penulis seri novel Harry Potter?",
+    "jawaban": "Rowling",
+    "clue": "J.K. ...",
+    "kategori": "Literatur"
+  },
+  {
+    "id": "tk_0042",
+    "soal": "🌍 Benua terbesar di dunia. Masa tinggal di sini tapi lupa? 😏",
+    "jawaban": "Asia",
+    "clue": "Benua tempat Indonesia",
+    "kategori": "Geografi"
+  },
+  {
+    "id": "tk_0043",
+    "soal": "⚙️ Kepanjangan dari CPU dalam komputer adalah?",
+    "jawaban": "Central Processing Unit",
+    "clue": "Otak komputer",
+    "kategori": "Teknologi"
+  },
+  {
+    "id": "tk_0044",
+    "soal": "🧠 Semakin banyak dibaca biasanya semakin bertambah. Apa itu?",
+    "jawaban": "Ilmu",
+    "clue": "Didapat dari belajar",
+    "kategori": "Pendidikan"
+  },
+  {
+    "id": "tk_0045",
+    "soal": "😏 Yang terakhir nih... kalau semua soal ini kamu jawab tanpa lihat clue, berarti kamu memang...? 🔥",
+    "jawaban": "Jenius",
+    "clue": "Sangat pintar",
+    "kategori": "Bonus"
   }
 ]

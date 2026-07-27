@@ -1,37 +1,107 @@
 [
   {
     "id": "tk_301",
-    "soal": "Cairan manis buatan lebah yang rasanya lezat banget kalau dicampur ke teh hangat!",
-    "jawaban": "Madu",
-    "clue": "Cairan manis, buatan lebah",
-    "kategori": "Kuliner"
+    "soal": "Benda yang digunakan untuk menulis di kertas menggunakan tinta.",
+    "jawaban": "Pulpen",
+    "clue": "Alat tulis bertinta",
+    "kategori": "Benda"
   },
   {
     "id": "tk_302",
-    "soal": "Lemari dingin yang sering Oguri buka pas malam hari buat nyari cemilan rahasia!",
-    "jawaban": "Kulkas",
-    "clue": "Lemari pendingin simpan makanan",
-    "kategori": "Peralatan"
+    "soal": "Hewan yang terkenal dengan suara 'meong'.",
+    "jawaban": "Kucing",
+    "clue": "Peliharaan berbulu",
+    "kategori": "Hewan"
   },
   {
     "id": "tk_303",
-    "soal": "Sepatu besi khusus yang dipasang di kaki biar lari di lintasan rumput nggak gampang kepleset.",
-    "jawaban": "Tapal Kuda",
-    "clue": "Pelindung besi di telapak kaki pelari",
-    "kategori": "Peralatan"
+    "soal": "Buah berwarna kuning yang disukai banyak monyet.",
+    "jawaban": "Pisang",
+    "clue": "Buah kuning",
+    "kategori": "Buah"
   },
   {
     "id": "tk_304",
-    "soal": "Nasi kepal bentuk segitiga dibungkus rumput laut, cemilan praktis Oguri pas jeda latihan!",
-    "jawaban": "Onigiri",
-    "clue": "Nasi kepal segitiga khas Jepang",
-    "kategori": "Makanan"
+    "soal": "Alat yang digunakan untuk melihat waktu.",
+    "jawaban": "Jam",
+    "clue": "Penunjuk waktu",
+    "kategori": "Benda"
   },
   {
     "id": "tk_305",
-    "soal": "Seberapa kencang Oguri melesat di lintasan balap, biasanya diukur pake jam stopwatch Trainer!",
-    "jawaban": "Kecepatan",
-    "clue": "Tingkat kencangnya lari",
-    "kategori": "Atribut"
+    "soal": "Kendaraan yang memiliki dua roda dan dikayuh.",
+    "jawaban": "Sepeda",
+    "clue": "Dua roda",
+    "kategori": "Transportasi"
+  },
+  {
+    "id": "tk_306",
+    "soal": "Bintang yang menjadi pusat tata surya kita.",
+    "jawaban": "Matahari",
+    "clue": "Terbit di timur",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_307",
+    "soal": "Alat elektronik yang biasa digunakan untuk menelepon dan mengirim pesan.",
+    "jawaban": "Handphone",
+    "clue": "HP",
+    "kategori": "Teknologi"
+  },
+  {
+    "id": "tk_308",
+    "soal": "Minuman putih yang dihasilkan dari sapi.",
+    "jawaban": "Susu",
+    "clue": "Kaya kalsium",
+    "kategori": "Minuman"
+  },
+  {
+    "id": "tk_309",
+    "soal": "Benda yang digunakan saat hujan agar tidak kehujanan.",
+    "jawaban": "Payung",
+    "clue": "Dibuka saat hujan",
+    "kategori": "Benda"
+  },
+  {
+    "id": "tk_310",
+    "soal": "Hewan paling tinggi di dunia.",
+    "jawaban": "Jerapah",
+    "clue": "Leher sangat panjang",
+    "kategori": "Hewan"
+  },
+  {
+    "id": "tk_311",
+    "soal": "Tempat ikan hidup dan berenang.",
+    "jawaban": "Air",
+    "clue": "Bening dan cair",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_312",
+    "soal": "Alat untuk membuka pintu yang terkunci.",
+    "jawaban": "Kunci",
+    "clue": "Pasangan gembok",
+    "kategori": "Benda"
+  },
+  {
+    "id": "tk_313",
+    "soal": "Planet yang kita tinggali sekarang.",
+    "jawaban": "Bumi",
+    "clue": "Planet biru",
+    "kategori": "Alam"
+  },
+  {
+    "id": "tk_314",
+    "soal": "Benda yang digunakan untuk menghapus tulisan pensil.",
+    "jawaban": "Penghapus",
+    "clue": "Menghilangkan tulisan",
+    "kategori": "Alat Tulis"
+  },
+  {
+    "id": "tk_315",
+    "soal": "Benda yang digunakan untuk menyimpan air minum.",
+    "jawaban": "Botol",
+    "clue": "Wadah minuman",
+    "kategori": "Benda"
   }
 ]
