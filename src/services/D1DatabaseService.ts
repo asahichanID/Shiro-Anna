@@ -610,7 +610,10 @@ export class D1DatabaseService {
 
   public static async getJukeboxPlaylist(userId: string): Promise<any[]> {
     const result = await this.get<any[]>('/jukebox/playlist', { userId });
-    return result || [];
+    if (result === null) {
+      throw new Error('Jukebox playlist API unavailable.');
+    }
+    return result;
   }
 
   public static async addToJukeboxPlaylist(data: {
@@ -638,7 +641,10 @@ export class D1DatabaseService {
 
   public static async getJukeboxFavorites(userId: string): Promise<any[]> {
     const result = await this.get<any[]>('/jukebox/favorites', { userId });
-    return result || [];
+    if (result === null) {
+      throw new Error('Jukebox favorites API unavailable.');
+    }
+    return result;
   }
 
   public static async toggleJukeboxFavorite(data: {
