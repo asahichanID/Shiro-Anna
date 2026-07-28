@@ -8,6 +8,7 @@ import { userDb } from '../database/userDb';
 import { RealtimeService } from '../services/SupabaseService';
 import { FriendsService } from '../services/FriendsService';
 import { StorageService } from '../services/StorageService';
+import { generateEightDigitCode, generateUuid } from '../utils/identity';
 
 export interface UserAccount {
   id: string;
@@ -19,6 +20,11 @@ export interface UserAccount {
   totalGame: number;
   win: number;
   lose: number;
+  accountCode?: string;
+  sessionToken?: string;
+  sessionActive?: boolean;
+  lastSeen?: number;
+  updatedAt?: number;
 }
 
 interface ProfileContextType {
@@ -41,6 +47,18 @@ const STORAGE_KEY_ACCOUNTS = 'oguri_registered_accounts';
 const STORAGE_KEY_ID_COUNTER = 'oguri_player_id_counter';
 
 const RESERVED_NAMES = ['shiro anna'];
+
+
+const DEFAULT_AVATAR = BOT_DEFAULT_AVATAR;
+
+const ensureSessionMeta = (account: UserAccount): UserAccount => ({
+  ...account,
+  accountCode: account.accountCode || generateEightDigitCode(),
+  sessionToken: account.sessionToken || generateUuid(),
+  sessionActive: account.sessionActive !== false,
+  lastSeen: account.lastSeen || Date.now(),
+  updatedAt: account.updatedAt || Date.now(),
+});
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
@@ -89,11 +107,12 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const savedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
       if (savedProfile) {
-        const parsed: UserAccount = JSON.parse(savedProfile);
+        const parsed: UserAccount = ensureSessionMeta(JSON.parse(savedProfile));
         if (!parsed.avatar || parsed.avatar === '/assets/avatar.png' || parsed.avatar.trim() === '') {
-          parsed.avatar = BOT_DEFAULT_AVATAR;
+          parsed.avatar = DEFAULT_AVATAR;
         }
         setProfile(parsed);
+        localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(parsed));
 
         // Register/Login to D1
         D1DatabaseService.registerOrLoginUser({
@@ -105,6 +124,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
           totalGame: parsed.totalGame,
           win: parsed.win,
           lose: parsed.lose,
+          accountCode: parsed.accountCode,
+          sessionToken: parsed.sessionToken,
         });
       }
     } catch (e) {
@@ -125,6 +146,7 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await D1DatabaseService.updatePresence({
           userId: profile.id,
           status: 'Online',
+          sessionToken: profile.sessionToken,
           device: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop',
           browser: navigator.userAgent,
         });
@@ -157,31 +179,56 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
               win: u.win ?? 0,
               lose: u.lose ?? 0,
               status: u.status,
+              accountCode: u.accountCode,
+              sessionToken: u.sessionToken,
+              sessionActive: u.sessionActive,
+              lastSeen: u.lastSeen,
+              updatedAt: u.updatedAt,
             };
 
-            RealtimeService.broadcast('user_stats_updated', payload);
+            const currentProfileRaw = localStorage.getItem(STORAGE_KEY_PROFILE);
+            const parsedProfile = currentProfileRaw ? JSON.parse(currentProfileRaw) : null;
+            const isCurrentProfile = u.id === currentId || (u.username && u.username.toLowerCase() === currentName);
+            const hasMeaningfulChange = !parsedProfile || (
+              parsedProfile.username !== payload.username ||
+              parsedProfile.role !== payload.role ||
+              parsedProfile.avatar !== payload.avatar ||
+              parsedProfile.coins !== payload.coins ||
+              parsedProfile.totalGame !== payload.totalGame ||
+              parsedProfile.win !== payload.win ||
+              parsedProfile.lose !== payload.lose ||
+              parsedProfile.accountCode !== payload.accountCode ||
+              parsedProfile.sessionToken !== payload.sessionToken ||
+              parsedProfile.sessionActive !== payload.sessionActive ||
+              parsedProfile.status !== payload.status
+            );
 
-            if (u.id === currentId || (u.username && u.username.toLowerCase() === currentName)) {
+            if (hasMeaningfulChange) {
+              RealtimeService.broadcast('user_stats_updated', payload);
+            }
+
+            if (isCurrentProfile && hasMeaningfulChange) {
               try {
-                const currentProfileRaw = localStorage.getItem(STORAGE_KEY_PROFILE);
-                if (currentProfileRaw) {
-                  const parsed = JSON.parse(currentProfileRaw);
-                  const merged = {
-                    ...parsed,
-                    username: u.username || parsed.username,
-                    role: u.role || parsed.role,
-                    avatar: u.avatar || parsed.avatar,
-                    coins: u.coin ?? u.coins ?? parsed.coins,
-                    totalGame: u.totalGame ?? parsed.totalGame,
-                    win: u.win ?? parsed.win,
-                    lose: u.lose ?? parsed.lose,
-                  };
-                  const snapshot = JSON.stringify(merged);
-                  if (snapshot !== lastProfileSnapshotRef.current) {
-                    lastProfileSnapshotRef.current = snapshot;
-                    localStorage.setItem(STORAGE_KEY_PROFILE, snapshot);
-                    setProfile(merged);
-                  }
+                const merged = {
+                  ...parsedProfile,
+                  username: u.username || parsedProfile?.username,
+                  role: u.role || parsedProfile?.role,
+                  avatar: u.avatar || parsedProfile?.avatar,
+                  coins: u.coin ?? u.coins ?? parsedProfile?.coins,
+                  totalGame: u.totalGame ?? parsedProfile?.totalGame,
+                  win: u.win ?? parsedProfile?.win,
+                  lose: u.lose ?? parsedProfile?.lose,
+                  accountCode: u.accountCode || parsedProfile?.accountCode,
+                  sessionToken: u.sessionToken || parsedProfile?.sessionToken,
+                  sessionActive: u.sessionActive ?? parsedProfile?.sessionActive,
+                  lastSeen: u.lastSeen ?? parsedProfile?.lastSeen,
+                  updatedAt: u.updatedAt ?? parsedProfile?.updatedAt,
+                };
+                const snapshot = JSON.stringify(merged);
+                if (snapshot !== lastProfileSnapshotRef.current) {
+                  lastProfileSnapshotRef.current = snapshot;
+                  localStorage.setItem(STORAGE_KEY_PROFILE, snapshot);
+                  setProfile(merged);
                 }
               } catch (e) {
                 // ignored
@@ -192,13 +239,18 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         if (changed?.presence?.length) {
           changed.presence.forEach((p: any) => {
-            RealtimeService.broadcast('user_presence_updated', { userId: p.userId, status: p.status, lastActive: p.lastActive });
+            const currentFriends = FriendsService.getFriendsSync();
+            const matchedFriend = currentFriends.find((f) => f.id === p.userId);
+            const nextStatus = p.status || 'Offline';
+            if (!matchedFriend || matchedFriend.status === nextStatus) return;
+            RealtimeService.broadcast('user_presence_updated', { userId: p.userId, status: nextStatus, lastActive: p.lastActive });
           });
         }
 
         if (changed?.friends?.length) {
           const currentFriends = FriendsService.getFriendsSync();
           const merged = [...currentFriends];
+          let mutated = false;
           changed.friends.forEach((f: any) => {
             const idx = merged.findIndex((x) => x.id === f.id || x.id === f.friendId);
             const normalized = {
@@ -212,11 +264,30 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
               role: f.role || 'Trainer',
               isOnline: !!f.isOnline || f.status === 'Online',
             };
-            if (idx >= 0) merged[idx] = { ...merged[idx], ...normalized };
-            else merged.push(normalized as any);
+            if (idx >= 0) {
+              const prev = merged[idx];
+              const changedFields =
+                prev.username !== normalized.username ||
+                prev.avatar !== normalized.avatar ||
+                prev.status !== normalized.status ||
+                prev.lastMessage !== normalized.lastMessage ||
+                prev.lastOnline !== normalized.lastOnline ||
+                prev.bio !== normalized.bio ||
+                prev.role !== normalized.role ||
+                prev.isOnline !== normalized.isOnline;
+              if (changedFields) {
+                merged[idx] = { ...merged[idx], ...normalized };
+                mutated = true;
+              }
+            } else {
+              merged.push(normalized as any);
+              mutated = true;
+            }
           });
-          StorageService.setItem('oguri_friends_list', merged);
-          RealtimeService.broadcast('friend_updated', { action: 'sync', friends: merged });
+          if (mutated) {
+            StorageService.setItem('oguri_friends_list', merged);
+            RealtimeService.broadcast('friend_updated', { action: 'sync', friends: merged });
+          }
         }
 
         if (changed?.botProfile) {
@@ -348,37 +419,45 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Save profile to active storage and accounts map & D1 & userDb
   const saveProfile = (newProfile: UserAccount) => {
-    setProfile(newProfile);
+    const nextProfile = ensureSessionMeta(newProfile);
+    setProfile(nextProfile);
     try {
-      localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(newProfile));
+      localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(nextProfile));
       const map = getRegisteredAccountsMap();
-      map[newProfile.id] = newProfile;
+      map[nextProfile.id] = nextProfile;
       saveRegisteredAccountsMap(map);
 
       D1DatabaseService.registerOrLoginUser({
-        id: newProfile.id,
-        username: newProfile.username,
-        role: newProfile.role,
-        avatar: newProfile.avatar,
-        coins: newProfile.coins,
-        totalGame: newProfile.totalGame,
-        win: newProfile.win,
-        lose: newProfile.lose,
+        id: nextProfile.id,
+        username: nextProfile.username,
+        role: nextProfile.role,
+        avatar: nextProfile.avatar,
+        coins: nextProfile.coins,
+        totalGame: nextProfile.totalGame,
+        win: nextProfile.win,
+        lose: nextProfile.lose,
+        accountCode: nextProfile.accountCode,
+        sessionToken: nextProfile.sessionToken,
       });
 
       userDb.saveUser({
-        id: newProfile.id,
-        username: newProfile.username,
-        name: newProfile.username,
-        role: newProfile.role,
-        avatar: newProfile.avatar,
-        carrotCoins: newProfile.coins,
-        coin: newProfile.coins,
-        totalGame: newProfile.totalGame,
-        gamesPlayed: newProfile.totalGame,
-        win: newProfile.win,
-        gamesWon: newProfile.win,
-        lose: newProfile.lose,
+        id: nextProfile.id,
+        username: nextProfile.username,
+        name: nextProfile.username,
+        role: nextProfile.role,
+        avatar: nextProfile.avatar,
+        carrotCoins: nextProfile.coins,
+        coin: nextProfile.coins,
+        totalGame: nextProfile.totalGame,
+        gamesPlayed: nextProfile.totalGame,
+        win: nextProfile.win,
+        gamesWon: nextProfile.win,
+        lose: nextProfile.lose,
+        accountCode: nextProfile.accountCode,
+        sessionToken: nextProfile.sessionToken,
+        sessionActive: true,
+        lastSeen: Date.now(),
+        updatedAt: Date.now(),
       });
     } catch (e) {
       console.error('Failed to save profile:', e);
@@ -420,27 +499,38 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
         id: '#1',
         username: 'Shiro Anna',
         role: 'Developer',
-        avatar: BOT_DEFAULT_AVATAR,
+        avatar: DEFAULT_AVATAR,
         createdAt: formattedDate,
         coins: 999999999,
         totalGame: 0,
         win: 0,
         lose: 0,
+        accountCode: '00000001',
+        sessionToken: generateUuid(),
+        sessionActive: true,
+        lastSeen: Date.now(),
+        updatedAt: Date.now(),
       };
     } else {
-      const nextIdNum = getNextPlayerId();
-      incrementNextPlayerId();
+      const accountsMap = getRegisteredAccountsMap();
+      const nextId = `u_${generateUuid().replace(/-/g, '').slice(0, 12)}`;
+      const nextAccountCode = generateEightDigitCode(Object.values(accountsMap).map((a) => a.accountCode).filter(Boolean) as string[]);
 
       newAccount = {
-        id: `#${nextIdNum}`,
+        id: nextId,
         username: trimmed,
         role: 'Trainer',
-        avatar: BOT_DEFAULT_AVATAR,
+        avatar: DEFAULT_AVATAR,
         createdAt: formattedDate,
         coins: 0,
         totalGame: 0,
         win: 0,
         lose: 0,
+        accountCode: nextAccountCode,
+        sessionToken: generateUuid(),
+        sessionActive: true,
+        lastSeen: Date.now(),
+        updatedAt: Date.now(),
       };
     }
 
@@ -528,7 +618,8 @@ export const ProfileProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const logout = () => {
     if (profile) {
-      D1DatabaseService.updatePresence({ userId: profile.id, status: 'Offline' }).catch(() => {});
+      D1DatabaseService.logoutUser({ userId: profile.id, sessionToken: profile.sessionToken }).catch(() => {});
+      D1DatabaseService.updatePresence({ userId: profile.id, status: 'Offline', sessionToken: profile.sessionToken }).catch(() => {});
     }
     setProfile(null);
     localStorage.removeItem(STORAGE_KEY_PROFILE);
