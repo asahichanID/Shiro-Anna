@@ -1888,14 +1888,47 @@ async function startServer() {
   app.get('/api/v1/jukebox/playlist', async (req, res) => {
     try {
       const userId = (req.query.userId as string) || '#1';
-      const items = await queryAll<any>(
-        'SELECT * FROM jukebox_playlist WHERE user_id = ? ORDER BY created_at DESC',
-        [userId]
-      );
-      return res.json({ success: true, result: items || [] });
+
+      const [playlistRows, favoriteRows] = await Promise.all([
+        queryAll<any>(
+          'SELECT * FROM jukebox_playlist WHERE user_id = ? ORDER BY created_at DESC',
+          [userId]
+        ),
+        queryAll<any>(
+          'SELECT * FROM jukebox_favorites WHERE user_id = ? ORDER BY created_at DESC',
+          [userId]
+        ),
+      ]);
+
+      // Love is the durable source of truth for the jukebox playlist.
+      // If an older client/server failed to create the playlist row, the
+      // loved track still appears after refresh.
+      const merged = new Map<string, any>();
+
+      for (const row of playlistRows || []) {
+        merged.set(row.track_id, row);
+      }
+
+      for (const fav of favoriteRows || []) {
+        if (!merged.has(fav.track_id)) {
+          merged.set(fav.track_id, {
+            ...fav,
+            quality: fav.quality || '',
+            is_favorite: 1,
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        result: Array.from(merged.values()),
+      });
     } catch (err) {
       console.error('[JUKEBOX PLAYLIST GET ERROR]:', err);
-      return res.json({ success: true, result: [] });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load jukebox playlist.',
+      });
     }
   });
 
@@ -1989,7 +2022,10 @@ async function startServer() {
       return res.json({ success: true, result: items || [] });
     } catch (err) {
       console.error('[JUKEBOX FAVORITES GET ERROR]:', err);
-      return res.json({ success: true, result: [] });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to load jukebox favorites.',
+      });
     }
   });
 
@@ -2021,12 +2057,22 @@ async function startServer() {
       );
 
       let isFavorite = false;
+
       if (existing) {
-        await executeSql('DELETE FROM jukebox_favorites WHERE id = ?', [existing.id]);
+        // Unlike = remove Love AND remove the corresponding playlist entry.
+        await executeSql(
+          'DELETE FROM jukebox_favorites WHERE id = ?',
+          [existing.id]
+        );
+        await executeSql(
+          'DELETE FROM jukebox_playlist WHERE user_id = ? AND track_id = ?',
+          [userId, trackId]
+        );
         isFavorite = false;
       } else {
         const id = `jf_${now}_${Math.random().toString(36).substring(2, 6)}`;
         const vId = videoId || trackId;
+
         await executeSql(
           'INSERT INTO jukebox_favorites (id, user_id, track_id, source, video_id, title, artist, thumbnail, download_url, duration, audio_expire_at, created_at, last_played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [
@@ -2045,12 +2091,70 @@ async function startServer() {
             lastPlayedAt || 0,
           ]
         );
+
+        // Persist the playlist row in the SAME server operation as Love.
+        // download_url may be empty for Spotify until the user presses Play;
+        // the player refreshes it from the Spotify URL/ID later.
+        const existingPlaylist = await queryOne<any>(
+          'SELECT id FROM jukebox_playlist WHERE user_id = ? AND track_id = ?',
+          [userId, trackId]
+        );
+
+        if (!existingPlaylist) {
+          const playlistId = `jp_${now}_${Math.random().toString(36).substring(2, 6)}`;
+
+          await executeSql(
+            'INSERT INTO jukebox_playlist (id, user_id, track_id, source, video_id, title, artist, thumbnail, download_url, duration, quality, audio_expire_at, created_at, last_played_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              playlistId,
+              userId,
+              trackId,
+              source || 'youtube',
+              vId,
+              title || 'Music Track',
+              artist || 'Artist',
+              thumbnail || '',
+              downloadUrl || '',
+              duration || '',
+              '',
+              audioExpireAt || 0,
+              now,
+              lastPlayedAt || 0,
+            ]
+          );
+        } else {
+          await executeSql(
+            'UPDATE jukebox_playlist SET source = ?, video_id = ?, title = ?, artist = ?, thumbnail = ?, download_url = ?, duration = ?, audio_expire_at = ?, last_played_at = ? WHERE user_id = ? AND track_id = ?',
+            [
+              source || 'youtube',
+              vId,
+              title || 'Music Track',
+              artist || 'Artist',
+              thumbnail || '',
+              downloadUrl || '',
+              duration || '',
+              audioExpireAt || 0,
+              lastPlayedAt || 0,
+              userId,
+              trackId,
+            ]
+          );
+        }
+
         isFavorite = true;
       }
-      return res.json({ success: true, isFavorite, message: isFavorite ? 'Added to favorites.' : 'Removed from favorites.' });
+
+      return res.json({
+        success: true,
+        isFavorite,
+        message: isFavorite ? 'Added to favorites.' : 'Removed from favorites.',
+      });
     } catch (err) {
       console.error('[JUKEBOX FAVORITE TOGGLE ERROR]:', err);
-      return res.status(500).json({ success: false, message: 'Failed to toggle favorite.' });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to toggle favorite.',
+      });
     }
   });
 
