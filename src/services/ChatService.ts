@@ -3,7 +3,13 @@ import { StorageService } from './StorageService';
 import { DeveloperService } from './DeveloperService';
 import { D1DatabaseService } from './D1DatabaseService';
 import { NotificationService } from './NotificationService';
-import { canonicalDirectRoomId } from '../utils/identity';
+
+function canonicalDirectRoomId(a: string, b: string): string {
+  return [String(a).trim(), String(b).trim()]
+    .sort((left, right) => left.localeCompare(right))
+    .join('::');
+}
+
 
 const STORAGE_KEY_CHAT_ROOMS = 'chatRooms';
 const STORAGE_KEY_MESSAGES = 'messages';

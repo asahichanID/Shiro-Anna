@@ -2,8 +2,14 @@ import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 import { GlobalChatMessage, DirectMessage } from '../types';
 import { SettingsService } from './SettingsService';
-import { canonicalDirectRoomId } from '../utils/identity';
 import { RealtimeService } from './SupabaseService';
+
+function canonicalDirectRoomId(a: string, b: string): string {
+  return [String(a).trim(), String(b).trim()]
+    .sort((left, right) => left.localeCompare(right))
+    .join('::');
+}
+
 
 const STORAGE_KEY_GLOBAL_CHAT = 'oguri_global_chat_messages';
 const STORAGE_KEY_DIRECT_MESSAGES = 'oguri_direct_messages_map';
