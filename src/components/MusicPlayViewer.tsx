@@ -170,6 +170,10 @@ export const MusicPlayViewer: React.FC = () => {
   // Spotify State
   const [spotifyInput, setSpotifyInput] = useState('');
   const [isSpotifyLoading, setIsSpotifyLoading] = useState(false);
+  const [isSpotifySearching, setIsSpotifySearching] = useState(false);
+  const [spotifySearchError, setSpotifySearchError] = useState<string | null>(null);
+  const [spotifyResults, setSpotifyResults] = useState<SearchResultItem[]>([]);
+  const [hasSpotifySearched, setHasSpotifySearched] = useState(false);
 
   // Loading & Active Media State
   const [loadingMedia, setLoadingMedia] = useState<{
@@ -389,52 +393,71 @@ export const MusicPlayViewer: React.FC = () => {
     const input = spotifyInput.trim();
     if (!input) return;
 
-    setIsSpotifyLoading(true);
-    setMediaError(null);
-    setActiveMedia(null);
-
-    const isUrl = input.startsWith('http://') || input.startsWith('https://');
-
-    const dummyItem: SearchResultItem = {
+    const isUrl = /^https?:\/\//i.test(input);
+    const spotifyPreviewItem: SearchResultItem = {
       videoId: 'spotify_track',
       url: input,
       title: isUrl ? 'Spotify Downloader' : input,
       channel: 'Spotify Artist',
       thumbnail: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+      source: 'spotify',
     };
 
-    setLoadingMedia({ type: 'spotify', item: dummyItem });
+    setMediaError(null);
+    setActiveMedia(null);
+    setSpotifySearchError(null);
+
+    if (!isUrl) {
+      setHasSpotifySearched(true);
+      setIsSpotifySearching(true);
+      setLoadingMedia({ type: 'spotify', item: spotifyPreviewItem });
+      setSpotifyResults([]);
+
+      try {
+        const response = await apiClient.searchSpotify(input, 50);
+
+        if (!response.success || !response.result) {
+          throw new Error(response.message || 'Gagal mencari lagu Spotify dari Worker API.');
+        }
+
+        const results = response.result.filter((item) => {
+          const type = String(item?.type || '').toLowerCase();
+          if (!type) return true;
+          return type === 'track' || type === 'audio' || item?.durationMs || item?.duration;
+        });
+
+        if (results.length === 0) {
+          setSpotifySearchError('Hasil pencarian Spotify tidak ditemukan.');
+          setSpotifyResults([]);
+          return;
+        }
+
+        setSpotifyResults(results);
+      } catch (err: any) {
+        setSpotifySearchError(err.message || 'Gagal mencari lagu Spotify.');
+      } finally {
+        setIsSpotifySearching(false);
+        setLoadingMedia(null);
+      }
+
+      return;
+    }
+
+    setHasSpotifySearched(false);
+    setIsSpotifyLoading(true);
+    setLoadingMedia({ type: 'spotify', item: spotifyPreviewItem });
 
     try {
-      let response;
-      if (isUrl) {
-        response = await apiClient.getSpotifyDownload(input);
-      } else {
-        response = await apiClient.searchSpotify(input);
-      }
+      const response = await apiClient.getSpotifyDownload(input);
 
       if (!response.success || !response.result) {
         throw new Error(response.message || 'Gagal memproses lagu Spotify dari Worker API.');
       }
 
       const resObj = response.result;
-      let targetItem = resObj;
-      if (Array.isArray(resObj)) {
-        if (resObj.length === 0) {
-          throw new Error('Hasil pencarian Spotify tidak ditemukan.');
-        }
-        targetItem = resObj[0];
-      }
+      const downloadUrl = resObj.download || resObj.link || resObj.url || resObj.audio || resObj.mp3 || '';
 
-      const downloadUrl =
-        targetItem.download ||
-        targetItem.link ||
-        targetItem.url ||
-        targetItem.audio ||
-        targetItem.mp3 ||
-        (typeof targetItem === 'string' ? targetItem : '');
-
-      if (!downloadUrl && !Array.isArray(resObj)) {
+      if (!downloadUrl) {
         throw new Error('Link download MP3 Spotify tidak ditemukan.');
       }
 
@@ -453,22 +476,25 @@ export const MusicPlayViewer: React.FC = () => {
         return fallback;
       };
 
-      const title = formatString(targetItem.title || targetItem.name || targetItem.track || input, 'Spotify Track');
-      const channel = formatString(targetItem.artist || targetItem.artists || targetItem.channel, 'Spotify Artist');
+      const title = formatString(resObj.title || resObj.name || input, 'Spotify Track');
+      const channel = formatString(resObj.artist || resObj.artists || resObj.channel, 'Spotify Artist');
       const thumbnail =
-        (typeof targetItem.thumbnail === 'string' && targetItem.thumbnail) ||
-        (typeof targetItem.cover === 'string' && targetItem.cover) ||
-        (typeof targetItem.image === 'string' && targetItem.image) ||
-        (targetItem.album?.images?.[0]?.url) ||
-        dummyItem.thumbnail;
+        (typeof resObj.thumbnail === 'string' && resObj.thumbnail) ||
+        (typeof resObj.cover === 'string' && resObj.cover) ||
+        (typeof resObj.image === 'string' && resObj.image) ||
+        (resObj.album?.images?.[0]?.url) ||
+        spotifyPreviewItem.thumbnail;
 
       const spTrack: JukeboxTrack = {
-        trackId: `sp_${Date.now()}`,
+        trackId: `sp_${resObj.id || Date.now()}`,
+        source: 'spotify',
+        videoId: resObj.id || resObj.uri?.split(':').pop() || input,
         title,
         artist: channel,
         thumbnail,
         downloadUrl,
-        quality: 'Spotify 320kbps MP3',
+        duration: resObj.duration || resObj.duration_ms ? String(resObj.duration || resObj.duration_ms) : '',
+        quality: 'Spotify MP3',
       };
 
       await playTrack(spTrack);
@@ -485,6 +511,84 @@ export const MusicPlayViewer: React.FC = () => {
       setLoadingMedia(null);
     }
   };
+
+  const handleSpotifyPlayResult = async (item: SearchResultItem) => {
+    const spotifyUrl = item.spotifyUrl || item.url;
+    if (!spotifyUrl) {
+      setMediaError('URL Spotify untuk hasil ini tidak ditemukan.');
+      return;
+    }
+
+    setIsSpotifyLoading(true);
+    setMediaError(null);
+    setActiveMedia(null);
+    setLoadingMedia({ type: 'spotify', item });
+
+    try {
+      const response = await apiClient.getSpotifyDownload(spotifyUrl);
+
+      if (!response.success || !response.result) {
+        throw new Error(response.message || 'Gagal memproses lagu Spotify dari Worker API.');
+      }
+
+      const resObj = response.result;
+      const downloadUrl = resObj.download || resObj.link || resObj.url || resObj.audio || resObj.mp3 || '';
+
+      if (!downloadUrl) {
+        throw new Error('Link download MP3 Spotify tidak ditemukan.');
+      }
+
+      const formatString = (val: any, fallback: string): string => {
+        if (!val) return fallback;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number') return String(val);
+        if (Array.isArray(val)) {
+          const list = val.map((v) => formatString(v, '')).filter(Boolean);
+          return list.length > 0 ? list.join(', ') : fallback;
+        }
+        if (typeof val === 'object') {
+          if (typeof val.name === 'string') return val.name;
+          if (typeof val.title === 'string') return val.title;
+        }
+        return fallback;
+      };
+
+      const title = formatString(resObj.title || resObj.name || item.title, 'Spotify Track');
+      const channel = formatString(resObj.artist || resObj.artists || resObj.channel || item.channel, 'Spotify Artist');
+      const thumbnail =
+        (typeof resObj.thumbnail === 'string' && resObj.thumbnail) ||
+        (typeof resObj.cover === 'string' && resObj.cover) ||
+        (typeof resObj.image === 'string' && resObj.image) ||
+        (resObj.album?.images?.[0]?.url) ||
+        item.thumbnail;
+
+      const spTrack: JukeboxTrack = {
+        trackId: `sp_${resObj.id || item.id || Date.now()}`,
+        source: 'spotify',
+        videoId: resObj.id || item.id || item.uri?.split(':').pop() || spotifyUrl,
+        title,
+        artist: channel,
+        thumbnail,
+        downloadUrl,
+        duration: resObj.duration || resObj.duration_ms ? String(resObj.duration || resObj.duration_ms) : item.duration,
+        quality: 'Spotify MP3',
+      };
+
+      await playTrack(spTrack);
+
+      ActivityService.logActivity(
+        'music_play',
+        'Spotify Downloader',
+        `Memproses Spotify: "${title}"`
+      );
+    } catch (err: any) {
+      setMediaError(err.message || 'Gagal memproses Spotify.');
+    } finally {
+      setIsSpotifyLoading(false);
+      setLoadingMedia(null);
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -992,22 +1096,108 @@ export const MusicPlayViewer: React.FC = () => {
             </div>
             <button
               type="submit"
-              disabled={isSpotifyLoading || !spotifyInput.trim()}
+              disabled={(isSpotifyLoading || isSpotifySearching) || !spotifyInput.trim()}
               className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-lg flex items-center justify-center space-x-2 transition-all flex-shrink-0"
             >
-              {isSpotifyLoading ? (
+              {isSpotifyLoading || isSpotifySearching ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Memproses Spotify...</span>
+                  <span>{/^https?:\/\//i.test(spotifyInput.trim()) ? 'Memproses Spotify...' : 'Mencari Spotify...'}</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-4 h-4" />
+                  <Search className="w-4 h-4" />
                   <span>Proses Spotify</span>
                 </>
               )}
             </button>
           </form>
+
+          {spotifySearchError && (
+            <div className="bg-red-950/35 border border-red-500/40 rounded-xl p-4 text-sm text-red-200">
+              {spotifySearchError}
+            </div>
+          )}
+
+          {isSpotifySearching && (
+            <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+              <span>Mencari hasil Spotify...</span>
+            </div>
+          )}
+
+          {!isSpotifySearching && hasSpotifySearched && !/^https?:\/\//i.test(spotifyInput.trim()) && spotifyResults.length === 0 && !spotifySearchError && (
+            <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4 text-sm text-slate-400">
+              Tidak ada hasil Spotify yang cocok.
+            </div>
+          )}
+
+          {!isSpotifySearching && spotifyResults.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[620px] overflow-y-auto pr-1">
+              {spotifyResults.map((item, idx) => {
+                const isPlayable = String(item.type || '').toLowerCase() === 'track' || !!item.durationMs || !!item.duration;
+                return (
+                  <div
+                    key={`${item.id || item.uri || item.url || idx}`}
+                    className="bg-slate-950 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-3.5 transition-all flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3.5 group"
+                  >
+                    <div className="relative w-full sm:w-28 h-28 sm:h-28 rounded-xl overflow-hidden aspect-square bg-slate-900 flex-shrink-0 border border-slate-800">
+                      {item.thumbnail ? (
+                        <img
+                          src={item.thumbnail}
+                          alt={item.title}
+                          className="w-full h-full object-cover object-center aspect-square overflow-hidden group-hover:scale-105 transition-transform"
+                          style={{ objectFit: 'cover', objectPosition: 'center', aspectRatio: '1 / 1' }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                          <Volume2 className="w-8 h-8" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                      <div className="space-y-1">
+                        <div className="flex items-start justify-between gap-1">
+                          <h4 className="text-xs font-bold text-slate-100 line-clamp-2 leading-snug group-hover:text-emerald-300 transition-colors">
+                            {item.title}
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 text-[10px] font-bold uppercase">
+                            {String(item.type || 'Track')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate">{item.channel}</p>
+                        {item.playability && (
+                          <p className="text-[10px] text-slate-500 truncate">{item.playability}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2 pt-2">
+                        <button
+                          onClick={() => handleSpotifyPlayResult(item)}
+                          disabled={!isPlayable}
+                          className="flex-1 px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-300 hover:text-white border border-emerald-500/30 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm"
+                        >
+                          <Music className="w-3.5 h-3.5" />
+                          <span>Putar MP3</span>
+                        </button>
+
+                        <a
+                          href={item.url || item.spotifyUrl || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Buka Spotify</span>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
