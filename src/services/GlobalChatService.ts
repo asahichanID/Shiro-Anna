@@ -93,7 +93,9 @@ export class GlobalChatService {
             prev.text !== m.text ||
             prev.senderId !== m.senderId ||
             prev.senderBadge !== m.senderBadge ||
-            prev.senderBadgeName !== m.senderBadgeName
+            prev.senderBadgeName !== m.senderBadgeName ||
+            prev.senderAvatar !== m.senderAvatar ||
+            prev.senderRole !== m.senderRole
           ) {
             changed = true;
           }

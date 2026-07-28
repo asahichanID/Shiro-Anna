@@ -490,14 +490,39 @@ export class D1DatabaseService {
     user_coins?: number;
   }): Promise<{ success: boolean; result?: ShopOrder; newCoins?: number; message?: string }> {
     try {
-      const result = await this.post<{ success: boolean; result?: ShopOrder; newCoins?: number; message?: string }>('/shop/orders/create', data);
+      const url = `${this.baseUrl}/shop/orders/create`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
+      }
+
+      const payload = json?.result !== undefined ? json.result : json;
+      if (!res.ok || !payload?.success) {
+        return {
+          success: false,
+          message: payload?.message || json?.message || `Gagal membuat pesanan. (HTTP ${res.status})`,
+        };
+      }
+
+      const result = payload as { success: boolean; result?: ShopOrder; newCoins?: number; message?: string };
       if (result && result.success) {
         RealtimeService.broadcast('shop_order_updated', { action: 'create', order: result.result, newCoins: result.newCoins });
         if (result.newCoins !== undefined) {
           RealtimeService.broadcast('user_stats_updated', { id: data.user_id, coins: result.newCoins });
         }
       }
-      return result || { success: false, message: 'Gagal membuat pesanan.' };
+      return result;
     } catch (err: any) {
       return { success: false, message: err.message || 'Error connection to server.' };
     }
@@ -569,14 +594,43 @@ export class D1DatabaseService {
     badgeId?: string;
     message?: string;
   }> {
-    const result = await this.post<any>('/badges/buy', { userId, badgeId, price, userCoins, userName });
-    if (result && result.success) {
-      RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
-      if (result.newCoins !== undefined) {
-        RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
+    try {
+      const url = `${this.baseUrl}/badges/buy`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ userId, badgeId, price, userCoins, userName }),
+      });
+
+      let json: any = null;
+      try {
+        json = await res.json();
+      } catch {
+        json = null;
       }
+
+      const payload = json?.result !== undefined ? json.result : json;
+      if (!res.ok || !payload?.success) {
+        return {
+          success: false,
+          message: payload?.message || json?.message || `Gagal membeli badge. (HTTP ${res.status})`,
+        };
+      }
+
+      const result = payload as { success: boolean; newCoins?: number; badgeId?: string; message?: string };
+      if (result && result.success) {
+        RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
+        if (result.newCoins !== undefined) {
+          RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
+        }
+      }
+      return result;
+    } catch (err: any) {
+      return { success: false, message: err.message || 'Koneksi gagal.' };
     }
-    return result || { success: false, message: 'Koneksi gagal.' };
   }
 
   public static async setActiveBadge(userId: string, badgeId: string | null): Promise<boolean> {
