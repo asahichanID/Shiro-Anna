@@ -2,14 +2,8 @@ import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 import { GlobalChatMessage, DirectMessage } from '../types';
 import { SettingsService } from './SettingsService';
+import { canonicalDirectRoomId } from '../utils/identity';
 import { RealtimeService } from './SupabaseService';
-
-function canonicalDirectRoomId(a: string, b: string): string {
-  return [String(a).trim(), String(b).trim()]
-    .sort((left, right) => left.localeCompare(right))
-    .join('::');
-}
-
 
 const STORAGE_KEY_GLOBAL_CHAT = 'oguri_global_chat_messages';
 const STORAGE_KEY_DIRECT_MESSAGES = 'oguri_direct_messages_map';
@@ -149,7 +143,12 @@ export class GlobalChatService {
     this.notifyGlobalListeners(updated);
 
     try {
-      await D1DatabaseService.sendGlobalMessage(newMsg);
+      const saved = await D1DatabaseService.sendGlobalMessage(newMsg);
+      if (saved) {
+        this.lastGlobalFetchTimestamp = Math.max(this.lastGlobalFetchTimestamp, saved.timestamp || newMsg.timestamp);
+        // Pull once more so every client converges to the same server state.
+        await this.fetchGlobalMessages();
+      }
     } catch (e) {
       console.warn('Error sending global message to D1:', e);
     }
@@ -224,7 +223,7 @@ export class GlobalChatService {
     }, 3000);
 
     try {
-      await D1DatabaseService.sendChatMessage({
+      const saved = await D1DatabaseService.sendChatMessage({
         id: newMsg.id,
         roomId,
         senderId,
@@ -233,6 +232,9 @@ export class GlobalChatService {
         time: timeStr,
         timestamp: newMsg.timestamp,
       });
+      if (saved) {
+        await this.fetchDirectMessages(roomId, senderId);
+      }
     } catch (e) {
       console.warn('Error sending direct message to D1:', e);
     }
