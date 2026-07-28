@@ -14,14 +14,7 @@ import { LiveDuelPanel } from './LiveDuelPanel';
 import { DeveloperBadge } from './DeveloperBadge';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { useProfile } from '../context/ProfileContext';
-
-
-function canonicalDirectRoomId(a: string, b: string): string {
-  return [String(a).trim(), String(b).trim()]
-    .sort((left, right) => left.localeCompare(right))
-    .join('::');
-}
-
+import { canonicalDirectRoomId } from '../utils/identity.ts';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
@@ -69,6 +62,11 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
 
   // Initialize Services & Subscriptions
   useEffect(() => {
+    // Reset account-scoped UI state first so we never show stale data from a previous login.
+    setSelectedFriend(null);
+    setDirectMessages([]);
+    setUserActiveBadge(undefined);
+
     // Start presence tracking
     PresenceService.startPresenceTracking(currentUserId);
 
@@ -101,9 +99,9 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
       GlobalChatService.stopPolling();
       PresenceService.stopPresenceTracking();
     };
-  }, []);
+  }, [currentUserId]);
 
-  // Sync Direct Messages when selectedFriend changes
+  // Sync Direct Messages when selectedFriend or logged-in account changes
   useEffect(() => {
     if (selectedFriend) {
       const roomId = canonicalDirectRoomId(currentUserId, selectedFriend.id);
@@ -116,7 +114,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
 
       return () => unsubDM();
     }
-  }, [selectedFriend]);
+  }, [selectedFriend, currentUserId]);
 
   // Auto scroll
   useEffect(() => {
