@@ -19,7 +19,7 @@ export class MessageHandler {
   constructor() {
     // Setup gameDb callbacks for 60s timeout handling
     gameDb.setCallbacks((chatId, session) => {
-      userDb.recordGameAttempt('trainer_01', false);
+      userDb.recordGameAttempt(userDb.getCurrentUser().id, false);
       ActivityService.logActivity(
         'game_lose',
         'Kalah / Waktu Habis Tebak Kata',
