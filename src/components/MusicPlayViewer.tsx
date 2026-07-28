@@ -463,38 +463,29 @@ export const MusicPlayViewer: React.FC = () => {
     const trackId = getSpotifyTrackId(item);
     const existingFavorite = favorites.find((fav) => fav.trackId === trackId);
 
+    // Unlike tidak perlu memanggil API media sama sekali.
+    // Ini membuat tombol ❤️ selalu bisa dipakai meskipun URL MP3 sedang
+    // expired / API media sedang lambat.
     if (existingFavorite) {
       await toggleFavorite(existingFavorite);
       return;
     }
 
-    setIsSpotifyLoading(true);
     setMediaError(null);
-    setSpotifySearchError(null);
-    setLoadingMedia({ type: 'spotify', item });
 
-    try {
-      const response = await apiClient.getSpotifyDownload(spotifyUrl);
+    // Love hanya menyimpan metadata lagu + URL Spotify.
+    // URL MP3 akan diambil fresh ketika lagu benar-benar diputar.
+    const spTrack = buildSpotifyJukeboxTrack(item, '', {
+      id: item.id,
+      uri: item.uri,
+      url: spotifyUrl,
+      name: item.title,
+      artist: item.channel,
+      album: item.album,
+      thumbnail: item.thumbnail,
+    });
 
-      if (!response.success || !response.result) {
-        throw new Error(response.message || 'Gagal memproses lagu Spotify dari Worker API.');
-      }
-
-      const resObj = response.result;
-      const downloadUrl = resObj.download || resObj.link || resObj.url || resObj.audio || resObj.mp3 || '';
-
-      if (!downloadUrl) {
-        throw new Error('Link download MP3 Spotify tidak ditemukan.');
-      }
-
-      const spTrack = buildSpotifyJukeboxTrack(item, downloadUrl, resObj);
-      await toggleFavorite(spTrack);
-    } catch (err: any) {
-      setMediaError(err.message || 'Gagal memproses Spotify.');
-    } finally {
-      setIsSpotifyLoading(false);
-      setLoadingMedia(null);
-    }
+    await toggleFavorite(spTrack);
   };
 
   // Handle Spotify Download via API Client
