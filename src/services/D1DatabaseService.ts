@@ -594,17 +594,9 @@ export class D1DatabaseService {
     badgeId?: string;
     message?: string;
   }> {
-    try {
-      const url = `${this.baseUrl}/badges/buy`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ userId, badgeId, price, userCoins, userName }),
-      });
+    const payloadBody = { userId, badgeId, price, userCoins, userName };
 
+    const parseResponse = async (res: Response) => {
       let json: any = null;
       try {
         json = await res.json();
@@ -615,19 +607,73 @@ export class D1DatabaseService {
       const payload = json?.result !== undefined ? json.result : json;
       if (!res.ok || !payload?.success) {
         return {
-          success: false,
+          ok: false,
+          response: null as any,
           message: payload?.message || json?.message || `Gagal membeli badge. (HTTP ${res.status})`,
+          status: res.status,
         };
       }
 
-      const result = payload as { success: boolean; newCoins?: number; badgeId?: string; message?: string };
-      if (result && result.success) {
+      return {
+        ok: true,
+        response: payload as { success: boolean; newCoins?: number; badgeId?: string; message?: string },
+        message: '',
+        status: res.status,
+      };
+    };
+
+    try {
+      const postUrl = `${this.baseUrl}/badges/buy`;
+
+      // Primary path: POST JSON
+      let res = await fetch(postUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payloadBody),
+      });
+
+      let parsed = await parseResponse(res);
+      if (parsed.ok && parsed.response) {
+        const result = parsed.response;
         RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
         if (result.newCoins !== undefined) {
           RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
         }
+        return result;
       }
-      return result;
+
+      // Fallback path: some deploys only accept GET on the same endpoint.
+      if (parsed.status === 405) {
+        const qs = new URLSearchParams();
+        qs.set('userId', userId);
+        qs.set('badgeId', badgeId);
+        qs.set('price', String(price));
+        if (typeof userCoins === 'number') qs.set('userCoins', String(userCoins));
+        if (userName) qs.set('userName', userName);
+
+        res = await fetch(`${postUrl}?${qs.toString()}`, {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+
+        parsed = await parseResponse(res);
+        if (parsed.ok && parsed.response) {
+          const result = parsed.response;
+          RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
+          if (result.newCoins !== undefined) {
+            RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
+          }
+          return result;
+        }
+      }
+
+      return {
+        success: false,
+        message: parsed.message || 'Gagal membeli badge.',
+      };
     } catch (err: any) {
       return { success: false, message: err.message || 'Koneksi gagal.' };
     }
