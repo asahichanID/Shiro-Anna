@@ -41,6 +41,26 @@ async function startServer() {
     console.error('[D1 SERVER CRITICAL INIT ERROR]:', err);
   }
 
+
+  const ensureColumns = async (table: string, columns: Array<{ name: string; def: string }>) => {
+    try {
+      const existing = await queryAll<any>(`PRAGMA table_info(${table})`);
+      const existingNames = new Set((existing || []).map((col) => String(col.name)));
+      for (const column of columns) {
+        if (!existingNames.has(column.name)) {
+          await executeSql(`ALTER TABLE ${table} ADD COLUMN ${column.def}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`[D1 SCHEMA MIGRATION WARN] ${table}:`, err);
+    }
+  };
+
+  await ensureColumns('global_messages', [
+    { name: 'sender_badge', def: "sender_badge TEXT DEFAULT ''" },
+    { name: 'sender_badge_name', def: "sender_badge_name TEXT DEFAULT ''" },
+  ]);
+
   // CORS headers for API
   app.use('/api', (req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -64,30 +84,6 @@ async function startServer() {
     }, 0);
   const DEFAULT_AVATAR = 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1';
   const HEARTBEAT_TTL_MS = 3000;
-
-  // Ensure newer chat badge columns exist for persisted global chat labels.
-  (async () => {
-    try {
-      const cols = [
-        { table: 'global_messages', name: 'sender_badge', def: 'sender_badge TEXT DEFAULT ""' },
-        { table: 'global_messages', name: 'sender_badge_name', def: 'sender_badge_name TEXT DEFAULT ""' },
-      ];
-
-      const tableCache: Record<string, string[]> = {};
-      for (const item of cols) {
-        if (!tableCache[item.table]) {
-          const info = await queryAll<any>(`PRAGMA table_info(${item.table})`);
-          tableCache[item.table] = (info || []).map((c: any) => String(c.name).toLowerCase());
-        }
-        if (!tableCache[item.table].includes(item.name.toLowerCase())) {
-          try {
-            await executeSql(`ALTER TABLE ${item.table} ADD COLUMN ${item.def}`);
-            tableCache[item.table].push(item.name.toLowerCase());
-          } catch (e) {}
-        }
-      }
-    } catch (e) {}
-  })();
 
   const mapUser = (u: any) => ({
     id: u.id,
@@ -558,19 +554,7 @@ async function startServer() {
   // 8. GLOBAL CHAT: Send Message
   app.post('/api/v1/global-chat', async (req, res) => {
     try {
-      const {
-        id,
-        senderId,
-        senderName,
-        senderRole = 'Trainer',
-        senderAvatar,
-        senderBadge = '',
-        senderBadgeName = '',
-        text,
-        isDuelAnswer,
-        time,
-        timestamp,
-      } = req.body;
+      const { id, senderId, senderName, senderRole = 'Trainer', senderAvatar, senderBadge = '', senderBadgeName = '', text, isDuelAnswer, time, timestamp } = req.body;
 
       if (!text || !senderId) {
         console.error('[D1 CHAT INSERT ERROR]: Missing required fields for global chat message.');
@@ -1259,10 +1243,12 @@ async function startServer() {
       if (!user) {
         const now = Date.now();
         const initialCoins = typeof req.body.user_coins === 'number' ? req.body.user_coins : 0;
+        const accountCodeRows = await queryAll<any>('SELECT account_code FROM users WHERE account_code IS NOT NULL AND account_code != ""');
+        const accountCode = generateEightDigitCode(accountCodeRows.map((row) => row.account_code));
         await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, created_at, updated_at)
-           VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, ?)`,
-          [cleanUserId, cleanUserName, initialCoins, now, now]
+          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen, device, browser, account_code, session_token, session_active, created_at, updated_at)
+           VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, 'Desktop', 'Browser', ?, '', 1, ?, ?)`,
+          [cleanUserId, cleanUserName, initialCoins, now, accountCode, now, now]
         );
         user = await queryOne<any>('SELECT * FROM users WHERE id = ?', [cleanUserId]);
       } else if (typeof req.body.user_coins === 'number' && req.body.user_coins > user.coins) {
@@ -1453,7 +1439,7 @@ async function startServer() {
       if (!user) {
         const now = Date.now();
         await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, created_at, updated_at)
+          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
            VALUES (?, ?, 'Trainer', '/assets/avatar.png', 0, 0, 0, 0, 'Online', ?, ?)`,
           [cleanUserId, cleanUserName, now, now]
         );
@@ -1764,10 +1750,12 @@ async function startServer() {
       if (!user) {
         const now = Date.now();
         const initialCoins = typeof userCoins === 'number' ? userCoins : 0;
+        const accountCodeRows = await queryAll<any>('SELECT account_code FROM users WHERE account_code IS NOT NULL AND account_code != ""');
+        const accountCode = generateEightDigitCode(accountCodeRows.map((row) => row.account_code));
         await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, created_at, updated_at)
-           VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, ?)`,
-          [cleanUserId, cleanUserName, initialCoins, now, now]
+          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen, device, browser, account_code, session_token, session_active, created_at, updated_at)
+           VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, 'Desktop', 'Browser', ?, '', 1, ?, ?)`,
+          [cleanUserId, cleanUserName, initialCoins, now, accountCode, now, now]
         );
         user = await queryOne<any>('SELECT * FROM users WHERE id = ?', [cleanUserId]);
       } else if (typeof userCoins === 'number' && userCoins > user.coins) {
