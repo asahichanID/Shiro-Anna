@@ -594,9 +594,17 @@ export class D1DatabaseService {
     badgeId?: string;
     message?: string;
   }> {
-    const payloadBody = { userId, badgeId, price, userCoins, userName };
+    try {
+      const url = `${this.baseUrl}/badges/buy`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ userId, badgeId, price, userCoins, userName }),
+      });
 
-    const parseResponse = async (res: Response) => {
       let json: any = null;
       try {
         json = await res.json();
@@ -604,76 +612,46 @@ export class D1DatabaseService {
         json = null;
       }
 
+      // API bisa mengembalikan salah satu dari dua bentuk:
+      // 1) { success: true, newCoins, badgeId }
+      // 2) { success: true, result: { newCoins, badgeId } }
+      // Jangan mengambil `result` lebih dulu untuk menentukan status sukses,
+      // karena bentuk #2 tidak menaruh `success` di dalam result.
       const payload = json?.result !== undefined ? json.result : json;
-      if (!res.ok || !payload?.success) {
+      const requestSucceeded = json?.success === true || payload?.success === true;
+
+      if (!res.ok || !requestSucceeded) {
         return {
-          ok: false,
-          response: null as any,
-          message: payload?.message || json?.message || `Gagal membeli badge. (HTTP ${res.status})`,
-          status: res.status,
+          success: false,
+          message:
+            payload?.message ||
+            json?.message ||
+            `Gagal membeli badge. (HTTP ${res.status})`,
         };
       }
 
-      return {
-        ok: true,
-        response: payload as { success: boolean; newCoins?: number; badgeId?: string; message?: string },
-        message: '',
-        status: res.status,
+      const result = {
+        success: true,
+        newCoins: payload?.newCoins ?? json?.newCoins,
+        badgeId: payload?.badgeId ?? json?.badgeId ?? badgeId,
+        message: payload?.message ?? json?.message,
       };
-    };
 
-    try {
-      const postUrl = `${this.baseUrl}/badges/buy`;
-
-      // Primary path: POST JSON
-      let res = await fetch(postUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payloadBody),
+      RealtimeService.broadcast('user_badge_updated', {
+        action: 'buy',
+        userId,
+        badgeId: result.badgeId,
+        newCoins: result.newCoins,
       });
 
-      let parsed = await parseResponse(res);
-      if (parsed.ok && parsed.response) {
-        const result = parsed.response;
-        RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
-        if (result.newCoins !== undefined) {
-          RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
-        }
-        return result;
-      }
-
-      // Fallback path: some deploys only accept GET on the same endpoint.
-      if (parsed.status === 405) {
-        const qs = new URLSearchParams();
-        qs.set('userId', userId);
-        qs.set('badgeId', badgeId);
-        qs.set('price', String(price));
-        if (typeof userCoins === 'number') qs.set('userCoins', String(userCoins));
-        if (userName) qs.set('userName', userName);
-
-        res = await fetch(`${postUrl}?${qs.toString()}`, {
-          method: 'GET',
-          headers: { Accept: 'application/json' },
+      if (result.newCoins !== undefined) {
+        RealtimeService.broadcast('user_stats_updated', {
+          id: userId,
+          coins: result.newCoins,
         });
-
-        parsed = await parseResponse(res);
-        if (parsed.ok && parsed.response) {
-          const result = parsed.response;
-          RealtimeService.broadcast('user_badge_updated', { action: 'buy', userId, badgeId, newCoins: result.newCoins });
-          if (result.newCoins !== undefined) {
-            RealtimeService.broadcast('user_stats_updated', { id: userId, coins: result.newCoins });
-          }
-          return result;
-        }
       }
 
-      return {
-        success: false,
-        message: parsed.message || 'Gagal membeli badge.',
-      };
+      return result;
     } catch (err: any) {
       return { success: false, message: err.message || 'Koneksi gagal.' };
     }
