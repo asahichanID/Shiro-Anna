@@ -185,6 +185,8 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
           await GlobalChatService.sendGlobalMessage({
             senderId: currentUserId,
             senderName: userName,
+            senderBadge: activeBadge || userActiveBadge,
+            senderBadgeName: activeBadgeCustomName,
             text,
             isDuelAnswer: true,
           });
@@ -366,9 +368,13 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
                         <DeveloperBadge
                           badgeId={msg.senderBadge}
                           badgeName={
-                            msg.senderId === currentUserId && msg.senderBadge === (activeBadge || userActiveBadge)
-                              ? (activeBadgeCustomName || msg.senderBadgeName)
-                              : msg.senderBadgeName
+                            msg.senderBadgeName ||
+                            (
+                              msg.senderId === currentUserId &&
+                              msg.senderBadge === (activeBadge || userActiveBadge)
+                                ? activeBadgeCustomName
+                                : ''
+                            )
                           }
                           showRarity={false}
                           size="sm"
