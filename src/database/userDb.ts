@@ -70,6 +70,18 @@ export class UserDatabaseService {
   }
 
   public static getCurrentUser(): AppUser {
+    const cached = StorageService.getItem<any>(STORAGE_KEY_USER, null);
+    if (cached && cached.id) {
+      return cached as AppUser;
+    }
+
+    const all = this.getAllUsers();
+    const preferred = all.find((u) => u.status === 'Online') || all[0];
+    if (preferred) {
+      StorageService.setItem(STORAGE_KEY_USER, preferred);
+      return preferred as AppUser;
+    }
+
     return this.getUser('#1');
   }
 
@@ -210,8 +222,9 @@ export class UserDatabaseService {
     return this.saveUser(user);
   }
 
-  public static recordGameAttempt(userId: string = '#1', isWon: boolean): AppUser {
-    const user = this.getUser(userId);
+  public static recordGameAttempt(userId: string, isWon: boolean): AppUser {
+    const targetUserId = userId || this.getCurrentUser().id;
+    const user = this.getUser(targetUserId);
     user.gamesPlayed = (user.gamesPlayed || 0) + 1;
     user.totalGame = user.gamesPlayed;
 
