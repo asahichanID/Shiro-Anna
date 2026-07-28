@@ -14,7 +14,7 @@ import { LiveDuelPanel } from './LiveDuelPanel';
 import { DeveloperBadge } from './DeveloperBadge';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { useProfile } from '../context/ProfileContext';
-import { canonicalDirectRoomId } from '@/utils/identity.ts';
+import { canonicalDirectRoomId } from '../utils/identity.ts';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
