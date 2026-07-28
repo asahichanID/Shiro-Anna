@@ -24,6 +24,16 @@ export interface SearchItem {
   duration?: string;
   publishTime?: string;
   description?: string;
+  source?: 'youtube' | 'spotify';
+  id?: string;
+  uri?: string;
+  type?: string;
+  spotifyUrl?: string;
+  artists?: string;
+  album?: string;
+  durationMs?: number;
+  playability?: string;
+  matchedFields?: string[];
 }
 
 export interface MediaDownloadResult {
@@ -37,6 +47,164 @@ export interface MediaDownloadResult {
   size?: string;
   format?: string;
   [key: string]: any;
+}
+
+
+function stringifySpotifyText(val: any, fallback = ''): string {
+  if (val == null) return fallback;
+  if (typeof val === 'string') return val.trim() || fallback;
+  if (typeof val === 'number' || typeof val === 'bigint') return String(val);
+  if (Array.isArray(val)) {
+    const parts = val.map((v) => stringifySpotifyText(v, '')).filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : fallback;
+  }
+  if (typeof val === 'object') {
+    if (typeof val.name === 'string') return val.name;
+    if (typeof val.title === 'string') return val.title;
+    if (typeof val.text === 'string') return val.text;
+    if (typeof val.artist === 'string') return val.artist;
+    if (typeof val.url === 'string') return val.url;
+  }
+  return fallback;
+}
+
+function getSpotifyImageUrl(item: any): string {
+  if (!item || typeof item !== 'object') return '';
+  const candidates = [
+    item.thumbnail,
+    item.cover,
+    item.image,
+    item.artwork,
+    item.artwork_url,
+    item.image_url,
+    item.cover_url,
+    item.album?.images?.[0]?.url,
+    item.images?.[0]?.url,
+    item.sixteen_by_nine_cover?.[0]?.url,
+    item.album?.cover?.url,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) {
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
+function normalizeSpotifyArtistList(val: any): string {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (Array.isArray(val)) {
+    const list = val
+      .map((v) => {
+        if (typeof v === 'string') return v;
+        if (v && typeof v === 'object') {
+          return v.name || v.title || v.artist || '';
+        }
+        return '';
+      })
+      .filter(Boolean);
+    return list.join(', ');
+  }
+  if (typeof val === 'object') {
+    if (typeof val.name === 'string') return val.name;
+    if (typeof val.title === 'string') return val.title;
+  }
+  return '';
+}
+
+function normalizeSpotifySearchItem(item: any): SearchItem | null {
+  if (!item || typeof item !== 'object') return null;
+
+  const spotifyId =
+    typeof item.id === 'string'
+      ? item.id
+      : typeof item.uri === 'string'
+        ? item.uri.split(':').pop() || ''
+        : '';
+
+  const spotifyUrl =
+    typeof item.url === 'string' && item.url
+      ? item.url
+      : typeof item.link === 'string' && item.link
+        ? item.link
+        : typeof item.external_urls?.spotify === 'string'
+          ? item.external_urls.spotify
+          : '';
+
+  const title =
+    stringifySpotifyText(item.name || item.title || item.track || item.song || item.track_name, 'Spotify Track') ||
+    'Spotify Track';
+
+  const artists = normalizeSpotifyArtistList(item.artists || item.artist || item.artist_name || item.channel || item.owner);
+
+  const albumName = stringifySpotifyText(item.album?.name || item.album_name || item.albumName, '');
+  const thumbnail = getSpotifyImageUrl(item);
+
+  const durationMs =
+    typeof item.duration_ms === 'number'
+      ? item.duration_ms
+      : typeof item.durationMs === 'number'
+        ? item.durationMs
+        : typeof item.length === 'number'
+          ? item.length
+          : undefined;
+
+  const playability =
+    typeof item.playability?.reason === 'string'
+      ? item.playability.reason
+      : typeof item.playability === 'string'
+        ? item.playability
+        : '';
+
+  const matchedFields = Array.isArray(item.matched_fields)
+    ? item.matched_fields.map((v: any) => stringifySpotifyText(v, '')).filter(Boolean)
+    : [];
+
+  return {
+    source: 'spotify',
+    videoId: spotifyId || item.videoId || spotifyUrl || title,
+    id: spotifyId,
+    uri: typeof item.uri === 'string' ? item.uri : '',
+    type: typeof item.type === 'string' ? item.type : '',
+    url: spotifyUrl,
+    spotifyUrl,
+    title,
+    channel: artists || albumName || 'Spotify Artist',
+    artists,
+    album: albumName,
+    thumbnail,
+    duration: durationMs ? `${Math.round(durationMs / 1000)}s` : item.duration || '',
+    durationMs,
+    description: stringifySpotifyText(item.description || item.lyrics || '', ''),
+    playability,
+    matchedFields,
+    publishTime: stringifySpotifyText(item.publishTime || item.release_date || '', ''),
+  };
+}
+
+function collectUniqueSpotifyItems(items: any[]): SearchItem[] {
+  const seen = new Set<string>();
+  const out: SearchItem[] = [];
+
+  for (const item of items) {
+    const normalized = normalizeSpotifySearchItem(item);
+    if (!normalized) continue;
+
+    const key =
+      normalized.id ||
+      normalized.uri ||
+      normalized.spotifyUrl ||
+      `${normalized.title}::${normalized.channel}`.toLowerCase();
+
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+
+  return out;
 }
 
 class ApiClient {
@@ -600,7 +768,7 @@ if (!extractedUrl) {
    public async searchSpotify(
   query: string,
   limit: number = 20
-): Promise<ApiResponse<any[]>> {
+): Promise<ApiResponse<SearchItem[]>> {
   const trimmed = query.trim();
 
   if (!trimmed) {
@@ -632,104 +800,56 @@ if (!extractedUrl) {
 
   const payload = response.result;
 
-  const extractArray = (value: any, depth = 6): any[] => {
-    if (value == null || depth <= 0) return [];
-
+  const parseValue = (value: any): any => {
     if (typeof value === 'string') {
       try {
-        return extractArray(JSON.parse(value), depth - 1);
+        return JSON.parse(value);
       } catch {
-        return [];
+        return value;
       }
     }
-
-    if (Array.isArray(value)) {
-      return value;
-    }
-
-    if (typeof value !== 'object') {
-      return [];
-    }
-
-    // Prioritas struktur yang paling umum
-    const keys = [
-      'items',
-      'tracks',
-      'results',
-      'data',
-      'songs',
-      'content',
-      'list',
-      'search',
-      'response',
-      'result',
-    ];
-
-    for (const key of keys) {
-      if (value[key] !== undefined && value[key] !== null) {
-        const found = extractArray(value[key], depth - 1);
-
-        if (found.length > 0) {
-          return found;
-        }
-      }
-    }
-
-    // Cari nested object kalau API punya struktur tidak standar
-    for (const key of Object.keys(value)) {
-      const child = value[key];
-
-      if (child && typeof child === 'object') {
-        const found = extractArray(child, depth - 1);
-
-        if (found.length > 0) {
-          return found;
-        }
-      }
-    }
-
-    // Response satu track
-    if (
-      value.title ||
-      value.name ||
-      value.track ||
-      value.url ||
-      value.link ||
-      value.external_urls
-    ) {
-      return [value];
-    }
-
-    return [];
+    return value;
   };
 
-  const rawItems = extractArray(payload);
+  const parsed = parseValue(payload);
 
-  const items = rawItems
-    .map((item: any) => normalizeSpotifyItem(item))
-    .filter((item: any) => {
-      return Boolean(
-        item &&
-        (
-          item.title ||
-          item.name ||
-          item.url ||
-          item.external_urls?.spotify
-        )
-      );
-    });
+  const topResults = Array.isArray(parsed?.top_results)
+    ? parsed.top_results
+    : Array.isArray(parsed?.result?.top_results)
+      ? parsed.result.top_results
+      : [];
 
-  /*
-   * PENTING:
-   * Jangan pakai .slice(0, 20) di sini.
-   *
-   * Kalau API mengirim:
-   *   20 => 20
-   *   10 => 10
-   *   5  => 5
-   *
-   * Jadi jumlah hasil mengikuti response API.
-   */
+  const tracks = Array.isArray(parsed?.tracks)
+    ? parsed.tracks
+    : Array.isArray(parsed?.result?.tracks)
+      ? parsed.result.tracks
+      : [];
+
+  const fallbackCollections: any[] = [];
+  if (Array.isArray(parsed)) {
+    fallbackCollections.push(...parsed);
+  } else if (parsed && typeof parsed === 'object') {
+    for (const key of ['items', 'results', 'data', 'songs', 'content', 'list', 'search', 'response']) {
+      const value = (parsed as any)[key];
+      if (Array.isArray(value)) {
+        fallbackCollections.push(...value);
+      } else if (Array.isArray(value?.items)) {
+        fallbackCollections.push(...value.items);
+      } else if (Array.isArray(value?.tracks)) {
+        fallbackCollections.push(...value.tracks);
+      }
+    }
+  }
+
+  const playableTopResults = topResults.filter((item: any) => {
+    const type = String(item?.type || item?.media_type || '').toLowerCase();
+    return type === 'track' || type === 'audio' || !!item?.duration_ms || !!item?.playability?.playable;
+  });
+
+  const merged = [...tracks, ...playableTopResults, ...fallbackCollections];
+
+  const items = collectUniqueSpotifyItems(merged);
+
   return {
     success: true,
     provider: response.provider || 'shiroapi',
@@ -738,7 +858,7 @@ if (!extractedUrl) {
   };
 }
 
-  /**
+/**
    * Download Spotify track/playlist info via Worker (/spotify?url=)
    * Mirrors the normalization pattern of getAudioDownload / getVideoDownload / getTikTokDownload
    * so that extractDownloadUrl() is applied to handle any Naze API response shape.
@@ -890,6 +1010,7 @@ function normalizeSpotifyItem(item: any): any {
     item.images?.[0]?.url,
     item.album?.image,
     item.album?.cover,
+    item.sixteen_by_nine_cover?.[0]?.url,
   ];
 
   for (const candidate of thumbnailCandidates) {
@@ -959,5 +1080,6 @@ function normalizeSpotifyItem(item: any): any {
     duration,
   };
 }
+
 
 export const apiClient = new ApiClient();
