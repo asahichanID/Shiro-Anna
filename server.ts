@@ -65,6 +65,30 @@ async function startServer() {
   const DEFAULT_AVATAR = 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1';
   const HEARTBEAT_TTL_MS = 3000;
 
+  // Ensure newer chat badge columns exist for persisted global chat labels.
+  (async () => {
+    try {
+      const cols = [
+        { table: 'global_messages', name: 'sender_badge', def: 'sender_badge TEXT DEFAULT ""' },
+        { table: 'global_messages', name: 'sender_badge_name', def: 'sender_badge_name TEXT DEFAULT ""' },
+      ];
+
+      const tableCache: Record<string, string[]> = {};
+      for (const item of cols) {
+        if (!tableCache[item.table]) {
+          const info = await queryAll<any>(`PRAGMA table_info(${item.table})`);
+          tableCache[item.table] = (info || []).map((c: any) => String(c.name).toLowerCase());
+        }
+        if (!tableCache[item.table].includes(item.name.toLowerCase())) {
+          try {
+            await executeSql(`ALTER TABLE ${item.table} ADD COLUMN ${item.def}`);
+            tableCache[item.table].push(item.name.toLowerCase());
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  })();
+
   const mapUser = (u: any) => ({
     id: u.id,
     username: u.username,
@@ -516,6 +540,8 @@ async function startServer() {
         senderName: m.sender_name,
         senderRole: m.sender_role || 'Trainer',
         senderAvatar: m.sender_avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+        senderBadge: m.sender_badge || '',
+        senderBadgeName: m.sender_badge_name || '',
         text: m.text,
         isDuelAnswer: m.is_duel_answer === 1,
         time: m.time,
@@ -532,7 +558,19 @@ async function startServer() {
   // 8. GLOBAL CHAT: Send Message
   app.post('/api/v1/global-chat', async (req, res) => {
     try {
-      const { id, senderId, senderName, senderRole = 'Trainer', senderAvatar, text, isDuelAnswer, time, timestamp } = req.body;
+      const {
+        id,
+        senderId,
+        senderName,
+        senderRole = 'Trainer',
+        senderAvatar,
+        senderBadge = '',
+        senderBadgeName = '',
+        text,
+        isDuelAnswer,
+        time,
+        timestamp,
+      } = req.body;
 
       if (!text || !senderId) {
         console.error('[D1 CHAT INSERT ERROR]: Missing required fields for global chat message.');
@@ -544,14 +582,16 @@ async function startServer() {
       const timeStr = time || new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
       await executeSql(
-        `INSERT INTO global_messages (id, sender_id, sender_name, sender_role, sender_avatar, text, is_duel_answer, time, timestamp, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO global_messages (id, sender_id, sender_name, sender_role, sender_avatar, sender_badge, sender_badge_name, text, is_duel_answer, time, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           msgId,
           senderId,
           senderName || 'Trainer',
           senderRole,
           senderAvatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+          senderBadge || '',
+          senderBadgeName || '',
           text,
           isDuelAnswer ? 1 : 0,
           timeStr,
@@ -567,6 +607,8 @@ async function startServer() {
         senderName: senderName || 'Trainer',
         senderRole,
         senderAvatar: senderAvatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+        senderBadge: senderBadge || '',
+        senderBadgeName: senderBadgeName || '',
         text,
         isDuelAnswer: !!isDuelAnswer,
         time: timeStr,
@@ -1218,7 +1260,7 @@ async function startServer() {
         const now = Date.now();
         const initialCoins = typeof req.body.user_coins === 'number' ? req.body.user_coins : 0;
         await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
+          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, created_at, updated_at)
            VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, ?)`,
           [cleanUserId, cleanUserName, initialCoins, now, now]
         );
@@ -1411,7 +1453,7 @@ async function startServer() {
       if (!user) {
         const now = Date.now();
         await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
+          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, created_at, updated_at)
            VALUES (?, ?, 'Trainer', '/assets/avatar.png', 0, 0, 0, 0, 'Online', ?, ?)`,
           [cleanUserId, cleanUserName, now, now]
         );
@@ -1520,6 +1562,8 @@ async function startServer() {
               senderName: m.sender_name,
               senderRole: m.sender_role || 'Trainer',
               senderAvatar: m.sender_avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+              senderBadge: m.sender_badge || '',
+              senderBadgeName: m.sender_badge_name || '',
               text: m.text,
               isDuelAnswer: m.is_duel_answer === 1,
               time: m.time,
@@ -1721,7 +1765,7 @@ async function startServer() {
         const now = Date.now();
         const initialCoins = typeof userCoins === 'number' ? userCoins : 0;
         await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, total_game, win, lose, status, created_at, updated_at)
+          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, created_at, updated_at)
            VALUES (?, ?, 'Trainer', '/assets/avatar.png', ?, 0, 0, 0, 'Online', ?, ?)`,
           [cleanUserId, cleanUserName, initialCoins, now, now]
         );

@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS global_messages (
   sender_name TEXT NOT NULL,
   sender_role TEXT DEFAULT 'Trainer',
   sender_avatar TEXT,
+  sender_badge TEXT DEFAULT '',
+  sender_badge_name TEXT DEFAULT '',
   text TEXT NOT NULL,
   is_duel_answer INTEGER DEFAULT 0,
   time TEXT NOT NULL,
