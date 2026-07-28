@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, Plugin } from 'vite';
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 function cloudflareApiDevPlugin(): Plugin {
   return {
     name: 'cloudflare-api-dev-plugin',
@@ -171,7 +173,7 @@ function cloudflareApiDevPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss(), cloudflareApiDevPlugin()],
+    plugins: [react(), tailwindcss(), cloudflareApiDevPlugin(), cloudflare()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
