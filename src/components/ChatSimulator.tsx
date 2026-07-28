@@ -14,6 +14,7 @@ import { LiveDuelPanel } from './LiveDuelPanel';
 import { DeveloperBadge } from './DeveloperBadge';
 import { D1DatabaseService } from '../services/D1DatabaseService';
 import { useProfile } from '../context/ProfileContext';
+import { canonicalDirectRoomId } from '../utils/identity';
 
 interface ChatSimulatorProps {
   messages: BotMessage[];
@@ -33,7 +34,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   userWinStreak = 0,
 }) => {
   const { profile, activeBadge, activeBadgeCustomName } = useProfile();
-  const currentUserId = profile?.id || 'trainer_01';
+  const currentUserId = profile?.id || 'guest';
 
   // Navigation state
   const [chatMode, setChatMode] = useState<'global' | 'friends' | 'bot'>('global');
@@ -98,7 +99,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
   // Sync Direct Messages when selectedFriend changes
   useEffect(() => {
     if (selectedFriend) {
-      const roomId = `room_${currentUserId}_${selectedFriend.id}`;
+      const roomId = canonicalDirectRoomId(currentUserId, selectedFriend.id);
       setDirectMessages(GlobalChatService.getDirectMessagesSync(roomId));
       GlobalChatService.fetchDirectMessages(roomId, currentUserId).then(setDirectMessages);
 
@@ -202,7 +203,7 @@ export const ChatSimulator: React.FC<ChatSimulatorProps> = ({
       });
 
     } else if (chatMode === 'friends' && selectedFriend) {
-      const roomId = `room_${currentUserId}_${selectedFriend.id}`;
+      const roomId = canonicalDirectRoomId(currentUserId, selectedFriend.id);
       await GlobalChatService.sendDirectMessage(roomId, currentUserId, selectedFriend.id, text);
 
     } else if (chatMode === 'bot') {
