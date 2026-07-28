@@ -194,6 +194,72 @@ export const MusicPlayViewer: React.FC = () => {
     'Blue Bird Naruto',
   ];
 
+  const getSpotifyTrackId = (item: SearchResultItem, fallbackId = '') => {
+    const baseId =
+      fallbackId.trim() ||
+      (typeof item.id === 'string' && item.id.trim()) ||
+      (typeof item.uri === 'string' ? item.uri.split(':').pop() || '' : '') ||
+      (typeof item.videoId === 'string' && item.videoId.trim()) ||
+      (typeof item.spotifyUrl === 'string' && item.spotifyUrl.trim()) ||
+      (typeof item.url === 'string' && item.url.trim()) ||
+      item.title ||
+      'spotify_track';
+
+    return baseId.startsWith('sp_') ? baseId : `sp_${baseId}`;
+  };
+
+  const buildSpotifyJukeboxTrack = (item: SearchResultItem, downloadUrl: string, media: any = {}): JukeboxTrack => {
+    const trackId = getSpotifyTrackId(item, String(media?.id || media?.uri?.split?.(':')?.pop?.() || ''));
+
+    const pickText = (val: any, fallback = ''): string => {
+      if (val == null) return fallback;
+      if (typeof val === 'string') return val.trim() || fallback;
+      if (typeof val === 'number' || typeof val === 'bigint') return String(val);
+      if (Array.isArray(val)) {
+        const list = val.map((v) => pickText(v, '')).filter(Boolean);
+        return list.length > 0 ? list.join(', ') : fallback;
+      }
+      if (typeof val === 'object') {
+        if (typeof val.name === 'string') return val.name;
+        if (typeof val.title === 'string') return val.title;
+        if (typeof val.artist === 'string') return val.artist;
+      }
+      return fallback;
+    };
+
+    const thumbnailCandidates = [
+      media?.thumbnail,
+      media?.cover,
+      media?.image,
+      media?.album?.images?.[0]?.url,
+      media?.images?.[0]?.url,
+      item.thumbnail,
+    ];
+
+    const thumbnail =
+      thumbnailCandidates.find((value) => typeof value === 'string' && /^https?:\/\//i.test(value)) ||
+      item.thumbnail ||
+      'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1';
+
+    const durationValue = media?.duration || media?.duration_ms || item.duration || '';
+    const duration = typeof durationValue === 'number' ? String(durationValue) : String(durationValue || '');
+
+    return {
+      trackId,
+      source: 'spotify',
+      videoId: String(media?.url || media?.link || item.spotifyUrl || item.url || media?.external_urls?.spotify || media?.id || item.id || item.uri?.split(':').pop() || trackId),
+      title: pickText(media?.title || media?.name || item.title, 'Spotify Track'),
+      artist: pickText(media?.artist || media?.artists || media?.channel || item.channel, 'Spotify Artist'),
+      thumbnail,
+      downloadUrl,
+      duration,
+      quality: media?.quality || 'Spotify MP3',
+      audioExpireAt: media?.audioExpireAt || media?.audio_expire_at || null,
+      isFavorite: media?.isFavorite,
+      lastPlayedAt: media?.lastPlayedAt || media?.last_played_at || Date.now(),
+    };
+  };
+
   // Handle YouTube Search via API Client
   const handleSearch = async (e?: React.FormEvent, searchOverride?: string) => {
     if (e) e.preventDefault();
@@ -387,6 +453,50 @@ export const MusicPlayViewer: React.FC = () => {
     }
   };
 
+  const handleSpotifyToggleFavorite = async (item: SearchResultItem) => {
+    const spotifyUrl = item.spotifyUrl || item.url;
+    if (!spotifyUrl) {
+      setMediaError('URL Spotify untuk hasil ini tidak ditemukan.');
+      return;
+    }
+
+    const trackId = getSpotifyTrackId(item);
+    const existingFavorite = favorites.find((fav) => fav.trackId === trackId);
+
+    if (existingFavorite) {
+      await toggleFavorite(existingFavorite);
+      return;
+    }
+
+    setIsSpotifyLoading(true);
+    setMediaError(null);
+    setSpotifySearchError(null);
+    setLoadingMedia({ type: 'spotify', item });
+
+    try {
+      const response = await apiClient.getSpotifyDownload(spotifyUrl);
+
+      if (!response.success || !response.result) {
+        throw new Error(response.message || 'Gagal memproses lagu Spotify dari Worker API.');
+      }
+
+      const resObj = response.result;
+      const downloadUrl = resObj.download || resObj.link || resObj.url || resObj.audio || resObj.mp3 || '';
+
+      if (!downloadUrl) {
+        throw new Error('Link download MP3 Spotify tidak ditemukan.');
+      }
+
+      const spTrack = buildSpotifyJukeboxTrack(item, downloadUrl, resObj);
+      await toggleFavorite(spTrack);
+    } catch (err: any) {
+      setMediaError(err.message || 'Gagal memproses Spotify.');
+    } finally {
+      setIsSpotifyLoading(false);
+      setLoadingMedia(null);
+    }
+  };
+
   // Handle Spotify Download via API Client
   const handleSpotifyDownload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -461,48 +571,13 @@ export const MusicPlayViewer: React.FC = () => {
         throw new Error('Link download MP3 Spotify tidak ditemukan.');
       }
 
-      const formatString = (val: any, fallback: string): string => {
-        if (!val) return fallback;
-        if (typeof val === 'string') return val;
-        if (typeof val === 'number') return String(val);
-        if (Array.isArray(val)) {
-          const list = val.map((v) => formatString(v, '')).filter(Boolean);
-          return list.length > 0 ? list.join(', ') : fallback;
-        }
-        if (typeof val === 'object') {
-          if (typeof val.name === 'string') return val.name;
-          if (typeof val.title === 'string') return val.title;
-        }
-        return fallback;
-      };
-
-      const title = formatString(resObj.title || resObj.name || input, 'Spotify Track');
-      const channel = formatString(resObj.artist || resObj.artists || resObj.channel, 'Spotify Artist');
-      const thumbnail =
-        (typeof resObj.thumbnail === 'string' && resObj.thumbnail) ||
-        (typeof resObj.cover === 'string' && resObj.cover) ||
-        (typeof resObj.image === 'string' && resObj.image) ||
-        (resObj.album?.images?.[0]?.url) ||
-        spotifyPreviewItem.thumbnail;
-
-      const spTrack: JukeboxTrack = {
-        trackId: `sp_${resObj.id || Date.now()}`,
-        source: 'spotify',
-        videoId: resObj.id || resObj.uri?.split(':').pop() || input,
-        title,
-        artist: channel,
-        thumbnail,
-        downloadUrl,
-        duration: resObj.duration || resObj.duration_ms ? String(resObj.duration || resObj.duration_ms) : '',
-        quality: 'Spotify MP3',
-      };
-
+      const spTrack = buildSpotifyJukeboxTrack(spotifyPreviewItem, downloadUrl, resObj);
       await playTrack(spTrack);
 
       ActivityService.logActivity(
         'music_play',
         'Spotify Downloader',
-        `Memproses Spotify: "${title}"`
+        `Memproses Spotify: "${spTrack.title}"`
       );
     } catch (err: any) {
       setMediaError(err.message || 'Gagal memproses Spotify.');
@@ -538,48 +613,13 @@ export const MusicPlayViewer: React.FC = () => {
         throw new Error('Link download MP3 Spotify tidak ditemukan.');
       }
 
-      const formatString = (val: any, fallback: string): string => {
-        if (!val) return fallback;
-        if (typeof val === 'string') return val;
-        if (typeof val === 'number') return String(val);
-        if (Array.isArray(val)) {
-          const list = val.map((v) => formatString(v, '')).filter(Boolean);
-          return list.length > 0 ? list.join(', ') : fallback;
-        }
-        if (typeof val === 'object') {
-          if (typeof val.name === 'string') return val.name;
-          if (typeof val.title === 'string') return val.title;
-        }
-        return fallback;
-      };
-
-      const title = formatString(resObj.title || resObj.name || item.title, 'Spotify Track');
-      const channel = formatString(resObj.artist || resObj.artists || resObj.channel || item.channel, 'Spotify Artist');
-      const thumbnail =
-        (typeof resObj.thumbnail === 'string' && resObj.thumbnail) ||
-        (typeof resObj.cover === 'string' && resObj.cover) ||
-        (typeof resObj.image === 'string' && resObj.image) ||
-        (resObj.album?.images?.[0]?.url) ||
-        item.thumbnail;
-
-      const spTrack: JukeboxTrack = {
-        trackId: `sp_${resObj.id || item.id || Date.now()}`,
-        source: 'spotify',
-        videoId: resObj.id || item.id || item.uri?.split(':').pop() || spotifyUrl,
-        title,
-        artist: channel,
-        thumbnail,
-        downloadUrl,
-        duration: resObj.duration || resObj.duration_ms ? String(resObj.duration || resObj.duration_ms) : item.duration,
-        quality: 'Spotify MP3',
-      };
-
+      const spTrack = buildSpotifyJukeboxTrack(item, downloadUrl, resObj);
       await playTrack(spTrack);
 
       ActivityService.logActivity(
         'music_play',
         'Spotify Downloader',
-        `Memproses Spotify: "${title}"`
+        `Memproses Spotify: "${spTrack.title}"`
       );
     } catch (err: any) {
       setMediaError(err.message || 'Gagal memproses Spotify.');
@@ -588,7 +628,6 @@ export const MusicPlayViewer: React.FC = () => {
       setLoadingMedia(null);
     }
   };
-
 
   return (
     <div className="space-y-6">
@@ -1173,6 +1212,21 @@ export const MusicPlayViewer: React.FC = () => {
                       </div>
 
                       <div className="flex items-center space-x-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSpotifyToggleFavorite(item)}
+                          className="px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all shadow-sm bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300 hover:text-red-400"
+                          title={favorites.some((f) => f.trackId === getSpotifyTrackId(item)) ? 'Disukai' : 'Sukai Lagu'}
+                        >
+                          <Heart
+                            className={`w-3.5 h-3.5 transition-colors ${
+                              favorites.some((f) => f.trackId === getSpotifyTrackId(item))
+                                ? 'text-red-500 fill-red-500'
+                                : 'text-slate-400'
+                            }`}
+                          />
+                        </button>
+
                         <button
                           onClick={() => handleSpotifyPlayResult(item)}
                           disabled={!isPlayable}
