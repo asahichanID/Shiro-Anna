@@ -320,69 +320,108 @@ class ApiClient {
   /**
    * Helper to extract download link from various response shapes
    */
-  private extractDownloadUrl(payload: any): string {
-    if (!payload) return '';
+  private extractDownloadUrl(payload: any, depth = 8): string {
+  if (payload == null || depth <= 0) {
+    return '';
+  }
 
-    if (typeof payload === 'string') {
-      if (payload.startsWith('http://') || payload.startsWith('https://')) {
-        return payload;
-      }
-      return '';
+  if (typeof payload === 'string') {
+    const value = payload.trim();
+
+    if (/^https?:\/\//i.test(value)) {
+      return value;
     }
 
-    const primaryKeys = [
-      'download',
-      'nowatermark',
-      'audio',
-      'video',
-      'mp3',
-      'mp4',
-      'url',
-      'link',
-      'dl',
-      'media',
-      'src',
-      'stream',
-      'play',
-      'file',
-    ];
+    return '';
+  }
 
-    if (typeof payload === 'object') {
-      for (const key of primaryKeys) {
-        if (payload[key] && typeof payload[key] === 'string' && payload[key].startsWith('http')) {
-          return payload[key];
-        }
-      }
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const found = this.extractDownloadUrl(item, depth - 1);
 
-      const nestedKeys = ['result', 'data', 'info', 'response', 'item', 'item_list', 'formats', 'format'];
-      for (const key of nestedKeys) {
-        if (payload[key]) {
-          const found = this.extractDownloadUrl(payload[key]);
-          if (found) return found;
-        }
-      }
-
-      if (Array.isArray(payload)) {
-        for (const item of payload) {
-          const found = this.extractDownloadUrl(item);
-          if (found) return found;
-        }
-      }
-
-      for (const k of Object.keys(payload)) {
-        const val = payload[k];
-        if (typeof val === 'string' && (val.startsWith('http://') || val.startsWith('https://'))) {
-          return val;
-        } else if (typeof val === 'object' && val !== null) {
-          const found = this.extractDownloadUrl(val);
-          if (found) return found;
-        }
+      if (found) {
+        return found;
       }
     }
 
     return '';
   }
 
+  if (typeof payload !== 'object') {
+    return '';
+  }
+
+  /*
+   * Prioritaskan field yang memang biasanya berisi
+   * media/download URL.
+   */
+  const directKeys = [
+    'download',
+    'download_url',
+    'downloadUrl',
+    'audio',
+    'audio_url',
+    'audioUrl',
+    'mp3',
+    'mp3_url',
+    'mp3Url',
+    'media',
+    'media_url',
+    'mediaUrl',
+    'stream',
+    'stream_url',
+    'streamUrl',
+    'file',
+    'file_url',
+    'fileUrl',
+    'src',
+  ];
+
+  for (const key of directKeys) {
+    const value = payload[key];
+
+    if (
+      typeof value === 'string' &&
+      /^https?:\/\//i.test(value)
+    ) {
+      return value;
+    }
+  }
+
+  /*
+   * Beberapa API membungkus response:
+   * result.data
+   * result.data.result
+   * result.response
+   * dst.
+   */
+  const nestedKeys = [
+    'result',
+    'data',
+    'response',
+    'info',
+    'item',
+    'track',
+    'media',
+    'formats',
+    'format',
+  ];
+
+  for (const key of nestedKeys) {
+    if (payload[key] !== undefined && payload[key] !== null) {
+      const found = this.extractDownloadUrl(
+        payload[key],
+        depth - 1
+      );
+
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return '';
+}
   /**
    * Helper to normalize YouTube URL/ID parameters
    */
@@ -443,10 +482,15 @@ class ApiClient {
     const payload = response.result !== undefined ? response.result : response;
     let extractedUrl = this.extractDownloadUrl(payload);
 
-    if (!extractedUrl) {
-      // Fallback download/stream URL
-      extractedUrl = params.url || (params.id ? `https://www.youtube.com/watch?v=${params.id}` : '');
-    }
+if (!extractedUrl) {
+  return {
+    success: false,
+    provider: response.provider,
+    cached: response.cached,
+    message: 'API tidak memberikan link media yang bisa diputar.',
+    code: 'MEDIA_URL_MISSING',
+  };
+}
 
     const resultObj: MediaDownloadResult =
       typeof payload === 'object' && payload !== null ? { ...payload } : {};
@@ -484,9 +528,15 @@ class ApiClient {
     const payload = response.result !== undefined ? response.result : response;
     let extractedUrl = this.extractDownloadUrl(payload);
 
-    if (!extractedUrl) {
-      extractedUrl = params.url || (params.id ? `https://www.youtube.com/watch?v=${params.id}` : '');
-    }
+if (!extractedUrl) {
+  return {
+    success: false,
+    provider: response.provider,
+    cached: response.cached,
+    message: 'API tidak memberikan link media yang bisa diputar.',
+    code: 'MEDIA_URL_MISSING',
+  };
+}
 
     const resultObj: MediaDownloadResult =
       typeof payload === 'object' && payload !== null ? { ...payload } : {};
@@ -520,9 +570,15 @@ class ApiClient {
     const payload = response.result !== undefined ? response.result : response;
     let extractedUrl = this.extractDownloadUrl(payload);
 
-    if (!extractedUrl) {
-      extractedUrl = trimmed;
-    }
+if (!extractedUrl) {
+  return {
+    success: false,
+    provider: response.provider || 'shiroapi',
+    cached: response.cached,
+    message: 'API tidak memberikan link media yang bisa diputar.',
+    code: 'MEDIA_URL_MISSING',
+  };
+}
 
     const resultObj: MediaDownloadResult =
       typeof payload === 'object' && payload !== null ? { ...payload } : {};
@@ -541,67 +597,223 @@ class ApiClient {
   /**
    * Search Spotify songs/tracks via Worker (/spotify?query=)
    */
-   public async searchSpotify(query: string, limit: number = 20): Promise<ApiResponse<any>> {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      return {
-        success: false,
-        message: 'Kata kunci pencarian Spotify tidak boleh kosong.',
-        code: 'MISSING_PARAM',
-      };
+   public async searchSpotify(
+  query: string,
+  limit: number = 20
+): Promise<ApiResponse<any[]>> {
+  const trimmed = query.trim();
+
+  if (!trimmed) {
+    return {
+      success: false,
+      message: 'Kata kunci pencarian Spotify tidak boleh kosong.',
+      code: 'MISSING_PARAM',
+    };
+  }
+
+  const requestedLimit = Math.max(1, Math.min(50, Number(limit) || 20));
+
+  const response = await this.request<any>('/spotify', {
+    query: trimmed,
+    q: trimmed,
+    search: trimmed,
+    limit: String(requestedLimit),
+  });
+
+  if (!response.success) {
+    return {
+      success: false,
+      provider: response.provider,
+      cached: response.cached,
+      message: response.message || 'Gagal mencari lagu Spotify.',
+      code: response.code || 'SPOTIFY_SEARCH_FAILED',
+    };
+  }
+
+  const payload = response.result;
+
+  const extractArray = (value: any, depth = 6): any[] => {
+    if (value == null || depth <= 0) return [];
+
+    if (typeof value === 'string') {
+      try {
+        return extractArray(JSON.parse(value), depth - 1);
+      } catch {
+        return [];
+      }
     }
 
-    // Menambahkan parameter 'limit' agar Worker API tahu kita menginginkan 20 hasil
-    return this.request('/spotify', { 
-      query: trimmed, 
-      q: trimmed, 
-      search: trimmed,
-      limit: limit.toString() 
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (typeof value !== 'object') {
+      return [];
+    }
+
+    // Prioritas struktur yang paling umum
+    const keys = [
+      'items',
+      'tracks',
+      'results',
+      'data',
+      'songs',
+      'content',
+      'list',
+      'search',
+      'response',
+      'result',
+    ];
+
+    for (const key of keys) {
+      if (value[key] !== undefined && value[key] !== null) {
+        const found = extractArray(value[key], depth - 1);
+
+        if (found.length > 0) {
+          return found;
+        }
+      }
+    }
+
+    // Cari nested object kalau API punya struktur tidak standar
+    for (const key of Object.keys(value)) {
+      const child = value[key];
+
+      if (child && typeof child === 'object') {
+        const found = extractArray(child, depth - 1);
+
+        if (found.length > 0) {
+          return found;
+        }
+      }
+    }
+
+    // Response satu track
+    if (
+      value.title ||
+      value.name ||
+      value.track ||
+      value.url ||
+      value.link ||
+      value.external_urls
+    ) {
+      return [value];
+    }
+
+    return [];
+  };
+
+  const rawItems = extractArray(payload);
+
+  const items = rawItems
+    .map((item: any) => normalizeSpotifyItem(item))
+    .filter((item: any) => {
+      return Boolean(
+        item &&
+        (
+          item.title ||
+          item.name ||
+          item.url ||
+          item.external_urls?.spotify
+        )
+      );
     });
-  }
+
+  /*
+   * PENTING:
+   * Jangan pakai .slice(0, 20) di sini.
+   *
+   * Kalau API mengirim:
+   *   20 => 20
+   *   10 => 10
+   *   5  => 5
+   *
+   * Jadi jumlah hasil mengikuti response API.
+   */
+  return {
+    success: true,
+    provider: response.provider || 'shiroapi',
+    cached: response.cached,
+    result: items,
+  };
+}
 
   /**
    * Download Spotify track/playlist info via Worker (/spotify?url=)
    * Mirrors the normalization pattern of getAudioDownload / getVideoDownload / getTikTokDownload
    * so that extractDownloadUrl() is applied to handle any Naze API response shape.
    */
-  public async getSpotifyDownload(spotifyUrl: string): Promise<ApiResponse<MediaDownloadResult>> {
-    const trimmed = spotifyUrl.trim();
-    if (!trimmed) {
-      return {
-        success: false,
-        message: 'URL Spotify tidak boleh kosong.',
-        code: 'MISSING_PARAM',
-      };
-    }
+  public async getSpotifyDownload(
+  spotifyUrl: string
+): Promise<ApiResponse<MediaDownloadResult>> {
+  const trimmed = spotifyUrl.trim();
 
-    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed, link: trimmed });
-
-    // If request itself failed, return as-is
-    if (!response.success) {
-      return response;
-    }
-
-    const payload = response.result !== undefined ? response.result : response;
-
-    // Apply the same recursive URL extraction used by all other download methods
-    let extractedUrl = this.extractDownloadUrl(payload);
-
-    const resultObj: MediaDownloadResult =
-      typeof payload === 'object' && payload !== null ? { ...payload } : {};
-
-    if (extractedUrl) {
-      resultObj.download = extractedUrl;
-      resultObj.url      = extractedUrl;
-    }
-
+  if (!trimmed) {
     return {
-      success: true,
-      provider: response.provider || 'shiroapi',
-      cached:   response.cached,
-      result:   resultObj,
+      success: false,
+      message: 'URL Spotify tidak boleh kosong.',
+      code: 'MISSING_PARAM',
     };
   }
+
+  const response = await this.request<any>(
+    '/spotify',
+    {
+      url: trimmed,
+      link: trimmed,
+    },
+    {
+      timeoutMs: 30000,
+      retryCount: 1,
+      useCache: false,
+    }
+  );
+
+  if (!response.success) {
+    return {
+      success: false,
+      provider: response.provider,
+      message: response.message || 'Gagal memproses lagu Spotify.',
+      code: response.code || 'SPOTIFY_DOWNLOAD_FAILED',
+    };
+  }
+
+  const payload = response.result;
+
+  const extractedUrl = this.extractDownloadUrl(payload);
+
+  /*
+   * Jangan mengubah URL Spotify menjadi download URL.
+   *
+   * Spotify URL != MP3 URL.
+   */
+  if (!extractedUrl) {
+    return {
+      success: false,
+      provider: response.provider || 'shiroapi',
+      cached: response.cached,
+      message:
+        'API berhasil merespons, tetapi tidak memberikan link audio/MP3.',
+      code: 'SPOTIFY_MEDIA_URL_MISSING',
+    };
+  }
+
+  const resultObj: MediaDownloadResult =
+    typeof payload === 'object' && payload !== null
+      ? { ...payload }
+      : {};
+
+  resultObj.download = extractedUrl;
+  resultObj.url = extractedUrl;
+  resultObj.link = extractedUrl;
+
+  return {
+    success: true,
+    provider: response.provider || 'shiroapi',
+    cached: response.cached,
+    result: resultObj,
+  };
+}
 
 
   /**
@@ -632,36 +844,119 @@ function stringifyText(val: any, fallback = ''): string {
 }
 
 function normalizeSpotifyItem(item: any): any {
-  if (!item || typeof item !== 'object') return item;
-
-  const title = stringifyText(item.title || item.name || item.track, 'Spotify Track');
-  const artist = stringifyText(item.artist || item.artists || item.channel || item.owner, 'Spotify Artist');
-
-  let thumbnail = '';
-  if (typeof item.thumbnail === 'string') thumbnail = item.thumbnail;
-  else if (typeof item.cover === 'string') thumbnail = item.cover;
-  else if (typeof item.image === 'string') thumbnail = item.image;
-  else if (item.album?.images && Array.isArray(item.album.images) && item.album.images.length > 0) {
-    thumbnail = item.album.images[0].url || '';
-  } else if (item.images && Array.isArray(item.images) && item.images.length > 0) {
-    thumbnail = item.images[0].url || '';
+  if (!item || typeof item !== 'object') {
+    return null;
   }
 
-  const url = typeof item.url === 'string' ? item.url : (item.link || item.download || item.external_urls?.spotify || '');
-  const download = typeof item.download === 'string' ? item.download : (item.audio || item.mp3 || item.url || item.link || '');
+  const title = stringifyText(
+    item.title ??
+    item.name ??
+    item.track ??
+    item.track_name ??
+    item.song ??
+    item.song_name,
+    'Spotify Track'
+  );
+
+  const artist = stringifyText(
+    item.artist ??
+    item.artists ??
+    item.artist_name ??
+    item.author ??
+    item.channel ??
+    item.owner ??
+    item.uploader,
+    'Spotify Artist'
+  );
+
+  const album = stringifyText(
+    item.album ??
+    item.album_name ??
+    item.albumName,
+    ''
+  );
+
+  let thumbnail = '';
+
+  const thumbnailCandidates = [
+    item.thumbnail,
+    item.cover,
+    item.image,
+    item.cover_url,
+    item.thumbnail_url,
+    item.artwork,
+    item.artwork_url,
+    item.album?.images?.[0]?.url,
+    item.images?.[0]?.url,
+    item.album?.image,
+    item.album?.cover,
+  ];
+
+  for (const candidate of thumbnailCandidates) {
+    if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) {
+      thumbnail = candidate;
+      break;
+    }
+  }
+
+  const spotifyUrl =
+    typeof item.url === 'string' && item.url.includes('spotify')
+      ? item.url
+      : typeof item.link === 'string' && item.link.includes('spotify')
+        ? item.link
+        : typeof item.external_urls?.spotify === 'string'
+          ? item.external_urls.spotify
+          : typeof item.spotify_url === 'string'
+            ? item.spotify_url
+            : '';
+
+  const download =
+    typeof item.download === 'string'
+      ? item.download
+      : typeof item.audio === 'string'
+        ? item.audio
+        : typeof item.mp3 === 'string'
+          ? item.mp3
+          : typeof item.audio_url === 'string'
+            ? item.audio_url
+            : typeof item.download_url === 'string'
+              ? item.download_url
+              : '';
+
+  const duration =
+    stringifyText(
+      item.duration ??
+      item.duration_ms ??
+      item.length ??
+      item.timestamp,
+      ''
+    );
 
   return {
     ...item,
+
+    // Identitas lagu
     title,
     name: title,
     artist,
     artists: artist,
-    channel: artist,
+    album,
+
+    // Gambar
     thumbnail,
     cover: thumbnail,
     image: thumbnail,
-    url,
+
+    // URL Spotify
+    url: spotifyUrl,
+    link: spotifyUrl,
+
+    // URL media kalau API memang menyediakannya
     download,
+    audio: download,
+    mp3: download,
+
+    duration,
   };
 }
 
