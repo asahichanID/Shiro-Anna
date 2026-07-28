@@ -27,6 +27,11 @@ export interface AppUser {
   role: 'Developer' | 'Trainer';
   status: UserStatus;
   coin: number;
+  accountCode?: string;
+  sessionToken?: string;
+  sessionActive?: boolean;
+  lastSeen?: number;
+  updatedAt?: number;
   carrotCoins?: number;
   winStreak?: number;
   maxWinStreak?: number;
@@ -50,6 +55,8 @@ export interface Friend {
   bio?: string;
   role?: 'Developer' | 'Trainer';
   isOnline?: boolean;
+  updatedAt?: number;
+  accountCode?: string;
 }
 
 export type MessageDeliveryStatus = 'sent' | 'delivered' | 'read';
@@ -78,6 +85,7 @@ export interface GlobalChatMessage {
   isDuelAnswer?: boolean;
   time: string;
   timestamp: number;
+  updatedAt?: number;
 }
 
 export type DuelStep = 'countdown' | 'question' | 'answer_correct' | 'scores' | 'finished' | 'idle';
