@@ -1737,10 +1737,24 @@ async function startServer() {
   });
 
   // 21. BADGE SYSTEM: Buy Badge
-  app.post('/api/v1/badges/buy', async (req, res) => {
+  const processBuyBadge = async (req: express.Request, res: express.Response, source: 'body' | 'query' = 'body') => {
     try {
-      const { userId = '#1', badgeId, price, userCoins, userName } = req.body;
-      if (!badgeId || typeof price !== 'number') {
+      const raw: any = source === 'query' ? req.query : req.body;
+      const userId = String(raw.userId ?? raw.user_id ?? '#1');
+      const badgeId = String(raw.badgeId ?? raw.badge_id ?? '');
+      const priceValue = raw.price ?? raw.coins ?? '';
+      const userCoinsValue = raw.userCoins ?? raw.user_coins ?? undefined;
+      const userName = String(raw.userName ?? raw.user_name ?? 'Trainer Sensei');
+
+      const price = typeof priceValue === 'number' ? priceValue : parseInt(String(priceValue), 10);
+      const userCoins =
+        typeof userCoinsValue === 'number'
+          ? userCoinsValue
+          : userCoinsValue !== undefined && userCoinsValue !== null && String(userCoinsValue).trim() !== ''
+            ? parseInt(String(userCoinsValue), 10)
+            : undefined;
+
+      if (!badgeId || !Number.isFinite(price)) {
         return res.status(400).json({ success: false, message: 'Badge ID and price are required.' });
       }
 
@@ -1749,7 +1763,7 @@ async function startServer() {
       let user = await queryOne<any>('SELECT * FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [cleanUserId, cleanUserName]);
       if (!user) {
         const now = Date.now();
-        const initialCoins = typeof userCoins === 'number' ? userCoins : 0;
+        const initialCoins = typeof userCoins === 'number' && Number.isFinite(userCoins) ? userCoins : 0;
         const accountCodeRows = await queryAll<any>('SELECT account_code FROM users WHERE account_code IS NOT NULL AND account_code != ""');
         const accountCode = generateEightDigitCode(accountCodeRows.map((row) => row.account_code));
         await executeSql(
@@ -1758,7 +1772,7 @@ async function startServer() {
           [cleanUserId, cleanUserName, initialCoins, now, accountCode, now, now]
         );
         user = await queryOne<any>('SELECT * FROM users WHERE id = ?', [cleanUserId]);
-      } else if (typeof userCoins === 'number' && userCoins > user.coins) {
+      } else if (typeof userCoins === 'number' && Number.isFinite(userCoins) && userCoins > user.coins) {
         const now = Date.now();
         user.coins = userCoins;
         await executeSql('UPDATE users SET coins = ?, updated_at = ? WHERE id = ?', [user.coins, now, user.id]);
@@ -1806,6 +1820,14 @@ async function startServer() {
       console.error('[BUY BADGE ERROR]:', err);
       return res.status(500).json({ success: false, message: 'Gagal membeli badge.' });
     }
+  };
+
+  app.post('/api/v1/badges/buy', async (req, res) => {
+    return processBuyBadge(req, res, 'body');
+  });
+
+  app.get('/api/v1/badges/buy', async (req, res) => {
+    return processBuyBadge(req, res, 'query');
   });
 
   // 22. BADGE SYSTEM: Set Active Badge
