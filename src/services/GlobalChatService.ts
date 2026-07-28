@@ -87,7 +87,14 @@ export class GlobalChatService {
 
         d1Messages.forEach((m) => {
           const prev = existingMap.get(m.id);
-          if (!prev || prev.timestamp !== m.timestamp || prev.text !== m.text || prev.senderId !== m.senderId) {
+          if (
+            !prev ||
+            prev.timestamp !== m.timestamp ||
+            prev.text !== m.text ||
+            prev.senderId !== m.senderId ||
+            prev.senderBadge !== m.senderBadge ||
+            prev.senderBadgeName !== m.senderBadgeName
+          ) {
             changed = true;
           }
           existingMap.set(m.id, m);
