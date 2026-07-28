@@ -2,6 +2,7 @@ import { D1DatabaseService } from './D1DatabaseService';
 import { StorageService } from './StorageService';
 import { GlobalChatMessage, DirectMessage } from '../types';
 import { SettingsService } from './SettingsService';
+import { canonicalDirectRoomId } from '../utils/identity';
 import { RealtimeService } from './SupabaseService';
 
 const STORAGE_KEY_GLOBAL_CHAT = 'oguri_global_chat_messages';
@@ -157,7 +158,7 @@ export class GlobalChatService {
     return storeMap[roomId] || [];
   }
 
-  public static async fetchDirectMessages(roomId: string, userId: string = 'trainer_01'): Promise<DirectMessage[]> {
+  public static async fetchDirectMessages(roomId: string, userId: string = ''): Promise<DirectMessage[]> {
     const cached = this.getDirectMessagesSync(roomId);
     try {
       const d1Messages = await D1DatabaseService.getChatMessages(roomId, userId);
@@ -255,13 +256,13 @@ export class GlobalChatService {
 
   // ================= LIGHTWEIGHT POLLING SYSTEM ================= //
 
-  public static startPolling(userId: string = 'trainer_01') {
+  public static startPolling(userId: string = '') {
     this.requestNotificationPermission();
 
     if (this.pollTimer) clearInterval(this.pollTimer);
 
     const settings = SettingsService.getSettingsSync();
-    const pollInterval = Math.max(1000, settings.maxPollingMs || 1000);
+    const pollInterval = 1000;
 
     this.pollTimer = setInterval(() => {
       if (settings.globalChatEnabled) {
@@ -290,7 +291,7 @@ RealtimeService.subscribe('global_message_new', (msg: GlobalChatMessage) => {
 
 RealtimeService.subscribe('direct_message_new', (msg: DirectMessage) => {
   if (!msg || !msg.id) return;
-  const targetRoomId = msg.roomId || (msg.receiverId ? [msg.senderId, msg.receiverId].sort().join('_') : null);
+  const targetRoomId = msg.roomId || (msg.receiverId ? canonicalDirectRoomId(msg.senderId, msg.receiverId) : null);
   if (!targetRoomId) return;
   const storeMap = StorageService.getItem<Record<string, DirectMessage[]>>(STORAGE_KEY_DIRECT_MESSAGES, {});
   const current = storeMap[targetRoomId] || [];

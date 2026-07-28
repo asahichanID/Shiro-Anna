@@ -3,6 +3,7 @@ import { StorageService } from './StorageService';
 import { DeveloperService } from './DeveloperService';
 import { D1DatabaseService } from './D1DatabaseService';
 import { NotificationService } from './NotificationService';
+import { canonicalDirectRoomId } from '../utils/identity';
 
 const STORAGE_KEY_CHAT_ROOMS = 'chatRooms';
 const STORAGE_KEY_MESSAGES = 'messages';
@@ -28,7 +29,7 @@ export class ChatService {
   }
 
   public static getRoomId(friendId: string): string {
-    return `room_me_${friendId}`;
+    return canonicalDirectRoomId('me', friendId);
   }
 
   public static getRooms(): ChatRoom[] {
@@ -96,7 +97,7 @@ export class ChatService {
   ): Promise<DirectMessage> {
     const rooms = StorageService.getItem<ChatRoom[]>(STORAGE_KEY_CHAT_ROOMS, []);
     const roomId = this.getRoomId(friend.id);
-    let room = rooms.find((r) => r.roomId === roomId);
+    let room = rooms.find((r) => r.roomId === roomId) || rooms.find((r) => r.roomId === `room_me_${friend.id}` || r.roomId === `room_${friend.id}_me`);
 
     if (!room) {
       room = this.getChatRoom(friend.id);

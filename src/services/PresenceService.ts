@@ -3,11 +3,11 @@ import { UserStatus } from '../types';
 
 export class PresenceService {
   private static intervalId: any = null;
-  private static currentUserId: string = 'trainer_01';
+  private static currentUserId: string = '';
   private static currentStatus: UserStatus = 'Online';
 
-  public static startPresenceTracking(userId: string = 'trainer_01') {
-    this.currentUserId = userId;
+  public static startPresenceTracking(userId: string = '') {
+    this.currentUserId = userId || this.currentUserId;
     this.updatePresence('Online');
 
     if (this.intervalId) {
@@ -34,7 +34,7 @@ export class PresenceService {
   public static updatePresence(status: UserStatus) {
     this.currentStatus = status;
     D1DatabaseService.updatePresence({
-      userId: this.currentUserId,
+      userId: this.currentUserId || 'unknown_user',
       status,
     }).catch((e) => console.warn('Presence ping warning:', e));
   }

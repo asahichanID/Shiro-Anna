@@ -46,7 +46,7 @@ export class FriendsService {
     return this.ensureDeveloperAtTop(cached);
   }
 
-  public static async getFriends(userId: string = 'trainer_01'): Promise<Friend[]> {
+  public static async getFriends(userId: string = ''): Promise<Friend[]> {
     const cached = this.getFriendsSync();
     try {
       const d1Friends = await D1DatabaseService.getFriends(userId);
@@ -62,7 +62,7 @@ export class FriendsService {
     return cached;
   }
 
-  public static async addFriend(userId: string = 'trainer_01', friend: Partial<Friend>): Promise<Friend[]> {
+  public static async addFriend(userId: string = '', friend: Partial<Friend>): Promise<Friend[]> {
     const current = this.getFriendsSync();
     const friendId = friend.id || `fr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     
@@ -96,7 +96,7 @@ export class FriendsService {
     return updated;
   }
 
-  public static async removeFriend(userId: string = 'trainer_01', friendId: string): Promise<Friend[]> {
+  public static async removeFriend(userId: string = '', friendId: string): Promise<Friend[]> {
     // Cannot remove developer
     if (friendId === '#1') {
       return this.getFriendsSync();
@@ -162,3 +162,45 @@ RealtimeService.subscribe('user_presence_updated', (payload: any) => {
     (FriendsService as any).notifyListeners(updated);
   }
 });
+
+
+RealtimeService.subscribe('user_stats_updated', (payload: any) => {
+  if (!payload || !payload.id) return;
+  const current = FriendsService.getFriendsSync();
+  let found = false;
+  const updated = current.map((friend) => {
+    if (friend.id === payload.id || friend.username.toLowerCase() === String(payload.username || '').toLowerCase()) {
+      found = true;
+      return {
+        ...friend,
+        id: payload.id || friend.id,
+        username: payload.username || friend.username,
+        avatar: payload.avatar || friend.avatar,
+        role: payload.role || friend.role,
+        status: payload.status || friend.status || 'Offline',
+        isOnline: payload.status ? payload.status === 'Online' : friend.isOnline,
+        lastOnline: payload.status === 'Online' ? 'Online Sekarang' : friend.lastOnline,
+        updatedAt: payload.updatedAt || Date.now(),
+      };
+    }
+    return friend;
+  });
+
+  if (!found) {
+    updated.push({
+      id: payload.id,
+      username: payload.username || 'Trainer',
+      avatar: payload.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+      status: payload.status || 'Offline',
+      lastMessage: '',
+      lastOnline: payload.status === 'Online' ? 'Online Sekarang' : 'Baru saja',
+      bio: '',
+      role: payload.role || 'Trainer',
+      isOnline: payload.status === 'Online',
+      updatedAt: payload.updatedAt || Date.now(),
+    } as Friend);
+  }
+  StorageService.setItem(STORAGE_KEY_FRIENDS, FriendsService.ensureDeveloperAtTop(updated));
+  (FriendsService as any).notifyListeners(FriendsService.getFriendsSync());
+});
+

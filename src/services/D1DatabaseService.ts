@@ -147,6 +147,8 @@ export class D1DatabaseService {
     totalGame?: number;
     win?: number;
     lose?: number;
+    accountCode?: string;
+    sessionToken?: string;
     device?: string;
     browser?: string;
   }): Promise<AppUser | null> {
@@ -182,12 +184,21 @@ export class D1DatabaseService {
   public static async updatePresence(payload: {
     userId: string;
     status: UserStatus;
+    sessionToken?: string;
     device?: string;
     browser?: string;
   }): Promise<boolean> {
     const result = await this.post<{ success: boolean }>('/users/presence', payload);
     if (result && result.success) {
       RealtimeService.broadcast('user_presence_updated', { ...payload, lastSeen: Date.now() });
+    }
+    return !!(result && result.success);
+  }
+
+  public static async logoutUser(payload: { userId: string; sessionToken?: string }): Promise<boolean> {
+    const result = await this.post<{ success: boolean }>('/users/logout', payload);
+    if (result && result.success) {
+      RealtimeService.broadcast('user_presence_updated', { userId: payload.userId, status: 'Offline', lastSeen: Date.now() });
     }
     return !!(result && result.success);
   }
@@ -301,7 +312,7 @@ export class D1DatabaseService {
       shopEnabled: result.shop_enabled !== 'false',
       minStreakBanner: parseInt(result.min_streak_banner || '5', 10),
       minStreakMarquee: parseInt(result.min_streak_marquee || '5', 10),
-      maxPollingMs: parseInt(result.max_polling_ms || '3000', 10),
+      maxPollingMs: parseInt(result.max_polling_ms || '1000', 10),
       duelRewardCoins: parseInt(result.duel_reward_coins || '5000', 10),
       duelCooldownSec: parseInt(result.duel_cooldown_sec || '10', 10),
     };
