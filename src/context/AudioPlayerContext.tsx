@@ -308,9 +308,13 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const vId = activeTrack.videoId || activeTrack.trackId;
       if (vId) {
         try {
-          const audioRes = await apiClient.getAudioDownload(vId);
-          if (audioRes.success && audioRes.result?.download) {
-            const freshUrl = audioRes.result.download;
+          const refreshRes =
+            activeTrack.source === 'spotify'
+              ? await apiClient.getSpotifyDownload(vId)
+              : await apiClient.getAudioDownload(vId);
+
+          if (refreshRes.success && refreshRes.result?.download) {
+            const freshUrl = refreshRes.result.download;
             const freshExpire = now + 4 * 3600 * 1000; // 4 hours
             activeTrack.downloadUrl = freshUrl;
             activeTrack.audioExpireAt = freshExpire;
@@ -513,15 +517,13 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Toggle Favorite
   const toggleFavorite = async (track: JukeboxTrack): Promise<boolean> => {
-    if (!track || (!track.trackId && !track.videoId)) return false;
-
-    const trackId = track.trackId || track.videoId || '';
+    const trackId = track?.trackId || track?.videoId;
     if (!trackId) return false;
 
     const isCurrentlyFav = favorites.some((f) => f.trackId === trackId);
     const newFavState = !isCurrentlyFav;
 
-    let targetTrack: JukeboxTrack = {
+    const targetTrack: JukeboxTrack = {
       ...track,
       trackId,
       source: track.source || 'youtube',
@@ -540,6 +542,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
     } else {
       setFavorites((prev) => prev.filter((f) => f.trackId !== trackId));
+      setPlaylist((prev) => prev.filter((p) => p.trackId !== trackId));
     }
 
     // Update currentTrack if playing
@@ -572,7 +575,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       if (res && res.success) {
         if (res.isFavorite) {
-          D1DatabaseService.addToJukeboxPlaylist({
+          await D1DatabaseService.addToJukeboxPlaylist({
             userId,
             trackId: targetTrack.trackId,
             source: targetTrack.source || 'youtube',
@@ -582,9 +585,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             thumbnail: targetTrack.thumbnail || '',
             downloadUrl: targetTrack.downloadUrl || '',
             duration: targetTrack.duration || '',
+            quality: targetTrack.quality,
             audioExpireAt: targetTrack.audioExpireAt || 0,
             lastPlayedAt: Date.now(),
           });
+        } else {
+          await D1DatabaseService.removeFromJukeboxPlaylist(userId, targetTrack.trackId);
         }
         return res.isFavorite;
       }
