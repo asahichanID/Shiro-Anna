@@ -541,108 +541,68 @@ class ApiClient {
   /**
    * Search Spotify songs/tracks via Worker (/spotify?query=)
    */
-  public async searchSpotify(query: string): Promise<ApiResponse<any>> {
-    const trimmed = query ? query.trim() : '';
+   public async searchSpotify(query: string, limit: number = 20): Promise<ApiResponse<any>> {
+    const trimmed = query.trim();
     if (!trimmed) {
       return {
         success: false,
-        message: 'Parameter query pencarian Spotify tidak boleh kosong.',
+        message: 'Kata kunci pencarian Spotify tidak boleh kosong.',
         code: 'MISSING_PARAM',
       };
     }
 
-    const response = await this.request<any>('/spotify', { query: trimmed });
-    if (!response.success) {
-      return response;
-    }
-
-    const payload = response.result !== undefined ? response.result : response;
-
-    // Helper to extract tracks/items array
-    const extractList = (obj: any, depth = 3): any[] => {
-      if (!obj || depth <= 0) return [];
-      if (typeof obj === 'string') {
-        try {
-          return extractList(JSON.parse(obj), depth - 1);
-        } catch {
-          return [];
-        }
-      }
-      if (Array.isArray(obj)) {
-        return obj;
-      }
-      if (typeof obj === 'object') {
-        const keys = ['items', 'results', 'result', 'tracks', 'data', 'content', 'list', 'search', 'response', 'songs'];
-        for (const k of keys) {
-          if (obj[k]) {
-            const res = extractList(obj[k], depth - 1);
-            if (res.length > 0) return res;
-          }
-        }
-      }
-      return [];
-    };
-
-    const items = extractList(payload);
-
-    // Search Spotify returns max 20 results (or provider count if fewer)
-    if (items.length > 0) {
-      const limitedItems = items.slice(0, 20).map(normalizeSpotifyItem);
-      return {
-        success: true,
-        provider: response.provider || 'shiroapi',
-        cached: response.cached,
-        result: limitedItems,
-      };
-    }
-
-    const normalizedPayload = normalizeSpotifyItem(payload);
-    return {
-      success: true,
-      provider: response.provider || 'shiroapi',
-      cached: response.cached,
-      result: normalizedPayload,
-    };
+    // Menambahkan parameter 'limit' agar Worker API tahu kita menginginkan 20 hasil
+    return this.request('/spotify', { 
+      query: trimmed, 
+      q: trimmed, 
+      search: trimmed,
+      limit: limit.toString() 
+    });
   }
 
   /**
    * Download Spotify track/playlist info via Worker (/spotify?url=)
+   * Mirrors the normalization pattern of getAudioDownload / getVideoDownload / getTikTokDownload
+   * so that extractDownloadUrl() is applied to handle any Naze API response shape.
    */
   public async getSpotifyDownload(spotifyUrl: string): Promise<ApiResponse<MediaDownloadResult>> {
-    const trimmed = spotifyUrl ? spotifyUrl.trim() : '';
+    const trimmed = spotifyUrl.trim();
     if (!trimmed) {
       return {
         success: false,
-        message: 'Parameter URL Spotify tidak boleh kosong.',
+        message: 'URL Spotify tidak boleh kosong.',
         code: 'MISSING_PARAM',
       };
     }
 
-    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed });
+    const response = await this.request<MediaDownloadResult>('/spotify', { url: trimmed, link: trimmed });
+
+    // If request itself failed, return as-is
     if (!response.success) {
       return response;
     }
 
     const payload = response.result !== undefined ? response.result : response;
+
+    // Apply the same recursive URL extraction used by all other download methods
     let extractedUrl = this.extractDownloadUrl(payload);
 
-    if (!extractedUrl) {
-      extractedUrl = trimmed;
-    }
-
     const resultObj: MediaDownloadResult =
-      typeof payload === 'object' && payload !== null ? normalizeSpotifyItem(payload) : {};
+      typeof payload === 'object' && payload !== null ? { ...payload } : {};
 
-    resultObj.download = extractedUrl || resultObj.download || resultObj.url || resultObj.link || resultObj.audio || resultObj.mp3 || '';
-    resultObj.url = extractedUrl || resultObj.url || '';
+    if (extractedUrl) {
+      resultObj.download = extractedUrl;
+      resultObj.url      = extractedUrl;
+    }
 
     return {
       success: true,
       provider: response.provider || 'shiroapi',
-      cached: response.cached,
-      result: resultObj,
+      cached:   response.cached,
+      result:   resultObj,
     };
   }
+
 
   /**
    * Clear in-memory client cache
