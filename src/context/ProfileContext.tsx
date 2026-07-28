@@ -8,7 +8,29 @@ import { userDb } from '../database/userDb';
 import { RealtimeService } from '../services/SupabaseService';
 import { FriendsService } from '../services/FriendsService';
 import { StorageService } from '../services/StorageService';
-import { generateEightDigitCode, generateUuid } from '../utils/identity';
+
+function generateUuid(): string {
+  if (typeof globalThis !== 'undefined') {
+    const cryptoObj = globalThis.crypto as Crypto | undefined;
+    if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+      return cryptoObj.randomUUID();
+    }
+  }
+
+  return `uuid_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function generateEightDigitCode(existingCodes: Iterable<string> = []): string {
+  const used = new Set(Array.from(existingCodes, (value) => String(value)));
+  let code = '';
+
+  do {
+    code = String(Math.floor(10_000_000 + Math.random() * 90_000_000));
+  } while (used.has(code));
+
+  return code;
+}
+
 
 export interface UserAccount {
   id: string;
