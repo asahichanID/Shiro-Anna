@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS users (
   lastSeen INTEGER DEFAULT (strftime('%s', 'now') * 1000),
   device TEXT,
   browser TEXT,
+  account_code TEXT NOT NULL UNIQUE,
+  session_token TEXT,
+  session_active INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
   updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
 );

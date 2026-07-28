@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { getD1Database, queryAll, queryOne, executeSql } from './src/database/d1Engine.ts';
+import { generateEightDigitCode, generateUuid } from './src/utils/identity.ts';
 
 async function startServer() {
   const app = express();
@@ -39,17 +40,24 @@ async function startServer() {
       const n = asInt(value, 0);
       return n > acc ? n : acc;
     }, 0);
+  const DEFAULT_AVATAR = 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1';
+  const HEARTBEAT_TTL_MS = 3000;
+
   const mapUser = (u: any) => ({
     id: u.id,
     username: u.username,
     role: u.role || 'Trainer',
-    avatar: u.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+    avatar: u.avatar || DEFAULT_AVATAR,
     status: u.status || 'Online',
     coin: u.coins !== undefined ? u.coins : u.coin ?? 0,
     carrotCoins: u.coins !== undefined ? u.coins : u.coin ?? 0,
     totalGame: u.totalGame || 0,
     win: u.win || 0,
     lose: u.lose || 0,
+    accountCode: u.account_code || u.accountCode || '',
+    sessionToken: u.session_token || u.sessionToken || '',
+    sessionActive: u.session_active === 1 || u.sessionActive === 1 || u.sessionActive === true,
+    lastSeen: u.lastSeen || u.last_seen || u.updated_at || u.created_at || Date.now(),
     updatedAt: u.updated_at || u.lastSeen || u.created_at || Date.now(),
   });
 
@@ -69,100 +77,108 @@ async function startServer() {
         totalGame,
         win,
         lose,
+        accountCode: requestedAccountCode,
+        sessionToken: providedSessionToken,
         device = 'Desktop',
         browser = 'Browser',
       } = req.body;
 
       if (!username || typeof username !== 'string' || !username.trim()) {
-        console.error('[D1 USER REGISTRATION/INSERT ERROR]: Username parameter missing or empty.');
         return res.status(400).json({ success: false, message: 'Username is required.' });
       }
 
       const cleanUsername = username.trim();
-      const defaultAvatar = avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1';
       const now = Date.now();
+      const defaultAvatar = avatar || DEFAULT_AVATAR;
+      const sessionToken = providedSessionToken || generateUuid();
 
-      // Check if user exists by username or requested id
-      let existingUser = await queryOne<any>(
-        'SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR id = ?',
-        [cleanUsername, requestedId || '']
+      const existingUser = await queryOne<any>(
+        'SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR id = ? OR account_code = ?',
+        [cleanUsername, requestedId || '', requestedAccountCode || '']
       );
 
-      if (existingUser) {
-        // UPDATE existing user status, avatar, coins, game stats
-        const updatedCoins = typeof coins === 'number' ? coins : existingUser.coins;
-        const updatedTotalGame = typeof totalGame === 'number' ? totalGame : existingUser.totalGame;
-        const updatedWin = typeof win === 'number' ? win : existingUser.win;
-        const updatedLose = typeof lose === 'number' ? lose : existingUser.lose;
+      const currentSession = existingUser
+        ? await queryOne<any>('SELECT * FROM user_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1', [existingUser.id])
+        : null;
 
-        await executeSql(
-          'UPDATE users SET status = ?, lastSeen = ?, avatar = ?, coins = ?, totalGame = ?, win = ?, lose = ?, device = ?, browser = ?, updated_at = ? WHERE id = ?',
-          ['Online', now, defaultAvatar, updatedCoins, updatedTotalGame, updatedWin, updatedLose, device, browser, now, existingUser.id]
-        );
-
-        existingUser.status = 'Online';
-        existingUser.lastSeen = now;
-        existingUser.avatar = defaultAvatar;
-        existingUser.coins = updatedCoins;
-        existingUser.totalGame = updatedTotalGame;
-        existingUser.win = updatedWin;
-        existingUser.lose = updatedLose;
-
-        // Ensure user is in presence table
-        await executeSql(
-          'INSERT OR REPLACE INTO presence (user_id, status, last_active) VALUES (?, ?, ?)',
-          [existingUser.id, 'Online', now]
-        );
-
-        return res.json({ success: true, result: existingUser });
-      } else {
-        // INSERT new user
-        const isDev = cleanUsername.toLowerCase() === 'shiro anna';
-        let userId = requestedId || '#1';
-
-        if (!isDev && (!requestedId || requestedId === '#1')) {
-          const countRow = await queryOne<{ count: number }>('SELECT COUNT(*) as count FROM users');
-          const nextNum = (countRow?.count || 1) + 1;
-          userId = `#${nextNum}`;
-        }
-
-        const initialCoins = typeof coins === 'number' ? coins : (isDev ? 999999999 : 0);
-        const initialTotalGame = typeof totalGame === 'number' ? totalGame : 0;
-        const initialWin = typeof win === 'number' ? win : 0;
-        const initialLose = typeof lose === 'number' ? lose : 0;
-
-        await executeSql(
-          `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen, device, browser, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Online', ?, ?, ?, ?, ?)`,
-          [userId, cleanUsername, role, defaultAvatar, initialCoins, initialTotalGame, initialWin, initialLose, now, device, browser, now, now]
-        );
-
-        // Ensure presence entry
-        await executeSql(
-          'INSERT OR REPLACE INTO presence (user_id, status, last_active) VALUES (?, ?, ?)',
-          [userId, 'Online', now]
-        );
-
-        // Log login activity
-        const logId = `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        await executeSql(
-          `INSERT INTO activity_logs (id, user_id, user_name, category, type, title, detail, time, timestamp, created_at)
-           VALUES (?, ?, ?, 'login', 'Register & Login', ?, ?, ?, ?, ?)`,
-          [
-            logId,
-            userId,
-            cleanUsername,
-            `User ${cleanUsername} registered and logged in`,
-            `Registered new ${role} account (${userId})`,
-            new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            now,
-            now,
-          ]
-        );
-
-        const newUser = await queryOne<any>('SELECT * FROM users WHERE id = ?', [userId]);
-        return res.json({ success: true, result: newUser });
+      if (currentSession && currentSession.is_active === 1 && currentSession.session_token && currentSession.session_token !== sessionToken) {
+        return res.status(409).json({
+          success: false,
+          message: 'Akun ini sedang login di perangkat lain. Logout dulu dari perangkat lama.',
+        });
       }
+
+      const isDev = cleanUsername.toLowerCase() === 'shiro anna';
+      const userId = existingUser?.id || (!isDev ? (requestedId && requestedId !== '#1' ? requestedId : `u_${generateUuid().replace(/-/g, '').slice(0, 12)}`) : '#1');
+      const accountCode =
+        existingUser?.account_code ||
+        requestedAccountCode ||
+        (isDev ? '00000001' : generateEightDigitCode((await queryAll<any>('SELECT account_code FROM users WHERE account_code IS NOT NULL')).map((row) => row.account_code)));
+
+      const updatedCoins = typeof coins === 'number' ? coins : (existingUser?.coins ?? (isDev ? 999999999 : 0));
+      const updatedTotalGame = typeof totalGame === 'number' ? totalGame : (existingUser?.totalGame ?? 0);
+      const updatedWin = typeof win === 'number' ? win : (existingUser?.win ?? 0);
+      const updatedLose = typeof lose === 'number' ? lose : (existingUser?.lose ?? 0);
+
+      await executeSql(
+        `INSERT INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen, device, browser, account_code, session_token, session_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Online', ?, ?, ?, ?, ?, 1, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           username = excluded.username,
+           role = excluded.role,
+           avatar = excluded.avatar,
+           coins = excluded.coins,
+           totalGame = excluded.totalGame,
+           win = excluded.win,
+           lose = excluded.lose,
+           status = 'Online',
+           lastSeen = excluded.lastSeen,
+           device = excluded.device,
+           browser = excluded.browser,
+           account_code = excluded.account_code,
+           session_token = excluded.session_token,
+           session_active = 1,
+           updated_at = excluded.updated_at`,
+        [userId, cleanUsername, role, defaultAvatar, updatedCoins, updatedTotalGame, updatedWin, updatedLose, now, device, browser, accountCode, sessionToken, now, now, now]
+      );
+
+      await executeSql(
+        `INSERT INTO user_sessions (id, user_id, session_token, is_active, device, browser, started_at, last_heartbeat_at, ended_at, created_at, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?, ?, ?, NULL, ?, ?)
+         ON CONFLICT(user_id, session_token) DO UPDATE SET
+           is_active = 1,
+           device = excluded.device,
+           browser = excluded.browser,
+           last_heartbeat_at = excluded.last_heartbeat_at,
+           ended_at = NULL,
+           updated_at = excluded.updated_at`,
+        [generateUuid(), userId, sessionToken, device, browser, now, now, now, now]
+      );
+
+      await executeSql(
+        'INSERT OR REPLACE INTO presence (user_id, status, last_active, updated_at) VALUES (?, ?, ?, ?)',
+        [userId, 'Online', now, now]
+      );
+
+      const logId = `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      await executeSql(
+        `INSERT INTO activity_logs (id, user_id, user_name, category, type, title, detail, time, timestamp, created_at, updated_at)
+         VALUES (?, ?, ?, 'login', 'Register & Login', ?, ?, ?, ?, ?, ?)`,
+        [
+          logId,
+          userId,
+          cleanUsername,
+          `User ${cleanUsername} registered and logged in`,
+          `Registered new ${role} account (${userId})`,
+          new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          now,
+          now,
+          now,
+        ]
+      );
+
+      const result = await queryOne<any>('SELECT * FROM users WHERE id = ?', [userId]);
+      return res.json({ success: true, result: mapUser(result || { id: userId, username: cleanUsername, role, avatar: defaultAvatar, coins: updatedCoins, totalGame: updatedTotalGame, win: updatedWin, lose: updatedLose, account_code: accountCode, session_token: sessionToken, session_active: 1, lastSeen: now, updated_at: now }) });
     } catch (err) {
       console.error('[D1 USER REGISTRATION/INSERT ERROR]: Failed to register or login user:', err);
       return res.status(500).json({ success: false, message: 'Database query failed during user registration.' });
@@ -172,7 +188,7 @@ async function startServer() {
   // 1b. USERS: Update User Full Profile / Coins / Stats
   app.post('/api/v1/users/update', async (req, res) => {
     try {
-      const { id, username, role, avatar, coins, totalGame, win, lose, status } = req.body;
+      const { id, username, role, avatar, coins, totalGame, win, lose, status, accountCode, sessionToken } = req.body;
       if (!id) {
         return res.status(400).json({ success: false, message: 'User id is required.' });
       }
@@ -185,20 +201,35 @@ async function startServer() {
 
       const updatedUsername = username || existing.username;
       const updatedRole = role || existing.role;
-      const updatedAvatar = avatar || existing.avatar;
+      const updatedAvatar = avatar || existing.avatar || DEFAULT_AVATAR;
       const updatedCoins = typeof coins === 'number' ? coins : existing.coins;
       const updatedTotalGame = typeof totalGame === 'number' ? totalGame : existing.totalGame;
       const updatedWin = typeof win === 'number' ? win : existing.win;
       const updatedLose = typeof lose === 'number' ? lose : existing.lose;
       const updatedStatus = status || existing.status;
+      const updatedAccountCode = accountCode || existing.account_code || existing.accountCode || '';
+      const updatedSessionToken = sessionToken || existing.session_token || existing.sessionToken || '';
 
       await executeSql(
-        `UPDATE users SET username = ?, role = ?, avatar = ?, coins = ?, totalGame = ?, win = ?, lose = ?, status = ?, updated_at = ? WHERE id = ?`,
-        [updatedUsername, updatedRole, updatedAvatar, updatedCoins, updatedTotalGame, updatedWin, updatedLose, updatedStatus, now, id]
+        `UPDATE users SET username = ?, role = ?, avatar = ?, coins = ?, totalGame = ?, win = ?, lose = ?, status = ?, account_code = ?, session_token = ?, updated_at = ? WHERE id = ?`,
+        [updatedUsername, updatedRole, updatedAvatar, updatedCoins, updatedTotalGame, updatedWin, updatedLose, updatedStatus, updatedAccountCode, updatedSessionToken, now, id]
       );
 
+      if (updatedSessionToken) {
+        await executeSql(
+          `INSERT INTO user_sessions (id, user_id, session_token, is_active, device, browser, started_at, last_heartbeat_at, ended_at, created_at, updated_at)
+           VALUES (?, ?, ?, 1, ?, ?, ?, ?, NULL, ?, ?)
+           ON CONFLICT(user_id, session_token) DO UPDATE SET
+             is_active = 1,
+             last_heartbeat_at = excluded.last_heartbeat_at,
+             ended_at = NULL,
+             updated_at = excluded.updated_at`,
+          [generateUuid(), id, updatedSessionToken, req.body.device || '', req.body.browser || '', now, now, now, now]
+        );
+      }
+
       const result = await queryOne<any>('SELECT * FROM users WHERE id = ?', [id]);
-      return res.json({ success: true, result });
+      return res.json({ success: true, result: mapUser(result) });
     } catch (err) {
       console.error('[D1 USER UPDATE ERROR]: Failed to update user:', err);
       return res.status(500).json({ success: false, message: 'Failed to update user in D1.' });
@@ -208,7 +239,7 @@ async function startServer() {
   // 2. USERS: Update Presence Heartbeat
   app.post('/api/v1/users/presence', async (req, res) => {
     try {
-      const { userId, status = 'Online', device, browser } = req.body;
+      const { userId, status = 'Online', sessionToken = '', device, browser } = req.body;
       if (!userId) {
         return res.status(400).json({ success: false, message: 'userId is required.' });
       }
@@ -217,6 +248,21 @@ async function startServer() {
       await executeSql('INSERT OR REPLACE INTO presence (user_id, status, last_active, updated_at) VALUES (?, ?, ?, ?)', [userId, status, now, now]);
       await executeSql('UPDATE users SET status = ?, lastSeen = ?, updated_at = ? WHERE id = ?', [status, now, now, userId]);
 
+      if (sessionToken) {
+        await executeSql(
+          `INSERT INTO user_sessions (id, user_id, session_token, is_active, device, browser, started_at, last_heartbeat_at, ended_at, created_at, updated_at)
+           VALUES (?, ?, ?, 1, ?, ?, ?, ?, NULL, ?, ?)
+           ON CONFLICT(user_id, session_token) DO UPDATE SET
+             is_active = 1,
+             device = excluded.device,
+             browser = excluded.browser,
+             last_heartbeat_at = excluded.last_heartbeat_at,
+             ended_at = NULL,
+             updated_at = excluded.updated_at`,
+          [generateUuid(), userId, sessionToken, device || '', browser || '', now, now, now, now]
+        );
+      }
+
       return res.json({ success: true });
     } catch (err) {
       console.error('[D1 PRESENCE UPDATE ERROR]:', err);
@@ -224,27 +270,56 @@ async function startServer() {
     }
   });
 
+  // 2b. USERS: Logout User / Session Close
+  app.post('/api/v1/users/logout', async (req, res) => {
+    try {
+      const { userId, sessionToken = '' } = req.body;
+      if (!userId) {
+        return res.status(400).json({ success: false, message: 'userId is required.' });
+      }
+
+      const now = Date.now();
+      await executeSql('UPDATE users SET status = ?, lastSeen = ?, session_active = 0, updated_at = ? WHERE id = ?', ['Offline', now, now, userId]);
+      await executeSql('UPDATE presence SET status = ?, last_active = ?, updated_at = ? WHERE user_id = ?', ['Offline', now, now, userId]);
+      if (sessionToken) {
+        await executeSql(
+          `UPDATE user_sessions SET is_active = 0, ended_at = ?, last_heartbeat_at = ?, updated_at = ? WHERE user_id = ? AND session_token = ?`,
+          [now, now, now, userId, sessionToken]
+        );
+      } else {
+        await executeSql(`UPDATE user_sessions SET is_active = 0, ended_at = ?, last_heartbeat_at = ?, updated_at = ? WHERE user_id = ?`, [now, now, now, userId]);
+      }
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('[D1 USER LOGOUT ERROR]:', err);
+      return res.status(500).json({ success: false, message: 'Failed to logout user.' });
+    }
+  });
+
   // 3. USERS: Get All Registered Users
   app.get('/api/v1/users', async (req, res) => {
     try {
       const users = await queryAll<any>(`
-        SELECT u.*, p.status as liveStatus, p.last_active as lastActive 
-        FROM users u 
-        LEFT JOIN presence p ON u.id = p.user_id 
+        SELECT u.*, p.status as liveStatus, p.last_active as lastActive, s.session_token as sessionToken, s.is_active as sessionActive
+        FROM users u
+        LEFT JOIN presence p ON u.id = p.user_id
+        LEFT JOIN user_sessions s ON u.id = s.user_id AND s.is_active = 1
         ORDER BY u.created_at ASC
       `);
 
       const now = Date.now();
       const formatted = users.map((u) => {
-        const isRecentlyActive = u.lastActive && (now - u.lastActive < 35000);
-        const resolvedStatus = isRecentlyActive ? (u.liveStatus || 'Online') : (u.status === 'Away' ? 'Away' : 'Offline');
+        const lastSeen = u.lastSeen || u.last_seen || u.lastActive || u.updated_at || u.created_at || 0;
+        const isRecentlyActive = lastSeen && (now - lastSeen < HEARTBEAT_TTL_MS);
+        const resolvedStatus = isRecentlyActive ? (u.liveStatus || u.status || 'Online') : (u.status === 'Away' ? 'Away' : 'Offline');
 
         return {
           id: u.id,
           username: u.username,
           name: u.username,
           role: u.role || 'Trainer',
-          avatar: u.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+          avatar: u.avatar || DEFAULT_AVATAR,
           status: resolvedStatus,
           coin: u.coins !== undefined ? u.coins : 1000,
           carrotCoins: u.coins !== undefined ? u.coins : 1000,
@@ -260,6 +335,11 @@ async function startServer() {
           lastOnline: resolvedStatus,
           lastMessage: 'Halo Trainer!',
           friends: [],
+          accountCode: u.account_code || '',
+          sessionToken: u.sessionToken || '',
+          sessionActive: !!u.sessionActive,
+          lastSeen,
+          updatedAt: u.updated_at || lastSeen,
         };
       });
 
@@ -275,61 +355,66 @@ async function startServer() {
     try {
       const userId = (req.query.userId as string) || '#1';
 
-      // 1. Explicit friends from friends table
       const explicitFriends = await queryAll<any>('SELECT * FROM friends WHERE user_id = ?', [userId]);
+      const allUsers = await queryAll<any>(
+        `SELECT u.*, p.status as liveStatus, p.last_active as lastActive
+         FROM users u
+         LEFT JOIN presence p ON u.id = p.user_id
+         ORDER BY u.created_at ASC`
+      );
 
-      // 2. All registered users from users table (except current user)
-      const allUsers = await queryAll<any>('SELECT * FROM users WHERE id != ?', [userId]);
+      const friendMap = new Map<string, any>();
 
-      const friendMap = new Map();
-
-      // Developer Shiro Anna always pinned at top
       friendMap.set('#1', {
         id: '#1',
         username: 'Shiro Anna',
-        avatar: 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+        avatar: DEFAULT_AVATAR,
         status: 'Online',
         lastMessage: 'Salam dari Lead Developer Tracen Academy! 🐎⚡',
         lastOnline: 'Online Sekarang',
         bio: 'Lead Developer & Creator of Oguri Cap Bot',
         role: 'Developer',
         isOnline: true,
+        accountCode: '00000001',
       });
 
-      // Add explicit friends
       explicitFriends.forEach((f) => {
         friendMap.set(f.friend_id, {
           id: f.friend_id,
           username: f.username,
-          avatar: f.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
+          avatar: f.avatar || DEFAULT_AVATAR,
           status: f.status || 'Online',
           lastMessage: f.bio || 'Halo! Mari berteman!',
           lastOnline: 'Baru saja',
           bio: f.bio || 'Trainer Tracen Academy',
           role: f.role || 'Trainer',
           isOnline: f.isOnline === 1 || f.status === 'Online',
+          accountCode: f.account_code || '',
+          updatedAt: f.updated_at || Date.now(),
         });
       });
 
-      // Add registered users as discoverable friends
       allUsers.forEach((u) => {
         if (!friendMap.has(u.id)) {
+          const lastSeen = u.lastSeen || u.last_active || u.updated_at || Date.now();
+          const isOnline = (u.liveStatus || u.status) === 'Online' && (Date.now() - lastSeen < HEARTBEAT_TTL_MS);
           friendMap.set(u.id, {
             id: u.id,
             username: u.username,
-            avatar: u.avatar || 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1',
-            status: u.status || 'Online',
+            avatar: u.avatar || DEFAULT_AVATAR,
+            status: isOnline ? 'Online' : 'Offline',
             lastMessage: `Trainer ${u.username} terdaftar di D1 Tracen Academy`,
-            lastOnline: 'Baru saja',
+            lastOnline: isOnline ? 'Online Sekarang' : 'Baru saja',
             bio: `Registered Trainer (${u.role || 'Trainer'})`,
             role: u.role || 'Trainer',
-            isOnline: u.status === 'Online',
+            isOnline,
+            accountCode: u.account_code || '',
+            updatedAt: u.updated_at || lastSeen,
           });
         }
       });
 
-      const friendsList = Array.from(friendMap.values());
-      return res.json({ success: true, result: friendsList });
+      return res.json({ success: true, result: Array.from(friendMap.values()) });
     } catch (err) {
       console.error('[D1 SELECT FRIENDS ERROR]: Failed to fetch friends:', err);
       return res.status(500).json({ success: false, message: 'Failed to fetch friends from D1.' });
@@ -477,7 +562,7 @@ async function startServer() {
   app.get('/api/v1/chat', async (req, res) => {
     try {
       const roomId = (req.query.roomId as string) || 'chat_default';
-      const messages = await queryAll<any>('SELECT * FROM messages WHERE room_id = ? ORDER BY timestamp ASC LIMIT 100', [roomId]);
+      const messages = await queryAll<any>('SELECT * FROM messages WHERE room_id = ? ORDER BY updated_at ASC, timestamp ASC LIMIT 100', [roomId]);
 
       const formatted = messages.map((m) => ({
         id: m.id,
