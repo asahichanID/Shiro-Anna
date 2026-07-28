@@ -2,7 +2,29 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { getD1Database, queryAll, queryOne, executeSql } from './src/database/d1Engine.ts';
-import { generateEightDigitCode, generateUuid } from './src/utils/identity.ts';
+
+function generateUuid(): string {
+  if (typeof globalThis !== 'undefined') {
+    const cryptoObj = globalThis.crypto as Crypto | undefined;
+    if (cryptoObj && typeof cryptoObj.randomUUID === 'function') {
+      return cryptoObj.randomUUID();
+    }
+  }
+
+  return `uuid_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function generateEightDigitCode(existingCodes: Iterable<string> = []): string {
+  const used = new Set(Array.from(existingCodes, (value) => String(value)));
+  let code = '';
+
+  do {
+    code = String(Math.floor(10_000_000 + Math.random() * 90_000_000));
+  } while (used.has(code));
+
+  return code;
+}
+
 
 async function startServer() {
   const app = express();
