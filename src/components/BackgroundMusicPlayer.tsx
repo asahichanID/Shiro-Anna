@@ -85,9 +85,6 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({ is
     audio.loop = true; // Infinite loop
     audio.preload = 'auto';
 
-    // dengan memutar kembali ke detik 0 sebelum browser mencapai trailing silent frame.
-    const audio = document.getElementById('suaraLatar');
-    
     // Mulai bisu dulu agar diizinkan nyala otomatis
     audio.muted = true;
     
