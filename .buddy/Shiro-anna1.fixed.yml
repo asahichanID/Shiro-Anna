@@ -1,0 +1,8 @@
+- pipeline: shiro-anna1
+  name: Shiro-anna1
+  refs:
+  - refs/heads/main
+  fail_on_prepare_env_warning: true
+  events:
+  - type: WEBHOOK
+  arch: ARM64

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "img_001",
+    "soal": "Tebak gambar ikonik: Makanan penutup manis berbahan dasar wortel yang dibentuk mirip kue ulang tahun!",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1",
+    "jawaban": "Kue Wortel",
+    "clue": "Kue manis oranye kesukaan Oguri",
+    "kategori": "Tebak Gambar"
+  },
+  {
+    "id": "img_002",
+    "soal": "Tebak gambar: Trofi emas berkilau hadiah utama kejuaraan Arima Kinen!",
+    "imageUrl": "https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1",
+    "jawaban": "Trofi Emas",
+    "clue": "Piala simbol kemenangan juara 1",
+    "kategori": "Tebak Gambar"
+  }
+]

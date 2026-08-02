@@ -1,0 +1,380 @@
+-- Cloudflare D1 Database Schema Migration for Oguri Cap Web App
+-- Database Binding: DB
+-- API Route Prefix: /api/v1/
+
+-- 1. Users Table
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  role TEXT DEFAULT 'Trainer',
+  avatar TEXT,
+  coins INTEGER DEFAULT 0,
+  totalGame INTEGER DEFAULT 0,
+  win INTEGER DEFAULT 0,
+  lose INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'Online',
+  lastSeen INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  device TEXT,
+  browser TEXT,
+  account_code TEXT NOT NULL UNIQUE,
+  session_token TEXT,
+  session_active INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 2. Friends Table
+CREATE TABLE IF NOT EXISTS friends (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  friend_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  avatar TEXT,
+  bio TEXT,
+  status TEXT DEFAULT 'Offline',
+  role TEXT DEFAULT 'Trainer',
+  isOnline INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 3. Messages / Chat Table
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  room_id TEXT NOT NULL,
+  sender_id TEXT NOT NULL,
+  receiver_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  time TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  status TEXT DEFAULT 'sent',
+  is_read INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 4. Activity Logs Table
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  detail TEXT NOT NULL,
+  time TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 5. Bot Profile Table
+CREATE TABLE IF NOT EXISTS bot_profile (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  name TEXT NOT NULL DEFAULT 'Oguri Cap 🐎',
+  avatar TEXT NOT NULL,
+  bio TEXT NOT NULL DEFAULT 'Siap membantu Trainer dalam Tebak Kata & Musik Tracen Academy! 🥕',
+  status TEXT NOT NULL DEFAULT 'Online',
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 6. Developer Settings & Auto Replies Table
+CREATE TABLE IF NOT EXISTS developer_settings (
+  id TEXT PRIMARY KEY,
+  setting_key TEXT NOT NULL UNIQUE,
+  setting_value TEXT NOT NULL,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 7. Developer Badge Table
+CREATE TABLE IF NOT EXISTS developer_badge (
+  id TEXT PRIMARY KEY DEFAULT 'dev_badge_main',
+  user_id TEXT DEFAULT '#1',
+  badge_name TEXT NOT NULL DEFAULT 'Ruby Developer',
+  theme_id TEXT NOT NULL DEFAULT 'ruby',
+  icon TEXT DEFAULT '🔥',
+  effect TEXT DEFAULT 'Shine & Glow',
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 8. Notifications Table
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  is_read INTEGER DEFAULT 0,
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 9. Global Messages Table
+CREATE TABLE IF NOT EXISTS global_messages (
+  id TEXT PRIMARY KEY,
+  sender_id TEXT NOT NULL,
+  sender_name TEXT NOT NULL,
+  sender_role TEXT DEFAULT 'Trainer',
+  sender_avatar TEXT,
+  sender_badge TEXT DEFAULT '',
+  sender_badge_name TEXT DEFAULT '',
+  text TEXT NOT NULL,
+  is_duel_answer INTEGER DEFAULT 0,
+  time TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 10. Live Duel Table
+CREATE TABLE IF NOT EXISTS duel (
+  id TEXT PRIMARY KEY,
+  status TEXT DEFAULT 'idle', -- idle, countdown, question, answer_correct, scores, finished
+  challenger_id TEXT NOT NULL,
+  challenger_name TEXT NOT NULL,
+  opponent_id TEXT NOT NULL,
+  opponent_name TEXT NOT NULL,
+  current_round INTEGER DEFAULT 1,
+  total_rounds INTEGER DEFAULT 3,
+  score_p1 INTEGER DEFAULT 0,
+  score_p2 INTEGER DEFAULT 0,
+  current_question TEXT,
+  winner_id TEXT,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 11. Duel History Table
+CREATE TABLE IF NOT EXISTS duel_history (
+  id TEXT PRIMARY KEY,
+  winner_id TEXT NOT NULL,
+  winner_name TEXT NOT NULL,
+  loser_id TEXT NOT NULL,
+  loser_name TEXT NOT NULL,
+  score TEXT NOT NULL,
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 12. Presence Table
+CREATE TABLE IF NOT EXISTS presence (
+  user_id TEXT PRIMARY KEY,
+  status TEXT DEFAULT 'Online',
+  last_active INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 13. Shop Products Table
+CREATE TABLE IF NOT EXISTS shop_products (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  duration TEXT DEFAULT '1 Hari',
+  coins INTEGER NOT NULL,
+  stock INTEGER DEFAULT 100,
+  is_active INTEGER DEFAULT 1,
+  sort_order INTEGER DEFAULT 1,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 14. Shop Orders Table
+CREATE TABLE IF NOT EXISTS shop_orders (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  wibuku_name TEXT NOT NULL,
+  wibuku_id TEXT NOT NULL,
+  product_id TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  duration TEXT NOT NULL,
+  coins INTEGER NOT NULL,
+  status TEXT DEFAULT 'Pending',
+  rejection_reason TEXT DEFAULT '',
+  refunded INTEGER DEFAULT 0,
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 15. Coin History Table
+CREATE TABLE IF NOT EXISTS coin_history (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  user_name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  detail TEXT DEFAULT '',
+  timestamp INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 16. User Badges Table
+CREATE TABLE IF NOT EXISTS user_badges (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  badge_id TEXT NOT NULL,
+  custom_name TEXT DEFAULT '',
+  is_active INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- Initial Seeds for Developer & Default Bot
+INSERT OR IGNORE INTO users (id, username, role, avatar, coins, totalGame, win, lose, status, lastSeen, account_code)
+VALUES ('#1', 'Shiro Anna', 'Developer', 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1', 100000, 0, 0, 0, 'Online', (strftime('%s', 'now') * 1000), '00000001');
+
+INSERT OR IGNORE INTO bot_profile (id, name, avatar, bio, status)
+VALUES ('default', 'Oguri Cap 🐎', 'https://cdn.jsdelivr.net/gh/asahichanID/media@main/images%20(6).jpeg?v=1', 'Siap membantu Trainer dalam Tebak Kata & Musik Tracen Academy! 🥕', 'Online');
+
+INSERT OR IGNORE INTO developer_badge (id, user_id, badge_name, theme_id, icon, effect)
+VALUES ('dev_badge_main', '#1', 'Ruby Developer', 'ruby', '🔥', 'Shine & Glow');
+
+-- Initial Developer Settings
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_1', 'global_chat_enabled', 'true');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_2', 'live_duel_enabled', 'true');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_3', 'auto_duel_enabled', 'true');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_4', 'min_streak_banner', '5');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_5', 'min_streak_marquee', '5');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_6', 'max_polling_ms', '3000');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_7', 'duel_reward_coins', '5000');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_8', 'duel_cooldown_sec', '10');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_9', 'shop_enabled', 'true');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_10', 'shop_maintenance_enabled', 'false');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_11', 'shop_maintenance_message', 'Fitur shop sedang dalam maintenance. Silakan cek lagi nanti ya~');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_12', 'shop_global_max_daily', '100');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_13', 'shop_user_max_daily', '1');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_14', 'shop_daily_limit_msg', 'Batas penarikan harian telah tercapai. Silakan coba lagi besok.');
+INSERT OR IGNORE INTO developer_settings (id, setting_key, setting_value) VALUES ('ds_15', 'shop_out_of_stock_msg', 'Stok produk ini sedang habis. Silakan tunggu refill stok.');
+
+-- Initial Seeds for Shop Products
+INSERT OR IGNORE INTO shop_products (id, name, description, duration, coins, stock, is_active, sort_order)
+VALUES 
+('prod_1', 'Premium Wibuku 1 Hari', 'Akses Fitur Premium Wibuku selama 1 Hari', '1 Hari', 50000, 100, 1, 1),
+('prod_2', 'Premium Wibuku 3 Hari', 'Akses Fitur Premium Wibuku selama 3 Hari', '3 Hari', 175000, 100, 1, 2),
+('prod_3', 'Premium Wibuku 7 Hari', 'Akses Fitur Premium Wibuku selama 7 Hari', '7 Hari', 525000, 100, 1, 3);
+
+-- 17. Jukebox Playlist Table
+CREATE TABLE IF NOT EXISTS jukebox_playlist (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  quality TEXT DEFAULT '',
+  audio_expire_at INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  last_played_at INTEGER DEFAULT 0,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 18. Jukebox Favorites Table
+CREATE TABLE IF NOT EXISTS jukebox_favorites (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  audio_expire_at INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  last_played_at INTEGER DEFAULT 0,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 19. Jukebox Play History Table
+CREATE TABLE IF NOT EXISTS jukebox_history (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  played_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 20. Jukebox Last Played Song Table
+CREATE TABLE IF NOT EXISTS jukebox_last_played (
+  user_id TEXT PRIMARY KEY,
+  track_id TEXT NOT NULL,
+  source TEXT DEFAULT 'youtube',
+  video_id TEXT DEFAULT '',
+  title TEXT NOT NULL,
+  artist TEXT NOT NULL,
+  thumbnail TEXT NOT NULL,
+  download_url TEXT NOT NULL,
+  duration TEXT DEFAULT '',
+  progress INTEGER DEFAULT 0,
+  audio_expire_at INTEGER DEFAULT 0,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 21. Jukebox Layout Settings Table (Position & Resize)
+CREATE TABLE IF NOT EXISTS jukebox_layout_settings (
+  user_id TEXT PRIMARY KEY,
+  pos_x INTEGER DEFAULT 20,
+  pos_y INTEGER DEFAULT 20,
+  width INTEGER DEFAULT 480,
+  height INTEGER DEFAULT 200,
+  is_collapsed INTEGER DEFAULT 0,
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+);
+
+-- 22. User Sessions Table
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  session_token TEXT NOT NULL,
+  is_active INTEGER DEFAULT 1,
+  device TEXT,
+  browser TEXT,
+  started_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  last_heartbeat_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  ended_at INTEGER,
+  created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now') * 1000),
+  UNIQUE(user_id, session_token),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Delta sync indexes for 1-second polling
+CREATE INDEX IF NOT EXISTS idx_users_updated_at ON users(updated_at);
+CREATE INDEX IF NOT EXISTS idx_friends_user_updated_at ON friends(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_messages_room_updated_at ON messages(room_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver_updated_at ON messages(sender_id, receiver_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_updated_at ON activity_logs(updated_at);
+CREATE INDEX IF NOT EXISTS idx_global_messages_updated_at ON global_messages(updated_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_updated_at ON notifications(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_presence_updated_at ON presence(updated_at);
+CREATE INDEX IF NOT EXISTS idx_shop_products_updated_at ON shop_products(updated_at);
+CREATE INDEX IF NOT EXISTS idx_shop_orders_updated_at ON shop_orders(updated_at);
+CREATE INDEX IF NOT EXISTS idx_coin_history_user_updated_at ON coin_history(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_user_badges_user_updated_at ON user_badges(user_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_duel_updated_at ON duel(updated_at);
+CREATE INDEX IF NOT EXISTS idx_developer_settings_updated_at ON developer_settings(updated_at);
+CREATE INDEX IF NOT EXISTS idx_bot_profile_updated_at ON bot_profile(updated_at);
+CREATE INDEX IF NOT EXISTS idx_developer_badge_updated_at ON developer_badge(updated_at);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_updated ON user_sessions(updated_at);

@@ -1,0 +1,352 @@
+[
+  {
+    "id": "evt_001",
+    "soal": "Konser musik spektakuler tempat para Uma Musume bernyanyi di panggung setelah menang balapan!",
+    "jawaban": "Winning Live",
+    "clue": "Pesta musik usai lomba balap",
+    "kategori": "Event Tracen"
+  },
+  {
+    "id": "evt_002",
+    "soal": "Acara festival olahraga tahunan Tracen Academy di mana seluruh tim saling bertanding uji ketangkasan!",
+    "jawaban": "Festival Olahraga",
+    "clue": "Lomba antar kelas di akademi",
+    "kategori": "Event Tracen"
+  },
+  {
+    "id": "evt_003",
+    "soal": "Sesi duel adu kecepatan dan pengetahuan kata antar Trainer di Tracen Arena!",
+    "jawaban": "Live Duel",
+    "clue": "Pertandingan 1 lawan 1 secara langsung",
+    "kategori": "Event Duel"
+  },
+  {
+    "id": "evt_004",
+    "soal": "Akademi tempat sebagian besar Uma Musume menjalani latihan dan pendidikan.",
+    "jawaban": "Tracen Academy",
+    "clue": "Sekolah para Uma Musume",
+    "kategori": "Lokasi"
+  },
+  {
+    "id": "evt_005",
+    "soal": "Seseorang yang melatih, mendampingi, dan menyusun strategi untuk Uma Musume.",
+    "jawaban": "Trainer",
+    "clue": "Pelatih pribadi",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "evt_006",
+    "soal": "Balapan paling bergengsi di Jepang yang menjadi impian hampir semua Uma Musume.",
+    "jawaban": "Japan Cup",
+    "clue": "Ajang internasional di Jepang",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_007",
+    "soal": "Balapan klasik yang hanya bisa diikuti Uma Musume berusia tiga tahun.",
+    "jawaban": "Japanese Derby",
+    "clue": "Derby paling terkenal",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_008",
+    "soal": "Lomba penutup tahun yang mempertemukan banyak juara dari berbagai kategori.",
+    "jawaban": "Arima Kinen",
+    "clue": "Balapan akhir tahun",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_009",
+    "soal": "Stat yang menentukan kemampuan berlari lebih cepat sepanjang perlombaan.",
+    "jawaban": "Speed",
+    "clue": "Kecepatan",
+    "kategori": "Status"
+  },
+  {
+    "id": "evt_0010",
+    "soal": "Stat yang menentukan daya tahan agar tidak kehabisan tenaga.",
+    "jawaban": "Stamina",
+    "clue": "Ketahanan fisik",
+    "kategori": "Status"
+  },
+  {
+    "id": "evt_0011",
+    "soal": "Stat yang membantu akselerasi dan kemampuan menyalip lawan.",
+    "jawaban": "Power",
+    "clue": "Tenaga dorong",
+    "kategori": "Status"
+  },
+  {
+    "id": "evt_0012",
+    "soal": "Stat yang berpengaruh pada posisi dan efisiensi bergerak di lintasan.",
+    "jawaban": "Wisdom",
+    "clue": "Kecerdasan balapan",
+    "kategori": "Status"
+  },
+  {
+    "id": "evt_0013",
+    "soal": "Stat yang meningkatkan akselerasi di fase akhir serta performa keseluruhan.",
+    "jawaban": "Guts",
+    "clue": "Semangat pantang menyerah",
+    "kategori": "Status"
+  },
+  {
+    "id": "evt_0014",
+    "soal": "Kartu yang dipasang saat training untuk meningkatkan status dan memperoleh skill.",
+    "jawaban": "Support Card",
+    "clue": "Kartu bantuan latihan",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0015",
+    "soal": "Poin yang digunakan untuk mempelajari kemampuan khusus selama pelatihan.",
+    "jawaban": "Skill Point",
+    "clue": "Mata uang belajar skill",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0016",
+    "soal": "Kemampuan khusus yang aktif dalam kondisi tertentu saat balapan.",
+    "jawaban": "Skill",
+    "clue": "Efek spesial saat race",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0017",
+    "soal": "Posisi pelari yang memimpin rombongan sejak awal balapan.",
+    "jawaban": "Nige",
+    "clue": "Runner paling depan",
+    "kategori": "Strategi"
+  },
+  {
+    "id": "evt_0018",
+    "soal": "Strategi berlari mengikuti pemimpin sebelum menyerang di akhir.",
+    "jawaban": "Senkou",
+    "clue": "Posisi depan tapi tidak memimpin",
+    "kategori": "Strategi"
+  },
+  {
+    "id": "evt_0019",
+    "soal": "Strategi menunggu di tengah rombongan sebelum melakukan sprint.",
+    "jawaban": "Sashi",
+    "clue": "Penyalip dari tengah",
+    "kategori": "Strategi"
+  },
+  {
+    "id": "evt_0020",
+    "soal": "Strategi balapan dari posisi paling belakang lalu mengejar di akhir.",
+    "jawaban": "Oikomi",
+    "clue": "Comeback dari belakang",
+    "kategori": "Strategi"
+  },
+  {
+    "id": "evt_0021",
+    "soal": "Lintasan balap utama yang menggunakan rumput.",
+    "jawaban": "Turf",
+    "clue": "Permukaan hijau",
+    "kategori": "Lintasan"
+  },
+  {
+    "id": "evt_0022",
+    "soal": "Jenis lintasan balap yang menggunakan tanah atau pasir.",
+    "jawaban": "Dirt",
+    "clue": "Bukan rumput",
+    "kategori": "Lintasan"
+  },
+  {
+    "id": "evt_0023",
+    "soal": "Jarak balapan paling pendek dalam klasifikasi Uma Musume.",
+    "jawaban": "Sprint",
+    "clue": "1000–1400 meter",
+    "kategori": "Jarak"
+  },
+  {
+    "id": "evt_0024",
+    "soal": "Jarak balapan yang berada di kisaran 1600 meter.",
+    "jawaban": "Mile",
+    "clue": "Lebih jauh dari Sprint",
+    "kategori": "Jarak"
+  },
+  {
+    "id": "evt_0025",
+    "soal": "Balapan jarak jauh yang menguji stamina para Uma Musume.",
+    "jawaban": "Long",
+    "clue": "Butuh stamina tinggi",
+    "kategori": "Jarak"
+  },
+  {
+    "id": "evt_0026",
+    "soal": "Uma Musume ceria yang terkenal dengan gaya berlari penuh semangat dan bersahabat dengan Biwa Hayahide.",
+    "jawaban": "Winning Ticket",
+    "clue": "Rival Narita Brian",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "evt_0027",
+    "soal": "Adik dari Biwa Hayahide yang dijuluki salah satu Uma Musume terkuat generasinya.",
+    "jawaban": "Narita Brian",
+    "clue": "Adik Biwa Hayahide",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "evt_0028",
+    "soal": "Uma Musume yang terkenal dengan rambut panjang dan kemampuan analisis luar biasa.",
+    "jawaban": "Biwa Hayahide",
+    "clue": "Kakak Narita Brian",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "evt_0029",
+    "soal": "Balapan Triple Crown pertama bagi kuda berusia tiga tahun di Jepang.",
+    "jawaban": "Satsuki Sho",
+    "clue": "Awal Triple Crown",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_0030",
+    "soal": "Balapan Triple Crown terakhir yang menguji stamina para peserta.",
+    "jawaban": "Kikuka Sho",
+    "clue": "Penutup Triple Crown",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_0031",
+    "soal": "Balapan G1 yang memiliki edisi musim semi dan musim gugur.",
+    "jawaban": "Tenno Sho",
+    "clue": "Spring & Autumn",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_0032",
+    "soal": "Balapan G1 populer yang digelar di pertengahan tahun dan dipilih melalui voting penggemar.",
+    "jawaban": "Takarazuka Kinen",
+    "clue": "Pilihan fans",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_0033",
+    "soal": "Balapan G1 khusus jarak Mile yang sangat bergengsi.",
+    "jawaban": "Yasuda Kinen",
+    "clue": "1600 meter",
+    "kategori": "Balapan"
+  },
+  {
+    "id": "evt_0034",
+    "soal": "Skenario pelatihan pertama yang menjadi akhir utama pada versi awal game.",
+    "jawaban": "URA Finals",
+    "clue": "Mode training pertama",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0035",
+    "soal": "Skenario pelatihan yang berfokus pada kerja sama tim sekolah.",
+    "jawaban": "Aoharu Hai",
+    "clue": "Mode tim",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0036",
+    "soal": "Skenario pelatihan bertema para dewi yang memberikan Legacy tambahan.",
+    "jawaban": "Grand Masters",
+    "clue": "Tiga dewi",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0037",
+    "soal": "Skenario pelatihan bertema balapan di Prancis.",
+    "jawaban": "Project L'Arc",
+    "clue": "Arc de Triomphe",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0038",
+    "soal": "Skenario pelatihan bertema Ultimate Fitness Academy.",
+    "jawaban": "UAF",
+    "clue": "Akademi olahraga",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0039",
+    "soal": "Jumlah pendukung yang harus dikumpulkan agar bisa mengikuti balapan tertentu.",
+    "jawaban": "Fan Count",
+    "clue": "Jumlah penggemar",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0040",
+    "soal": "Pewarisan faktor dari Uma Musume sebelumnya saat memulai training baru.",
+    "jawaban": "Inheritance",
+    "clue": "Legacy factor",
+    "kategori": "Gameplay"
+  },
+  {
+    "id": "evt_0041",
+    "soal": "Kondisi suasana hati terbaik yang memberi bonus performa latihan.",
+    "jawaban": "Excellent",
+    "clue": "Mood tertinggi",
+    "kategori": "Status"
+  },
+  {
+    "id": "evt_0042",
+    "soal": "Liburan singkat yang dilakukan untuk memulihkan energi selama training.",
+    "jawaban": "Rest",
+    "clue": "Mengembalikan stamina",
+    "kategori": "Training"
+  },
+  {
+    "id": "evt_0043",
+    "soal": "Latihan yang meningkatkan kecepatan Uma Musume.",
+    "jawaban": "Speed Training",
+    "clue": "Latihan merah",
+    "kategori": "Training"
+  },
+  {
+    "id": "evt_0044",
+    "soal": "Latihan yang meningkatkan daya tahan berlari.",
+    "jawaban": "Stamina Training",
+    "clue": "Latihan biru",
+    "kategori": "Training"
+  },
+  {
+    "id": "evt_0045",
+    "soal": "Latihan yang meningkatkan kekuatan akselerasi.",
+    "jawaban": "Power Training",
+    "clue": "Latihan kuning",
+    "kategori": "Training"
+  },
+  {
+    "id": "evt_0046",
+    "soal": "Latihan yang meningkatkan kecerdasan dan mengurangi konsumsi stamina skill.",
+    "jawaban": "Wisdom Training",
+    "clue": "Latihan hijau",
+    "kategori": "Training"
+  },
+  {
+    "id": "evt_0047",
+    "soal": "Latihan yang meningkatkan semangat juang dan performa akhir lomba.",
+    "jawaban": "Guts Training",
+    "clue": "Latihan ungu",
+    "kategori": "Training"
+  },
+  {
+    "id": "evt_0048",
+    "soal": "Tim yang dipimpin Special Week dalam cerita utama anime.",
+    "jawaban": "Spica",
+    "clue": "Tim Tokai Teio",
+    "kategori": "Tim"
+  },
+  {
+    "id": "evt_0049",
+    "soal": "Tim elit yang menjadi rival utama Team Spica.",
+    "jawaban": "Rigil",
+    "clue": "Tim simbol prestasi",
+    "kategori": "Tim"
+  },
+  {
+    "id": "evt_0050",
+    "soal": "Tim kecil berisi Uma Musume pekerja keras seperti Twin Turbo dan Matikanefukukitaru.",
+    "jawaban": "Canopus",
+    "clue": "Tim underdog",
+    "kategori": "Tim"
+  }
+]

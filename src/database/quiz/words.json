@@ -1,0 +1,177 @@
+[
+  {
+    "id": "w_001",
+    "soal": "Hewan yang menjadi dasar inspirasi para gadis bertelinga kuda dan berekor di dunia Uma Musume.",
+    "jawaban": "Kuda",
+    "clue": "Hewan pelari cepat",
+    "kategori": "Umamusume"
+  },
+  {
+    "id": "w_002",
+    "soal": "Sayuran berwarna oranye yang terkenal sangat disukai Oguri Cap.",
+    "jawaban": "Wortel",
+    "clue": "Makanan favorit Oguri",
+    "kategori": "Makanan"
+  },
+  {
+    "id": "w_003",
+    "soal": "Orang yang bertugas membimbing latihan dan kehidupan balap para Uma Musume.",
+    "jawaban": "Trainer",
+    "clue": "Pendamping latihan",
+    "kategori": "Umamusume"
+  },
+  {
+    "id": "w_004",
+    "soal": "Sekolah terkenal tempat para Uma Musume belajar, latihan, dan tinggal bersama.",
+    "jawaban": "Tracen Academy",
+    "clue": "Akademi para Uma",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "w_005",
+    "soal": "Kegiatan bernyanyi dan menari yang dilakukan Uma Musume setelah memenangkan perlombaan.",
+    "jawaban": "Winning Live",
+    "clue": "Panggung setelah kemenangan",
+    "kategori": "Kegiatan"
+  },
+  {
+    "id": "w_006",
+    "soal": "Ruangan tempat para Uma Musume beristirahat dan tinggal selama berada di akademi.",
+    "jawaban": "Asrama",
+    "clue": "Tempat tinggal siswa",
+    "kategori": "Kehidupan"
+  },
+  {
+    "id": "w_007",
+    "soal": "Tempat di Tracen Academy untuk membeli makanan dan minuman setelah latihan.",
+    "jawaban": "Kantin",
+    "clue": "Tempat makan sekolah",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "w_008",
+    "soal": "Aktivitas rutin yang dilakukan Uma Musume untuk meningkatkan kemampuan sebelum balapan.",
+    "jawaban": "Latihan",
+    "clue": "Kegiatan bersama Trainer",
+    "kategori": "Kehidupan"
+  },
+  {
+    "id": "w_009",
+    "soal": "Makanan favorit Gold Ship yang sering membuat orang lain terkejut karena tingkahnya.",
+    "jawaban": "Makanan",
+    "clue": "Gold Ship suka hal aneh",
+    "kategori": "Karakter"
+  },
+  {
+    "id": "w_010",
+    "soal": "Tempat luas dengan lintasan yang digunakan Uma Musume untuk berlatih berlari.",
+    "jawaban": "Track",
+    "clue": "Lapangan latihan",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "w_011",
+    "soal": "Benda yang digunakan Uma Musume untuk membawa buku, makanan, atau perlengkapan sekolah.",
+    "jawaban": "Tas",
+    "clue": "Barang bawaan sekolah",
+    "kategori": "Keseharian"
+  },
+  {
+    "id": "w_012",
+    "soal": "Kegiatan santai yang biasa dilakukan setelah hari latihan yang melelahkan.",
+    "jawaban": "Istirahat",
+    "clue": "Mengembalikan tenaga",
+    "kategori": "Keseharian"
+  },
+  {
+    "id": "w_013",
+    "soal": "Mata pelajaran penting di akademi yang berhubungan dengan pendidikan para Uma Musume.",
+    "jawaban": "Pelajaran",
+    "clue": "Kegiatan di kelas",
+    "kategori": "Sekolah"
+  },
+  {
+    "id": "w_014",
+    "soal": "Seragam yang dipakai para murid saat mengikuti kegiatan resmi di Tracen Academy.",
+    "jawaban": "Seragam",
+    "clue": "Pakaian sekolah",
+    "kategori": "Sekolah"
+  },
+  {
+    "id": "w_015",
+    "soal": "Aksesori di kepala yang menjadi ciri khas para Uma Musume.",
+    "jawaban": "Telinga Kuda",
+    "clue": "Bagian tubuh khas Uma",
+    "kategori": "Umamusume"
+  },
+  {
+    "id": "w_016",
+    "soal": "Bagian tubuh belakang yang bergerak mengikuti emosi para Uma Musume.",
+    "jawaban": "Ekor",
+    "clue": "Berada di belakang tubuh",
+    "kategori": "Umamusume"
+  },
+  {
+    "id": "w_017",
+    "soal": "Aktivitas yang dilakukan Uma Musume untuk menjaga tubuh tetap kuat dan sehat.",
+    "jawaban": "Olahraga",
+    "clue": "Menjaga kebugaran",
+    "kategori": "Kesehatan"
+  },
+  {
+    "id": "w_018",
+    "soal": "Teman satu akademi yang sering menjadi rival sekaligus penyemangat dalam latihan.",
+    "jawaban": "Rival",
+    "clue": "Teman sekaligus pesaing",
+    "kategori": "Sosial"
+  },
+  {
+    "id": "w_019",
+    "soal": "Acara besar ketika para Uma Musume tampil di depan banyak penonton.",
+    "jawaban": "Pertunjukan",
+    "clue": "Bernyanyi dan tampil",
+    "kategori": "Kegiatan"
+  },
+  {
+    "id": "w_020",
+    "soal": "Kegiatan berbincang dan menghabiskan waktu bersama teman di akademi.",
+    "jawaban": "Bersosialisasi",
+    "clue": "Mengobrol dengan teman",
+    "kategori": "Sosial"
+  },
+  {
+    "id": "w_021",
+    "soal": "Tempat membeli makanan ringan atau minuman di sekitar akademi.",
+    "jawaban": "Toko",
+    "clue": "Tempat belanja kecil",
+    "kategori": "Tempat"
+  },
+  {
+    "id": "w_022",
+    "soal": "Kegiatan memulihkan energi dengan tidur setelah hari yang melelahkan.",
+    "jawaban": "Tidur",
+    "clue": "Pemulihan stamina",
+    "kategori": "Keseharian"
+  },
+  {
+    "id": "w_023",
+    "soal": "Peralatan yang digunakan Trainer untuk mencatat perkembangan latihan Uma Musume.",
+    "jawaban": "Catatan Latihan",
+    "clue": "Berisi perkembangan",
+    "kategori": "Training"
+  },
+  {
+    "id": "w_024",
+    "soal": "Hal yang membuat Uma Musume terus berusaha mencapai impian mereka.",
+    "jawaban": "Semangat",
+    "clue": "Motivasi untuk maju",
+    "kategori": "Motivasi"
+  },
+  {
+    "id": "w_025",
+    "soal": "Impian utama banyak Uma Musume setelah bekerja keras dalam latihan.",
+    "jawaban": "Menjadi Juara",
+    "clue": "Tujuan terbesar seorang runner",
+    "kategori": "Umamusume"
+  }
+]
