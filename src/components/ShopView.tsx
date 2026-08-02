@@ -55,7 +55,7 @@ export const ShopView: React.FC = () => {
       const nextProducts = (prods && prods.length > 0
         ? prods.filter((p) => p.is_active === 1).sort((a, b) => a.sort_order - b.sort_order)
         : [
-            { id: 'prod_1', name: 'Premium Wibuku 1 Hari', description: 'Akses Fitur Premium Wibuku selama 1 Hari', duration: '1 Hari', coins: 275000, stock: 100, is_active: 1, sort_order: 1 },
+            { id: 'prod_1', name: 'Premium Wibuku 1 Hari', description: 'Akses Fitur Premium Wibuku selama 1 Hari', duration: '1 Hari', coins: 175000, stock: 100, is_active: 1, sort_order: 1 },
             { id: 'prod_2', name: 'Premium Wibuku 3 hari', description: 'Akses Fitur Premium Wibuku Selama 3 Hari', duration: '3 Hari', coins: 775000, stock: 5, is_active: 1, sort_order: 2 },
             { id: 'prod_3', name: 'Premium Wibuku 7 Hari', description: 'Akses Fitur Premium Wibuku selama 7 Hari', duration: '7 Hari', coins: 2750000, stock: 1, is_active: 1, sort_order: 3 },
             { id: 'prod_4', name: 'Premium Wibuku 30 Hari', description: 'Akses Fitur Premium Wibuku selama 30 Hari VIP', duration: '30 Hari', coins: 15750000, stock: 1, is_active: 1, sort_order: 4 },
