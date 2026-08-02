@@ -85,26 +85,16 @@ export const BackgroundMusicPlayer: React.FC<BackgroundMusicPlayerProps> = ({ is
     audio.loop = true; // Infinite loop
     audio.preload = 'auto';
 
-    // Mulai bisu dulu agar diizinkan nyala otomatis
-    audio.muted = true;
-    
-    // Jalankan otomatis saat halaman siap
-    window.addEventListener('load', () => {
-      audio.play().then(() => {
-        // Sekali berjalan, langsung nyalakan suara seketika
-        audio.muted = false;
-      }).catch(err => console.log('Siap berjalan'));
-    });
-    
-    // 🔁 LOOP MULUS TOTAL - TIDAK ADA JEDA
-    audio.addEventListener('timeupdate', () => {
-      if (!audio.duration || audio.duration <= 1) return;
-      // Sebelum bagian diam MP3 muncul, langsung balik ke awal
-      if (audio.duration - audio.currentTime <= 0.18) {
+    const handleSeamlessLoop = () => {
+      if (audio.duration && audio.duration > 1 && audio.currentTime >= audio.duration - 0.18) {
         audio.currentTime = 0;
+        if (audio.paused) {
+          audio.play().catch(() => {});
+        }
       }
-    });
-
+    };
+    audio.addEventListener('timeupdate', handleSeamlessLoop);
+    
     audioRef.current = audio;
 
     const startBgm = async () => {
